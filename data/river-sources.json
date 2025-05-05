@@ -1,47 +1,31 @@
 {
   "rivers": [
     {
-      "id": "18202000",
       "name": "Mangfall",
       "location": "Schmerold",
-      "basin": "inn",
-      "urls": {
-        "level": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
-        "flow": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&setdiskr=15"
-      }
+      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&setdiskr=15"
     },
     {
-      "id": "18242005",
       "name": "Leitzach",
       "location": "Stauden",
-      "basin": "isar",
-      "urls": {
-        "level": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=wasserstand&setdiskr=15",
-        "flow": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=abfluss&setdiskr=15",
-        "temperature": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelle"
-      }
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=abfluss&setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelle"
     },
     {
-      "id": "18212004",
       "name": "Weißach",
       "location": "Oberach",
-      "basin": "isar",
-      "urls": {
-        "level": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=wasserstand&setdiskr=15",
-        "flow": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=abfluss&setdiskr=15",
-        "temperature": "https://www.nid.bayern.de/wassertemperatur/bayern/oberach-18212004/tabelle"
-      }
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=abfluss&setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/bayern/oberach-18212004/tabelle"
     },
     {
-      "id": "18226009",
       "name": "Schlierach",
       "location": "Miesbach",
-      "basin": "isar",
-      "urls": {
-        "level": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=wasserstand&setdiskr=15",
-        "flow": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=abfluss&setdiskr=15",
-        "temperature": "https://www.nid.bayern.de/wassertemperatur/isar/miesbach-18226009/tabelle"
-      }
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=abfluss&setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/miesbach-18226009/tabelle"
     }
   ]
 }

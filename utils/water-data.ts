@@ -70,13 +70,17 @@ export interface RiversData {
 
 // Hilfsfunktion zur Bestimmung des Änderungsstatus basierend auf dem Prozentsatz
 function getChangeStatus(percentageChange: number): ChangeStatus {
-  if (percentageChange > 30) {
+  if (percentageChange > 50) {
     return "large-increase"
-  } else if (percentageChange < -30) {
+  } else if (percentageChange < -50) {
     return "large-decrease"
-  } else if (percentageChange > 10) {
+  } else if (percentageChange > 15) {
+    return "large-increase"
+  } else if (percentageChange < -15) {
+    return "large-decrease"
+  } else if (percentageChange > 5) {
     return "medium-increase"
-  } else if (percentageChange < -10) {
+  } else if (percentageChange < -5) {
     return "medium-decrease"
   } else if (percentageChange > 0) {
     return "small-increase"
@@ -89,16 +93,11 @@ function getChangeStatus(percentageChange: number): ChangeStatus {
 
 // Hilfsfunktion zum Parsen des deutschen Datumsformats (DD.MM.YYYY HH:MM)
 function parseGermanDate(dateString: string): Date {
-  try {
-    const [datePart, timePart] = dateString.split(" ")
-    const [day, month, year] = datePart.split(".").map(Number)
-    const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0]
+  const [datePart, timePart] = dateString.split(" ")
+  const [day, month, year] = datePart.split(".").map(Number)
+  const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0]
 
-    return new Date(year, month - 1, day, hour, minute)
-  } catch (error) {
-    console.error("Error parsing date:", dateString, error)
-    return new Date() // Return current date as fallback
-  }
+  return new Date(year, month - 1, day, hour, minute)
 }
 
 // Wasserstandsdaten abrufen
@@ -201,14 +200,6 @@ async function fetchWaterTemperature(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    if (!url) {
-      return {
-        current: null,
-        history: [],
-        changeStatus: "stable",
-      }
-    }
-
     const response = await fetch(url, {
       headers: {
         "User-Agent":
@@ -385,14 +376,13 @@ async function fetchWaterFlow(url: string): Promise<{
 // Alle Daten für einen Fluss parallel abrufen
 async function fetchRiverData(config): Promise<RiverData> {
   try {
-    // Use the URLs directly from the config
-    const urls = config.urls || {}
-
     // Alle Anfragen parallel ausführen
     const [levelData, temperatureData, flowData] = await Promise.all([
-      fetchWaterLevel(urls.level),
-      fetchWaterTemperature(urls.temperature),
-      fetchWaterFlow(urls.flow),
+      fetchWaterLevel(config.levelUrl),
+      config.temperatureUrl
+        ? fetchWaterTemperature(config.temperatureUrl)
+        : { current: null, history: [], changeStatus: "stable" },
+      config.flowUrl ? fetchWaterFlow(config.flowUrl) : { current: null, history: [], changeStatus: "stable" },
     ])
 
     // Flussdatenobjekt erstellen
@@ -422,7 +412,11 @@ async function fetchRiverData(config): Promise<RiverData> {
         flowPercentage: flowData.percentageChange,
         flowStatus: flowData.changeStatus,
       },
-      urls: urls,
+      urls: {
+        level: config.levelUrl,
+        temperature: config.temperatureUrl,
+        flow: config.flowUrl,
+      },
     }
 
     return riverData
@@ -439,7 +433,11 @@ async function fetchRiverData(config): Promise<RiverData> {
         flows: [],
       },
       changes: {},
-      urls: config.urls || {},
+      urls: {
+        level: config.levelUrl,
+        temperature: config.temperatureUrl,
+        flow: config.flowUrl,
+      },
     }
   }
 }
@@ -469,9 +467,4 @@ export type WaterLevelData = {
   location: string
   date: string
   level: number
-  percentageChange?: number
-  changeStatus?: string
-  error?: string
-  history: { date: string; level: number }[]
-  current: { date: string; level: number }
 }

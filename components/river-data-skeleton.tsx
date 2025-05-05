@@ -1,5 +1,3 @@
-"use client"
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,22 +9,10 @@ export function RiverDataSkeleton() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="river-1">
-        <TabsList
-          className="flex overflow-x-auto whitespace-nowrap gap-1 p-1 justify-start w-full"
-          style={{ scrollbarWidth: "none" }}
-        >
-          <style jsx global>{`
-            .flex::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
+        <TabsList className="grid" style={{ gridTemplateColumns: `repeat(${rivers.length}, minmax(0, 1fr))` }}>
           {rivers.map((_, index) => (
-            <TabsTrigger
-              key={`river-${index + 1}`}
-              value={`river-${index + 1}`}
-              className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0 px-2 py-1"
-            >
-              <Skeleton className="h-3 sm:h-4 w-24 sm:w-32" />
+            <TabsTrigger key={`river-${index + 1}`} value={`river-${index + 1}`}>
+              <Skeleton className="h-4 w-32" />
             </TabsTrigger>
           ))}
         </TabsList>
@@ -34,10 +20,22 @@ export function RiverDataSkeleton() {
         <TabsContent value="river-1">
           <div className="space-y-6">
             <div className="grid md:grid-cols-3 gap-4">
+              {/* Abfluss-Karte Skeleton */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Abfluss</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-24 mb-2" />
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <Skeleton className="h-3 w-40" />
+                </CardContent>
+              </Card>
+
               {/* Pegel-Karte Skeleton */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Pegel (cm)</CardTitle>
+                  <CardTitle className="text-lg">Pegel</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Skeleton className="h-8 w-24 mb-2" />
@@ -49,19 +47,7 @@ export function RiverDataSkeleton() {
               {/* Temperatur-Karte Skeleton */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Temperatur (°C)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-24 mb-2" />
-                  <Skeleton className="h-4 w-32 mb-2" />
-                  <Skeleton className="h-3 w-40" />
-                </CardContent>
-              </Card>
-
-              {/* Abfluss-Karte Skeleton */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Abfluss (m³/s)</CardTitle>
+                  <CardTitle className="text-lg">Temperatur</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Skeleton className="h-8 w-24 mb-2" />
