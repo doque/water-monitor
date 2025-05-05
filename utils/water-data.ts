@@ -464,3 +464,14 @@ export async function fetchRiversData(): Promise<RiversData> {
     }
   }
 }
+
+export type WaterLevelData = {
+  location: string
+  date: string
+  level: number
+  percentageChange?: number
+  changeStatus?: string
+  error?: string
+  history: { date: string; level: number }[]
+  current: { date: string; level: number }
+}

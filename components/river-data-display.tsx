@@ -303,7 +303,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       // Status basierend auf der Änderung bestimmen
       if (Math.abs(flowChange) > 30) {
         emoji = "🔴" // Große Änderung
-      } else if (Math.abs(flowChange) > 15) {
+      } else if (Math.abs(flowChange) > 10) {
         emoji = "🟡" // Mittlere Änderung
       }
 
@@ -319,7 +319,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       levelChange = ((currentLevel - sixHoursAgoLevel) / sixHoursAgoLevel) * 100
 
       // Status basierend auf der Änderung bestimmen
-      if (Math.abs(levelChange) > 20) {
+      if (Math.abs(levelChange) > 30) {
         emoji = "🔴" // Große Änderung
       } else if (Math.abs(levelChange) > 10) {
         emoji = "🟡" // Mittlere Änderung
@@ -780,6 +780,64 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     }
   }
 
+  // Render mini chart for data cards
+  const renderMiniChart = (river: RiverData, dataType: DataType) => {
+    let chartData = []
+    let dataKey = ""
+    let stroke = ""
+
+    // Get the last 24 hours of data (96 points at 15-minute intervals)
+    if (dataType === "level" && river.history.levels && river.history.levels.length > 0) {
+      // Take the most recent data points (up to 96 for 24 hours)
+      chartData = getLevelChartData(river).slice(0, Math.min(96, river.history.levels.length))
+      dataKey = "level"
+      stroke = "#2563eb"
+    } else if (dataType === "temperature" && river.history.temperatures && river.history.temperatures.length > 0) {
+      chartData = getTemperatureChartData(river).slice(0, Math.min(96, river.history.temperatures.length))
+      dataKey = "temperature"
+      stroke = "#ea580c"
+    } else if (dataType === "flow" && river.history.flows && river.history.flows.length > 0) {
+      chartData = getFlowChartData(river).slice(0, Math.min(96, river.history.flows.length))
+      dataKey = "flow"
+      stroke = "#2563eb"
+    } else {
+      return null
+    }
+
+    // If we have very few data points, don't show the chart
+    if (chartData.length < 4) {
+      return null
+    }
+
+    // Find min and max for proper scaling
+    const values = chartData.map((item) => item[dataKey])
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+
+    // Calculate a reasonable domain with some padding
+    const padding = (max - min) * 0.1
+    const yDomain = [min - padding, max + padding]
+
+    return (
+      <div className="h-16 w-24 ml-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <YAxis domain={yDomain} hide />
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              stroke={stroke}
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
+
   // Prüft, ob ein Datentyp für einen Fluss verfügbar ist
   const isDataTypeAvailable = (river: RiverData, dataType: DataType): boolean => {
     if (dataType === "level") {
@@ -795,16 +853,39 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   return (
     <div className="space-y-6">
       <Tabs defaultValue={data.rivers[0].name.toLowerCase()}>
-        <TabsList className="grid overflow-x-auto md:grid-cols-4 grid-cols-2 min-w-full">
-          {data.rivers.map((river) => {
-            const { emoji, direction } = getRiverStatusForLastSixHours(river)
-            return (
-              <TabsTrigger key={river.name} value={river.name.toLowerCase()} className="text-sm whitespace-nowrap">
-                {emoji} {direction} {river.name} ({river.location})
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
+        <div className="space-y-4">
+          {/* Improved responsive TabsList */}
+          <TabsList className="flex flex-wrap overflow-x-auto gap-1 p-1 justify-start">
+            {data.rivers.map((river) => {
+              const { emoji, direction } = getRiverStatusForLastSixHours(river)
+              return (
+                <TabsTrigger
+                  key={river.name}
+                  value={river.name.toLowerCase()}
+                  className="text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  {emoji} {direction} {river.name} ({river.location})
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+
+          {/* Time range selector moved below the tabs */}
+          <div className="flex justify-end">
+            <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue placeholder="Zeitraum wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeRangeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {data.rivers.map((river) => (
           <TabsContent key={river.name} value={river.name.toLowerCase()}>
@@ -812,7 +893,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               <div className="grid md:grid-cols-3 gap-4">
                 {/* Abfluss-Karte (jetzt zuerst) */}
                 <Card
-                  className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
+                  className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
                   onClick={() => setActiveDataType("flow")}
                 >
                   <CardHeader className="pb-2">
@@ -820,22 +901,25 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   </CardHeader>
                   <CardContent>
                     {river.current.flow ? (
-                      <>
-                        <div className="text-3xl font-bold text-blue-700 mb-2">
-                          {river.current.flow.flow.toFixed(1)} m³/s
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-3xl font-bold text-blue-700 mb-2">
+                            {river.current.flow.flow.toFixed(1)} m³/s
+                          </div>
+                          <div className="text-sm">
+                            24h Änderung:{" "}
+                            {river.changes.flowPercentage !== undefined
+                              ? getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus)
+                              : "Keine Vortragsdaten"}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2 truncate">
+                            <a href={river.urls.flow} target="_blank" rel="noopener noreferrer" className="underline">
+                              Aktualisiert: {river.current.flow.date}
+                            </a>
+                          </div>
                         </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.flowPercentage !== undefined
-                            ? getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus)
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a href={river.urls.flow} target="_blank" rel="noopener noreferrer" className="underline">
-                            Aktualisiert: {river.current.flow.date}
-                          </a>
-                        </div>
-                      </>
+                        {renderMiniChart(river, "flow")}
+                      </div>
                     ) : (
                       <div className="text-gray-500">Keine Daten verfügbar</div>
                     )}
@@ -852,20 +936,23 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   </CardHeader>
                   <CardContent>
                     {river.current.level ? (
-                      <>
-                        <div className="text-3xl font-bold text-blue-700 mb-2">{river.current.level.level} cm</div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.levelPercentage !== undefined
-                            ? getChangeIndicator(river.changes.levelPercentage, river.changes.levelStatus)
-                            : "Keine Vortragsdaten"}
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-3xl font-bold text-blue-700 mb-2">{river.current.level.level} cm</div>
+                          <div className="text-sm">
+                            24h Änderung:{" "}
+                            {river.changes.levelPercentage !== undefined
+                              ? getChangeIndicator(river.changes.levelPercentage, river.changes.levelStatus)
+                              : "Keine Vortragsdaten"}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2 truncate">
+                            <a href={river.urls.level} target="_blank" rel="noopener noreferrer" className="underline">
+                              Aktualisiert: {river.current.level.date}
+                            </a>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a href={river.urls.level} target="_blank" rel="noopener noreferrer" className="underline">
-                            Aktualisiert: {river.current.level.date}
-                          </a>
-                        </div>
-                      </>
+                        {renderMiniChart(river, "level")}
+                      </div>
                     ) : (
                       <div className="text-gray-500">Keine Daten verfügbar</div>
                     )}
@@ -882,30 +969,33 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   </CardHeader>
                   <CardContent>
                     {river.current.temperature ? (
-                      <>
-                        <div className="text-3xl font-bold text-orange-600 mb-2">
-                          {river.current.temperature.temperature.toFixed(1)}°C
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-3xl font-bold text-orange-600 mb-2">
+                            {river.current.temperature.temperature.toFixed(1)}°C
+                          </div>
+                          <div className="text-sm">
+                            24h Änderung:{" "}
+                            {river.changes.temperatureChange !== undefined
+                              ? getTemperatureChangeIndicator(
+                                  river.changes.temperatureChange,
+                                  river.changes.temperatureStatus,
+                                )
+                              : "Keine Vortragsdaten"}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2 truncate">
+                            <a
+                              href={river.urls.temperature}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              Aktualisiert: {river.current.temperature.date}
+                            </a>
+                          </div>
                         </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.temperatureChange !== undefined
-                            ? getTemperatureChangeIndicator(
-                                river.changes.temperatureChange,
-                                river.changes.temperatureStatus,
-                              )
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a
-                            href={river.urls.temperature}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                          >
-                            Aktualisiert: {river.current.temperature.date}
-                          </a>
-                        </div>
-                      </>
+                        {renderMiniChart(river, "temperature")}
+                      </div>
                     ) : (
                       <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
                     )}
@@ -920,20 +1010,6 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                     <div className="flex items-center gap-2">
                       <CardTitle>Entwicklung</CardTitle>
                       <span className="text-sm font-normal ml-2">{formatTrendForTimeRange(river, activeDataType)}</span>
-                    </div>
-                    <div className="w-full sm:w-40">
-                      <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Zeitraum wählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeRangeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
                 </CardHeader>
