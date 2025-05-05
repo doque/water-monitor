@@ -2,7 +2,6 @@
 
 import type { RiverData, RiversData } from "@/utils/water-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,6 +16,7 @@ type DataType = "level" | "temperature" | "flow"
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("12h")
   const [activeDataType, setActiveDataType] = useState<DataType>("flow")
+  const [activeRiver, setActiveRiver] = useState<RiverData>(data.rivers[0])
 
   if (!data || !data.rivers || data.rivers.length === 0) {
     return (
@@ -267,77 +267,42 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     })
   }
 
-  // Bestimmt den Gesamtstatus eines Flusses basierend auf den letzten 6 Stunden
+  // Bestimmt den Gesamtstatus eines Flusses basierend auf dem 24h Abfluss-Trend
   const getRiverStatusForLastSixHours = (river: RiverData): { emoji: string; direction: string } => {
     // Standardwerte
     let emoji = "🟢"
     let direction = ""
-    let flowChange = 0
 
-    // Prüfen, ob Abflussdaten für die letzten 6 Stunden vorhanden sind
-    if (river.history.flows.length >= 24) {
-      // 24 Datenpunkte = 6 Stunden (15-Minuten-Intervalle)
-      const currentFlow = river.history.flows[0].flow
-      const sixHoursAgoFlow = river.history.flows[23].flow
-
-      // Prozentuale Änderung berechnen
-      flowChange = ((currentFlow - sixHoursAgoFlow) / sixHoursAgoFlow) * 100
+    // Verwende die 24h Abfluss-Änderung aus den API-Daten
+    if (river.changes.flowPercentage !== undefined && river.changes.flowStatus) {
+      const flowPercentage = river.changes.flowPercentage
 
       // Status basierend auf der Änderung bestimmen
-      if (Math.abs(flowChange) > 15) {
+      if (Math.abs(flowPercentage) > 15) {
         emoji = "🔴" // Große Änderung (>15%)
-      } else if (Math.abs(flowChange) > 5) {
+      } else if (Math.abs(flowPercentage) > 5) {
         emoji = "🟡" // Mittlere Änderung (5-15%)
       }
 
       // Richtung bestimmen
-      direction = flowChange > 0 ? "↑" : flowChange < 0 ? "↓" : ""
+      direction = flowPercentage > 0 ? "↑" : flowPercentage < 0 ? "↓" : ""
 
       return { emoji, direction }
     }
 
     // Fallback: Wenn keine Abflussdaten vorhanden sind, prüfe Pegel
-    let levelChange = 0
-
-    if (river.history.levels.length >= 24) {
-      const currentLevel = river.history.levels[0].level
-      const sixHoursAgoLevel = river.history.levels[23].level
-
-      // Prozentuale Änderung berechnen
-      levelChange = ((currentLevel - sixHoursAgoLevel) / sixHoursAgoLevel) * 100
+    if (river.changes.levelPercentage !== undefined) {
+      const levelPercentage = river.changes.levelPercentage
 
       // Status basierend auf der Änderung bestimmen
-      if (Math.abs(levelChange) > 15) {
+      if (Math.abs(levelPercentage) > 15) {
         emoji = "🔴" // Große Änderung (>15%)
-      } else if (Math.abs(levelChange) > 5) {
+      } else if (Math.abs(levelPercentage) > 5) {
         emoji = "🟡" // Mittlere Änderung (5-15%)
       }
 
       // Richtung bestimmen
-      direction = levelChange > 0 ? "↑" : levelChange < 0 ? "↓" : ""
-    }
-
-    // Fallback: Wenn weder Abfluss- noch Pegeldaten vorhanden sind, prüfe Temperatur
-    let tempChange = 0
-
-    if (emoji === "🟢" && river.history.temperatures.length >= 24) {
-      const currentTemp = river.history.temperatures[0].temperature
-      const sixHoursAgoTemp = river.history.temperatures[23].temperature
-
-      // Prozentuale Änderung für Temperatur
-      const tempPercentChange = ((currentTemp - sixHoursAgoTemp) / sixHoursAgoTemp) * 100
-      tempChange = tempPercentChange
-
-      if (Math.abs(tempPercentChange) > 15) {
-        emoji = "🔴" // Große Änderung (>15%)
-      } else if (Math.abs(tempPercentChange) > 5) {
-        emoji = "🟡" // Mittlere Änderung (5-15%)
-      }
-
-      // Wenn die Temperaturänderung größer ist als die Pegeländerung, verwende die Temperaturrichtung
-      if (Math.abs(tempChange) > Math.abs(levelChange)) {
-        direction = tempChange > 0 ? "↑" : tempChange < 0 ? "↓" : ""
-      }
+      direction = levelPercentage > 0 ? "↑" : levelPercentage < 0 ? "↓" : ""
     }
 
     return { emoji, direction }
@@ -742,182 +707,207 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={data.rivers[0].name.toLowerCase()}>
-        <TabsList className="grid" style={{ gridTemplateColumns: `repeat(${data.rivers.length}, minmax(0, 1fr))` }}>
-          {data.rivers.map((river) => {
-            const { emoji, direction } = getRiverStatusForLastSixHours(river)
-            return (
-              <TabsTrigger key={river.name} value={river.name.toLowerCase()}>
-                {emoji} {direction} {river.name} ({river.location})
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between mb-4">
+        <div className="w-full sm:w-1/2">
+          <Select
+            defaultValue={data.rivers[0].name.toLowerCase()}
+            onValueChange={(value) => {
+              // Find the selected river
+              const selectedRiver = data.rivers.find((r) => r.name.toLowerCase() === value)
+              if (selectedRiver) {
+                // Set active river
+                setActiveRiver(selectedRiver)
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Gewässer auswählen" />
+            </SelectTrigger>
+            <SelectContent>
+              {data.rivers.map((river) => {
+                const { emoji, direction } = getRiverStatusForLastSixHours(river)
+                return (
+                  <SelectItem key={river.name} value={river.name.toLowerCase()}>
+                    {emoji} {direction} {river.name} ({river.location})
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full sm:w-1/2">
+          <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Zeitraum wählen" />
+            </SelectTrigger>
+            <SelectContent>
+              {timeRangeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-        {data.rivers.map((river) => (
-          <TabsContent key={river.name} value={river.name.toLowerCase()}>
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-4">
-                {/* Abfluss-Karte (now first) */}
-                <Card
-                  className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
-                  onClick={() => setActiveDataType("flow")}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Abfluss</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {river.current.flow ? (
-                      <>
-                        <div
-                          className={`text-3xl font-bold mb-2 ${
-                            river.changes.flowStatus === "large-increase" ||
-                            river.changes.flowStatus === "large-decrease"
-                              ? "text-red-600"
-                              : "text-black"
-                          }`}
-                        >
-                          {river.current.flow.flow.toFixed(1)} m³/s
-                        </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.flowPercentage !== undefined
-                            ? getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus)
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a href={river.urls.flow} target="_blank" rel="noopener noreferrer" className="underline">
-                            Aktualisiert: {river.current.flow.date}
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-gray-500">Keine Daten verfügbar</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Pegel-Karte */}
-                <Card
-                  className={`cursor-pointer transition-all ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
-                  onClick={() => setActiveDataType("level")}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Pegel</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {river.current.level ? (
-                      <>
-                        <div
-                          className={`text-3xl font-bold mb-2 ${
-                            river.changes.levelStatus === "large-increase" ||
-                            river.changes.levelStatus === "large-decrease"
-                              ? "text-red-600"
-                              : "text-black"
-                          }`}
-                        >
-                          {river.current.level.level} cm
-                        </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.levelPercentage !== undefined
-                            ? getChangeIndicator(river.changes.levelPercentage, river.changes.levelStatus)
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a href={river.urls.level} target="_blank" rel="noopener noreferrer" className="underline">
-                            Aktualisiert: {river.current.level.date}
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-gray-500">Keine Daten verfügbar</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Temperatur-Karte */}
-                <Card
-                  className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
-                  onClick={() => (river.urls.temperature ? setActiveDataType("temperature") : null)}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Temperatur</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {river.current.temperature ? (
-                      <>
-                        <div
-                          className={`text-3xl font-bold mb-2 ${
-                            river.changes.temperatureStatus === "large-increase" ||
-                            river.changes.temperatureStatus === "large-decrease"
-                              ? "text-red-600"
-                              : "text-black"
-                          }`}
-                        >
-                          {river.current.temperature.temperature.toFixed(1)}°C
-                        </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.temperatureChange !== undefined
-                            ? getTemperatureChangeIndicator(
-                                river.changes.temperatureChange,
-                                river.changes.temperatureStatus,
-                              )
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a
-                            href={river.urls.temperature}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                          >
-                            Aktualisiert: {river.current.temperature.date}
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Diagramm-Bereich */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <CardTitle>Entwicklung</CardTitle>
-                      <span className="text-sm font-normal ml-2">{formatTrendForTimeRange(river, activeDataType)}</span>
-                    </div>
-                    <div className="w-40">
-                      <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Zeitraum wählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeRangeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+      {/* Display the active river data */}
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Abfluss-Karte (now first) */}
+          <Card
+            className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
+            onClick={() => setActiveDataType("flow")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Abfluss</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeRiver.current.flow ? (
+                <>
+                  <div
+                    className={`text-3xl font-bold mb-2 ${
+                      activeRiver.changes.flowStatus === "large-increase" ||
+                      activeRiver.changes.flowStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.flow.flow.toFixed(1)} m³/s
                   </div>
-                </CardHeader>
-                <CardContent>{renderActiveChart(river)}</CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+                  <div className="text-sm">
+                    24h Änderung:{" "}
+                    {activeRiver.changes.flowPercentage !== undefined
+                      ? getChangeIndicator(activeRiver.changes.flowPercentage, activeRiver.changes.flowStatus)
+                      : "Keine Vortragsdaten"}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500">Keine Daten verfügbar</div>
+              )}
+            </CardContent>
+          </Card>
 
-      <div className="text-xs text-gray-500 text-center">
-        Datenquellen: Hochwassernachrichtendienst Bayern und Niedrigwasser-Informationsdienst Bayern • Daten abgerufen:{" "}
-        {new Date().toLocaleTimeString("de-DE")}
+          {/* Pegel-Karte */}
+          <Card
+            className={`cursor-pointer transition-all ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
+            onClick={() => setActiveDataType("level")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Pegel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeRiver.current.level ? (
+                <>
+                  <div
+                    className={`text-3xl font-bold mb-2 ${
+                      activeRiver.changes.levelStatus === "large-increase" ||
+                      activeRiver.changes.levelStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.level.level} cm
+                  </div>
+                  <div className="text-sm">
+                    24h Änderung:{" "}
+                    {activeRiver.changes.levelPercentage !== undefined
+                      ? getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus)
+                      : "Keine Vortragsdaten"}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500">Keine Daten verfügbar</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Temperatur-Karte */}
+          <Card
+            className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
+            onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Temperatur</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeRiver.current.temperature ? (
+                <>
+                  <div
+                    className={`text-3xl font-bold mb-2 ${
+                      activeRiver.changes.temperatureStatus === "large-increase" ||
+                      activeRiver.changes.temperatureStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.temperature.temperature.toFixed(1)}°C
+                  </div>
+                  <div className="text-sm">
+                    24h Änderung:{" "}
+                    {activeRiver.changes.temperatureChange !== undefined
+                      ? getTemperatureChangeIndicator(
+                          activeRiver.changes.temperatureChange,
+                          activeRiver.changes.temperatureStatus,
+                        )
+                      : "Keine Vortragsdaten"}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Diagramm-Bereich */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <CardTitle>Entwicklung</CardTitle>
+                <span className="text-sm font-normal ml-2">{formatTrendForTimeRange(activeRiver, activeDataType)}</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>{renderActiveChart(activeRiver)}</CardContent>
+        </Card>
+      </div>
+
+      <div className="text-xs text-gray-500 text-center space-x-2">
+        <span>Datenquellen:</span>
+        {activeRiver.current.flow && (
+          <a
+            href={activeRiver.urls.flow}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-green-600"
+          >
+            Abfluss ({activeRiver.current.flow.date.split(" ")[1].substring(0, 5)})
+          </a>
+        )}
+        {activeRiver.current.flow && activeRiver.current.level && <span>|</span>}
+        {activeRiver.current.level && (
+          <a
+            href={activeRiver.urls.level}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-600"
+          >
+            Pegel ({activeRiver.current.level.date.split(" ")[1].substring(0, 5)})
+          </a>
+        )}
+        {activeRiver.current.level && activeRiver.current.temperature && <span>|</span>}
+        {activeRiver.current.temperature && (
+          <a
+            href={activeRiver.urls.temperature}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-orange-600"
+          >
+            Temperatur ({activeRiver.current.temperature.date.split(" ")[1].substring(0, 5)})
+          </a>
+        )}
       </div>
     </div>
   )
