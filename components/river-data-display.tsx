@@ -754,7 +754,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       {/* Display the active river data */}
       <div className="space-y-6">
         <div className="grid md:grid-cols-3 gap-4">
-          {/* Abfluss-Karte (now first) */}
+          {/* Abfluss-Karte (always visible) */}
           <Card
             className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
             onClick={() => setActiveDataType("flow")}
@@ -788,9 +788,9 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             </CardContent>
           </Card>
 
-          {/* Pegel-Karte */}
+          {/* Pegel-Karte (hidden on mobile) */}
           <Card
-            className={`cursor-pointer transition-all ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
+            className={`cursor-pointer transition-all hidden md:block ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
             onClick={() => setActiveDataType("level")}
           >
             <CardHeader className="pb-2">
@@ -822,9 +822,9 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             </CardContent>
           </Card>
 
-          {/* Temperatur-Karte */}
+          {/* Temperatur-Karte (hidden on mobile) */}
           <Card
-            className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
+            className={`cursor-pointer transition-all hidden md:block ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
             onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
           >
             <CardHeader className="pb-2">
