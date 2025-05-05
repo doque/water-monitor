@@ -2,7 +2,7 @@
 
 import type { RiverData, RiversData } from "@/utils/water-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
 import { useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -526,7 +526,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
@@ -566,15 +566,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   return `Zeit: ${data[0].payload.fullDate}`
                 }}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="level"
                 stroke="#2563eb"
+                fill="#dbeafe"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )
@@ -585,7 +586,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
@@ -625,15 +626,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   return `Zeit: ${data[0].payload.fullDate}`
                 }}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="temperature"
                 stroke="#ea580c"
+                fill="#ffedd5"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )
@@ -644,7 +646,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
@@ -684,15 +686,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   return `Zeit: ${data[0].payload.fullDate}`
                 }}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="flow"
                 stroke="#16a34a"
+                fill="#dcfce7"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )
@@ -753,10 +756,10 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
       {/* Display the active river data */}
       <div className="space-y-6">
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Abfluss-Karte (always visible) */}
+        <div className="grid gap-4">
+          {/* Abfluss-Karte (always visible and first) */}
           <Card
-            className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
+            className={`cursor-pointer transition-all ${activeDataType === "flow" ? "bg-gray-50" : "hover:bg-gray-50"}`}
             onClick={() => setActiveDataType("flow")}
           >
             <CardHeader className="pb-2">
@@ -788,90 +791,95 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             </CardContent>
           </Card>
 
-          {/* Pegel-Karte (hidden on mobile) */}
-          <Card
-            className={`cursor-pointer transition-all hidden md:block ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
-            onClick={() => setActiveDataType("level")}
-          >
+          {/* Diagramm-Bereich (placed second on all devices) */}
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Pegel</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activeRiver.current.level ? (
-                <>
-                  <div
-                    className={`text-3xl font-bold mb-2 ${
-                      activeRiver.changes.levelStatus === "large-increase" ||
-                      activeRiver.changes.levelStatus === "large-decrease"
-                        ? "text-red-600"
-                        : "text-black"
-                    }`}
-                  >
-                    {activeRiver.current.level.level} cm
-                  </div>
-                  <div className="text-sm">
-                    24h Änderung:{" "}
-                    {activeRiver.changes.levelPercentage !== undefined
-                      ? getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus)
-                      : "Keine Vortragsdaten"}
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500">Keine Daten verfügbar</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Temperatur-Karte (hidden on mobile) */}
-          <Card
-            className={`cursor-pointer transition-all hidden md:block ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
-            onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Temperatur</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activeRiver.current.temperature ? (
-                <>
-                  <div
-                    className={`text-3xl font-bold mb-2 ${
-                      activeRiver.changes.temperatureStatus === "large-increase" ||
-                      activeRiver.changes.temperatureStatus === "large-decrease"
-                        ? "text-red-600"
-                        : "text-black"
-                    }`}
-                  >
-                    {activeRiver.current.temperature.temperature.toFixed(1)}°C
-                  </div>
-                  <div className="text-sm">
-                    24h Änderung:{" "}
-                    {activeRiver.changes.temperatureChange !== undefined
-                      ? getTemperatureChangeIndicator(
-                          activeRiver.changes.temperatureChange,
-                          activeRiver.changes.temperatureStatus,
-                        )
-                      : "Keine Vortragsdaten"}
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Diagramm-Bereich */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <CardTitle>Entwicklung</CardTitle>
-                <span className="text-sm font-normal ml-2">{formatTrendForTimeRange(activeRiver, activeDataType)}</span>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <CardTitle>Entwicklung</CardTitle>
+                  <span className="text-sm font-normal ml-2">
+                    {formatTrendForTimeRange(activeRiver, activeDataType)}
+                  </span>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>{renderActiveChart(activeRiver)}</CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>{renderActiveChart(activeRiver)}</CardContent>
+          </Card>
+
+          {/* Additional cards container for Pegel and Temperatur (shown below chart on mobile) */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Pegel-Karte */}
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "level" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => setActiveDataType("level")}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Pegel</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activeRiver.current.level ? (
+                  <>
+                    <div
+                      className={`text-3xl font-bold mb-2 ${
+                        activeRiver.changes.levelStatus === "large-increase" ||
+                        activeRiver.changes.levelStatus === "large-decrease"
+                          ? "text-red-600"
+                          : "text-black"
+                      }`}
+                    >
+                      {activeRiver.current.level.level} cm
+                    </div>
+                    <div className="text-sm">
+                      24h Änderung:{" "}
+                      {activeRiver.changes.levelPercentage !== undefined
+                        ? getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus)
+                        : "Keine Vortragsdaten"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-500">Keine Daten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Temperatur-Karte */}
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Temperatur</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activeRiver.current.temperature ? (
+                  <>
+                    <div
+                      className={`text-3xl font-bold mb-2 ${
+                        activeRiver.changes.temperatureStatus === "large-increase" ||
+                        activeRiver.changes.temperatureStatus === "large-decrease"
+                          ? "text-red-600"
+                          : "text-black"
+                      }`}
+                    >
+                      {activeRiver.current.temperature.temperature.toFixed(1)}°C
+                    </div>
+                    <div className="text-sm">
+                      24h Änderung:{" "}
+                      {activeRiver.changes.temperatureChange !== undefined
+                        ? getTemperatureChangeIndicator(
+                            activeRiver.changes.temperatureChange,
+                            activeRiver.changes.temperatureStatus,
+                          )
+                        : "Keine Vortragsdaten"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <div className="text-xs text-gray-500 text-center space-x-2">
