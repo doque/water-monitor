@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,10 +11,22 @@ export function RiverDataSkeleton() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="river-1">
-        <TabsList className="grid" style={{ gridTemplateColumns: `repeat(${rivers.length}, minmax(0, 1fr))` }}>
+        <TabsList
+          className="flex overflow-x-auto whitespace-nowrap gap-1 p-1 justify-start w-full"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <style jsx global>{`
+            .flex::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
           {rivers.map((_, index) => (
-            <TabsTrigger key={`river-${index + 1}`} value={`river-${index + 1}`}>
-              <Skeleton className="h-4 w-32" />
+            <TabsTrigger
+              key={`river-${index + 1}`}
+              value={`river-${index + 1}`}
+              className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0 px-2 py-1"
+            >
+              <Skeleton className="h-3 sm:h-4 w-24 sm:w-32" />
             </TabsTrigger>
           ))}
         </TabsList>

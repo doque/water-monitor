@@ -855,20 +855,28 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       <Tabs defaultValue={data.rivers[0].name.toLowerCase()}>
         <div className="space-y-4">
           {/* Improved responsive TabsList */}
-          <TabsList className="flex flex-wrap overflow-x-auto gap-1 p-1 justify-start">
+          <TabsList
+            className="flex overflow-x-auto whitespace-nowrap gap-1 p-1 justify-start w-full"
+            style={{ scrollbarWidth: "none" }}
+          >
             {data.rivers.map((river) => {
               const { emoji, direction } = getRiverStatusForLastSixHours(river)
               return (
                 <TabsTrigger
                   key={river.name}
                   value={river.name.toLowerCase()}
-                  className="text-sm whitespace-nowrap flex-shrink-0"
+                  className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0 px-2 py-1"
                 >
                   {emoji} {direction} {river.name} ({river.location})
                 </TabsTrigger>
               )
             })}
           </TabsList>
+          <style jsx global>{`
+            .flex::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
 
           {/* Time range selector moved below the tabs */}
           <div className="flex justify-end">
