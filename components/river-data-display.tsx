@@ -12,11 +12,11 @@ interface RiverDataDisplayProps {
 }
 
 type TimeRangeOption = "1h" | "2h" | "6h" | "12h" | "24h" | "48h" | "1w"
-type DataType = "level" | "temperature" | "flow"
+type DataType = "flow" | "level" | "temperature" // Reordered to make flow first
 
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
-  const [activeDataType, setActiveDataType] = useState<DataType>("level")
+  const [activeDataType, setActiveDataType] = useState<DataType>("flow") // Default to flow
 
   if (!data || !data.rivers || data.rivers.length === 0) {
     return (
@@ -125,6 +125,10 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Diagrammdaten für Wasserstände vorbereiten
   const getLevelChartData = (river: RiverData) => {
+    if (!river.history.levels || river.history.levels.length === 0) {
+      return []
+    }
+
     let filteredData = [...river.history.levels]
 
     // Nach ausgewähltem Zeitbereich filtern
@@ -155,12 +159,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       // Für längere Zeiträume (> 48h) zeigen wir Datum und Uhrzeit an
       const isLongTimeRange = timeRange === "1w"
       const dateParts = point.date.split(" ")
-      const timePart = dateParts[1].substring(0, 5) // HH:MM extrahieren
+      const timePart = dateParts[1]?.substring(0, 5) || "" // HH:MM extrahieren, with fallback
 
       // Bei längeren Zeiträumen zeigen wir das Datum im Format "DD.MM. HH:MM" an
-      const label = isLongTimeRange
-        ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
-        : timePart // Nur "HH:MM" für kürzere Zeiträume
+      const label =
+        isLongTimeRange && dateParts[0]
+          ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
+          : timePart // Nur "HH:MM" für kürzere Zeiträume
 
       return {
         time: timePart,
@@ -173,6 +178,10 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Diagrammdaten für Wassertemperaturen vorbereiten
   const getTemperatureChartData = (river: RiverData) => {
+    if (!river.history.temperatures || river.history.temperatures.length === 0) {
+      return []
+    }
+
     let filteredData = [...river.history.temperatures]
 
     // Nach ausgewähltem Zeitbereich filtern
@@ -203,12 +212,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       // Für längere Zeiträume (> 48h) zeigen wir Datum und Uhrzeit an
       const isLongTimeRange = timeRange === "1w"
       const dateParts = point.date.split(" ")
-      const timePart = dateParts[1].substring(0, 5) // HH:MM extrahieren
+      const timePart = dateParts[1]?.substring(0, 5) || "" // HH:MM extrahieren, with fallback
 
       // Bei längeren Zeiträumen zeigen wir das Datum im Format "DD.MM. HH:MM" an
-      const label = isLongTimeRange
-        ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
-        : timePart // Nur "HH:MM" für kürzere Zeiträume
+      const label =
+        isLongTimeRange && dateParts[0]
+          ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
+          : timePart // Nur "HH:MM" für kürzere Zeiträume
 
       return {
         time: timePart,
@@ -221,6 +231,10 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Diagrammdaten für Abflüsse vorbereiten
   const getFlowChartData = (river: RiverData) => {
+    if (!river.history.flows || river.history.flows.length === 0) {
+      return []
+    }
+
     let filteredData = [...river.history.flows]
 
     // Nach ausgewähltem Zeitbereich filtern
@@ -251,12 +265,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       // Für längere Zeiträume (> 48h) zeigen wir Datum und Uhrzeit an
       const isLongTimeRange = timeRange === "1w"
       const dateParts = point.date.split(" ")
-      const timePart = dateParts[1].substring(0, 5) // HH:MM extrahieren
+      const timePart = dateParts[1]?.substring(0, 5) || "" // HH:MM extrahieren, with fallback
 
       // Bei längeren Zeiträumen zeigen wir das Datum im Format "DD.MM. HH:MM" an
-      const label = isLongTimeRange
-        ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
-        : timePart // Nur "HH:MM" für kürzere Zeiträume
+      const label =
+        isLongTimeRange && dateParts[0]
+          ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
+          : timePart // Nur "HH:MM" für kürzere Zeiträume
 
       return {
         time: timePart,
@@ -276,9 +291,27 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     let tempChange = 0
     let flowChange = 0
 
-    // Prüfen, ob Daten für die letzten 6 Stunden vorhanden sind
-    if (river.history.levels.length >= 24) {
+    // Prüfen, ob Abflussdaten für die letzten 6 Stunden vorhanden sind (Priorität)
+    if (river.history.flows && river.history.flows.length >= 24) {
       // 24 Datenpunkte = 6 Stunden (15-Minuten-Intervalle)
+      const currentFlow = river.history.flows[0].flow
+      const sixHoursAgoFlow = river.history.flows[23].flow
+
+      // Prozentuale Änderung berechnen
+      flowChange = ((currentFlow - sixHoursAgoFlow) / sixHoursAgoFlow) * 100
+
+      // Status basierend auf der Änderung bestimmen
+      if (Math.abs(flowChange) > 30) {
+        emoji = "🔴" // Große Änderung
+      } else if (Math.abs(flowChange) > 15) {
+        emoji = "🟡" // Mittlere Änderung
+      }
+
+      // Richtung basierend auf Abflussänderung
+      direction = flowChange > 0 ? "↑" : flowChange < 0 ? "↓" : ""
+    }
+    // Wenn keine Abflussdaten vorhanden sind, Pegel prüfen
+    else if (river.history.levels && river.history.levels.length >= 24) {
       const currentLevel = river.history.levels[0].level
       const sixHoursAgoLevel = river.history.levels[23].level
 
@@ -291,10 +324,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       } else if (Math.abs(levelChange) > 10) {
         emoji = "🟡" // Mittlere Änderung
       }
+
+      // Richtung basierend auf Pegeländerung
+      direction = levelChange > 0 ? "↑" : levelChange < 0 ? "↓" : ""
     }
 
-    // Auch Temperatur und Abfluss prüfen, falls vorhanden
-    if (river.history.temperatures.length >= 24) {
+    // Auch Temperatur prüfen, aber nur für den Status, nicht für die Richtung
+    if (river.history.temperatures && river.history.temperatures.length >= 24) {
       const currentTemp = river.history.temperatures[0].temperature
       const sixHoursAgoTemp = river.history.temperatures[23].temperature
 
@@ -308,31 +344,6 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       }
     }
 
-    if (river.history.flows.length >= 24) {
-      const currentFlow = river.history.flows[0].flow
-      const sixHoursAgoFlow = river.history.flows[23].flow
-
-      // Prozentuale Änderung berechnen
-      flowChange = ((currentFlow - sixHoursAgoFlow) / sixHoursAgoFlow) * 100
-
-      if (Math.abs(flowChange) > 30) {
-        emoji = "🔴" // Große Änderung
-      } else if (Math.abs(flowChange) > 15) {
-        emoji = emoji === "🔴" ? "🔴" : "🟡" // Mittlere Änderung, aber nicht überschreiben, wenn bereits rot
-      }
-    }
-
-    // Bestimme die Richtung basierend auf den Änderungen
-    // Priorisiere die größte Änderung für die Richtungsanzeige
-    const changes = [
-      { type: "level", value: Math.abs(levelChange), direction: levelChange > 0 ? "↑" : levelChange < 0 ? "↓" : "" },
-      { type: "temp", value: Math.abs(tempChange) * 10, direction: tempChange > 0 ? "↑" : tempChange < 0 ? "↓" : "" }, // Gewichtung für Temperatur
-      { type: "flow", value: Math.abs(flowChange), direction: flowChange > 0 ? "↑" : flowChange < 0 ? "↓" : "" },
-    ].sort((a, b) => b.value - a.value)
-
-    // Verwende die Richtung der größten Änderung
-    direction = changes[0].value > 0 ? changes[0].direction : ""
-
     return { emoji, direction }
   }
 
@@ -344,22 +355,24 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       if (dataType === "level" && river.changes.levelPercentage !== undefined) {
         return {
           percentChange: river.changes.levelPercentage,
-          absoluteChange: river.current.level.level - (river.previousDay?.level?.level || river.current.level.level),
-          status: river.changes.levelStatus,
+          absoluteChange:
+            river.current.level?.level - (river.previousDay?.level?.level || river.current.level?.level || 0),
+          status: river.changes.levelStatus || "stable",
           timeSpan: timeRange,
         }
       } else if (dataType === "temperature" && river.changes.temperatureChange !== undefined) {
+        const prevTemp = river.previousDay?.temperature?.temperature || 0
         return {
-          percentChange: (river.changes.temperatureChange / river.previousDay?.temperature?.temperature) * 100 || 0,
+          percentChange: prevTemp ? (river.changes.temperatureChange / prevTemp) * 100 : 0,
           absoluteChange: river.changes.temperatureChange,
-          status: river.changes.temperatureStatus,
+          status: river.changes.temperatureStatus || "stable",
           timeSpan: timeRange,
         }
       } else if (dataType === "flow" && river.changes.flowPercentage !== undefined) {
         return {
           percentChange: river.changes.flowPercentage,
-          absoluteChange: river.current.flow.flow - (river.previousDay?.flow?.flow || river.current.flow.flow),
-          status: river.changes.flowStatus,
+          absoluteChange: river.current.flow?.flow - (river.previousDay?.flow?.flow || river.current.flow?.flow || 0),
+          status: river.changes.flowStatus || "stable",
           timeSpan: timeRange,
         }
       }
@@ -368,14 +381,20 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     // Bestimme die Datenquelle basierend auf dem Typ
     let data: any[] = []
     if (dataType === "level") {
-      data = [...river.history.levels]
+      data = river.history.levels || []
     } else if (dataType === "temperature") {
-      data = [...river.history.temperatures]
+      data = river.history.temperatures || []
     } else if (dataType === "flow") {
-      data = [...river.history.flows]
+      data = river.history.flows || []
     }
 
-    if (data.length === 0) return { change: null, status: "stable" }
+    if (data.length === 0)
+      return {
+        percentChange: 0,
+        absoluteChange: 0,
+        status: "stable",
+        timeSpan: timeRange,
+      }
 
     // Aktuelle Werte (neuester Datenpunkt)
     const current = data[0]
@@ -403,7 +422,14 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     }
 
     // Wenn kein Vergleichswert verfügbar ist, keine Änderung zurückgeben
-    if (compareIndex >= data.length) return { change: null, status: "stable" }
+    if (compareIndex >= data.length) {
+      return {
+        percentChange: 0,
+        absoluteChange: 0,
+        status: "stable",
+        timeSpan: timeRange,
+      }
+    }
 
     const compareValue = data[compareIndex]
 
@@ -433,12 +459,12 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     const getChangeStatus = (percentage: number) => {
       if (percentage === undefined || percentage === null) return "stable"
 
-      if (percentage > 50) return "large-increase"
-      if (percentage < -50) return "large-decrease"
-      if (percentage > 20) return "medium-increase"
-      if (percentage < -20) return "medium-decrease"
-      if (percentage > 5) return "small-increase"
-      if (percentage < -5) return "small-decrease"
+      if (percentage > 30) return "large-increase"
+      if (percentage < -30) return "large-decrease"
+      if (percentage > 10) return "medium-increase"
+      if (percentage < -10) return "medium-decrease"
+      if (percentage > 0) return "small-increase"
+      if (percentage < 0) return "small-decrease"
       return "stable"
     }
 
@@ -454,81 +480,100 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Formatiert den Trend für den ausgewählten Zeitraum
   const formatTrendForTimeRange = (river: RiverData, dataType: DataType) => {
-    const change = calculateTimeRangeChange(river, dataType)
-    if (change.percentChange === null) return null
+    try {
+      // Check if data type is available for this river
+      if (dataType === "temperature" && (!river.history.temperatures || river.history.temperatures.length === 0)) {
+        return "Keine Temperaturdaten verfügbar"
+      }
 
-    let colorClass = "text-gray-700"
+      const change = calculateTimeRangeChange(river, dataType)
 
-    switch (change.status) {
-      case "large-increase":
-        colorClass = "text-red-600 font-bold"
-        break
-      case "large-decrease":
-        colorClass = "text-red-600 font-bold"
-        break
-      case "medium-increase":
-        colorClass = "text-amber-600 font-bold"
-        break
-      case "medium-decrease":
-        colorClass = "text-amber-600 font-bold"
-        break
-      case "small-increase":
-        colorClass = "text-blue-600"
-        break
-      case "small-decrease":
-        colorClass = "text-blue-600"
-        break
-      default:
-        colorClass = "text-gray-700"
-    }
+      // Return null if percentChange or absoluteChange is null/undefined
+      if (
+        change.percentChange === null ||
+        change.percentChange === undefined ||
+        change.absoluteChange === null ||
+        change.absoluteChange === undefined
+      ) {
+        return "Keine Änderungsdaten verfügbar"
+      }
 
-    const emoji =
-      change.status === "large-increase"
-        ? "🔴 ↑↑"
-        : change.status === "large-decrease"
-          ? "🔴 ↓↓"
-          : change.status === "medium-increase"
-            ? "🟡 ↑"
-            : change.status === "medium-decrease"
-              ? "🟡 ↓"
-              : change.status === "small-increase"
-                ? "↗️"
-                : change.status === "small-decrease"
-                  ? "↘️"
-                  : "→"
+      let colorClass = "text-gray-700"
 
-    // Zeitbereichstext für die Anzeige
-    const getTimeRangeText = () => {
-      const option = timeRangeOptions.find((opt) => opt.value === timeRange)
-      return option ? option.label : "Zeitraum"
-    }
+      switch (change.status) {
+        case "large-increase":
+          colorClass = "text-red-600 font-bold"
+          break
+        case "large-decrease":
+          colorClass = "text-red-600 font-bold"
+          break
+        case "medium-increase":
+          colorClass = "text-amber-600 font-bold"
+          break
+        case "medium-decrease":
+          colorClass = "text-amber-600 font-bold"
+          break
+        case "small-increase":
+          colorClass = "text-blue-600"
+          break
+        case "small-decrease":
+          colorClass = "text-blue-600"
+          break
+        default:
+          colorClass = "text-gray-700"
+      }
 
-    if (dataType === "temperature") {
-      // Formatiere die Temperaturänderung: Bei Werten über 10°C keine Dezimalstellen, sonst eine
-      const formattedChange =
-        Math.abs(change.absoluteChange) >= 10
-          ? Math.round(change.absoluteChange).toString()
-          : change.absoluteChange.toFixed(1)
+      const emoji =
+        change.status === "large-increase"
+          ? "🔴 ↑↑"
+          : change.status === "large-decrease"
+            ? "🔴 ↓↓"
+            : change.status === "medium-increase"
+              ? "🟡 ↑"
+              : change.status === "medium-decrease"
+                ? "🟡 ↓"
+                : change.status === "small-increase"
+                  ? "↗️"
+                  : change.status === "small-decrease"
+                    ? "↘️"
+                    : "→"
 
-      return (
-        <span className={colorClass}>
-          {emoji} {change.absoluteChange > 0 ? "+" : ""}
-          {formattedChange}°C ({getTimeRangeText()})
-        </span>
-      )
-    } else {
-      // Formatiere die prozentuale Änderung: Bei Werten über 10% keine Dezimalstellen, sonst eine
-      const formattedChange =
-        Math.abs(change.percentChange) >= 10
-          ? Math.round(change.percentChange).toString()
-          : change.percentChange.toFixed(1)
+      // Zeitbereichstext für die Anzeige
+      const getTimeRangeText = () => {
+        const option = timeRangeOptions.find((opt) => opt.value === timeRange)
+        return option ? option.label : "Zeitraum"
+      }
 
-      return (
-        <span className={colorClass}>
-          {emoji} {change.percentChange > 0 ? "+" : ""}
-          {formattedChange}% ({getTimeRangeText()})
-        </span>
-      )
+      if (dataType === "temperature") {
+        // Formatiere die Temperaturänderung: Bei Werten über 10°C keine Dezimalstellen, sonst eine
+        const formattedChange =
+          Math.abs(change.absoluteChange) >= 10
+            ? Math.round(change.absoluteChange).toString()
+            : change.absoluteChange.toFixed(1)
+
+        return (
+          <span className={colorClass}>
+            {emoji} {change.absoluteChange > 0 ? "+" : ""}
+            {formattedChange}°C ({getTimeRangeText()})
+          </span>
+        )
+      } else {
+        // Formatiere die prozentuale Änderung: Bei Werten über 10% keine Dezimalstellen, sonst eine
+        const formattedChange =
+          Math.abs(change.percentChange) >= 10
+            ? Math.round(change.percentChange).toString()
+            : change.percentChange.toFixed(1)
+
+        return (
+          <span className={colorClass}>
+            {emoji} {change.percentChange > 0 ? "+" : ""}
+            {formattedChange}% ({getTimeRangeText()})
+          </span>
+        )
+      }
+    } catch (error) {
+      console.error("Error formatting trend:", error)
+      return "Fehler bei der Trendberechnung"
     }
   }
 
@@ -545,7 +590,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Hilfsfunktion zum Rendern des aktuellen Diagramms basierend auf dem aktiven Datentyp
   const renderActiveChart = (river: RiverData) => {
-    if (activeDataType === "level" && river.history.levels.length > 0) {
+    if (activeDataType === "level" && river.history.levels && river.history.levels.length > 0) {
       const chartData = getLevelChartData(river)
       const isLongTimeRange = timeRange === "1w"
 
@@ -604,7 +649,11 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           </ResponsiveContainer>
         </div>
       )
-    } else if (activeDataType === "temperature" && river.history.temperatures.length > 0) {
+    } else if (
+      activeDataType === "temperature" &&
+      river.history.temperatures &&
+      river.history.temperatures.length > 0
+    ) {
       const chartData = getTemperatureChartData(river)
       const isLongTimeRange = timeRange === "1w"
 
@@ -663,7 +712,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           </ResponsiveContainer>
         </div>
       )
-    } else if (activeDataType === "flow" && river.history.flows.length > 0) {
+    } else if (activeDataType === "flow" && river.history.flows && river.history.flows.length > 0) {
       const chartData = getFlowChartData(river)
       const isLongTimeRange = timeRange === "1w"
 
@@ -713,7 +762,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               <Line
                 type="monotone"
                 dataKey="flow"
-                stroke="#16a34a"
+                stroke="#2563eb"
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 6 }}
@@ -731,14 +780,26 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     }
   }
 
+  // Prüft, ob ein Datentyp für einen Fluss verfügbar ist
+  const isDataTypeAvailable = (river: RiverData, dataType: DataType): boolean => {
+    if (dataType === "level") {
+      return river.history.levels && river.history.levels.length > 0
+    } else if (dataType === "temperature") {
+      return river.history.temperatures && river.history.temperatures.length > 0
+    } else if (dataType === "flow") {
+      return river.history.flows && river.history.flows.length > 0
+    }
+    return false
+  }
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue={data.rivers[0].name.toLowerCase()}>
-        <TabsList className="grid" style={{ gridTemplateColumns: `repeat(${data.rivers.length}, minmax(0, 1fr))` }}>
+        <TabsList className="grid overflow-x-auto md:grid-cols-4 grid-cols-2 min-w-full">
           {data.rivers.map((river) => {
             const { emoji, direction } = getRiverStatusForLastSixHours(river)
             return (
-              <TabsTrigger key={river.name} value={river.name.toLowerCase()}>
+              <TabsTrigger key={river.name} value={river.name.toLowerCase()} className="text-sm whitespace-nowrap">
                 {emoji} {direction} {river.name} ({river.location})
               </TabsTrigger>
             )
@@ -749,6 +810,38 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           <TabsContent key={river.name} value={river.name.toLowerCase()}>
             <div className="space-y-6">
               <div className="grid md:grid-cols-3 gap-4">
+                {/* Abfluss-Karte (jetzt zuerst) */}
+                <Card
+                  className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
+                  onClick={() => setActiveDataType("flow")}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Abfluss (m³/s)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {river.current.flow ? (
+                      <>
+                        <div className="text-3xl font-bold text-blue-700 mb-2">
+                          {river.current.flow.flow.toFixed(1)} m³/s
+                        </div>
+                        <div className="text-sm">
+                          24h Änderung:{" "}
+                          {river.changes.flowPercentage !== undefined
+                            ? getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus)
+                            : "Keine Vortragsdaten"}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-2 truncate">
+                          <a href={river.urls.flow} target="_blank" rel="noopener noreferrer" className="underline">
+                            Aktualisiert: {river.current.flow.date}
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-gray-500">Keine Daten verfügbar</div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Pegel-Karte */}
                 <Card
                   className={`cursor-pointer transition-all ${activeDataType === "level" ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}
@@ -782,7 +875,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                 {/* Temperatur-Karte */}
                 <Card
                   className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "ring-2 ring-orange-500" : "hover:bg-gray-50"}`}
-                  onClick={() => setActiveDataType("temperature")}
+                  onClick={() => (isDataTypeAvailable(river, "temperature") ? setActiveDataType("temperature") : null)}
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg">Temperatur (°C)</CardTitle>
@@ -814,39 +907,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                         </div>
                       </>
                     ) : (
-                      <div className="text-gray-500">Keine Daten verfügbar</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Abfluss-Karte */}
-                <Card
-                  className={`cursor-pointer transition-all ${activeDataType === "flow" ? "ring-2 ring-green-500" : "hover:bg-gray-50"}`}
-                  onClick={() => setActiveDataType("flow")}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Abfluss (m³/s)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {river.current.flow ? (
-                      <>
-                        <div className="text-3xl font-bold text-green-700 mb-2">
-                          {river.current.flow.flow.toFixed(1)} m³/s
-                        </div>
-                        <div className="text-sm">
-                          24h Änderung:{" "}
-                          {river.changes.flowPercentage !== undefined
-                            ? getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus)
-                            : "Keine Vortragsdaten"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 truncate">
-                          <a href={river.urls.flow} target="_blank" rel="noopener noreferrer" className="underline">
-                            Aktualisiert: {river.current.flow.date}
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-gray-500">Keine Daten verfügbar</div>
+                      <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
                     )}
                   </CardContent>
                 </Card>
@@ -855,12 +916,12 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               {/* Diagramm-Bereich */}
               <Card>
                 <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div className="flex items-center gap-2">
                       <CardTitle>Entwicklung</CardTitle>
                       <span className="text-sm font-normal ml-2">{formatTrendForTimeRange(river, activeDataType)}</span>
                     </div>
-                    <div className="w-40">
+                    <div className="w-full sm:w-40">
                       <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
                         <SelectTrigger className="h-8">
                           <SelectValue placeholder="Zeitraum wählen" />

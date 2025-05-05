@@ -70,9 +70,9 @@ export interface RiversData {
 
 // Hilfsfunktion zur Bestimmung des Änderungsstatus basierend auf dem Prozentsatz
 function getChangeStatus(percentageChange: number): ChangeStatus {
-  if (percentageChange > 50) {
+  if (percentageChange > 30) {
     return "large-increase"
-  } else if (percentageChange < -50) {
+  } else if (percentageChange < -30) {
     return "large-decrease"
   } else if (percentageChange > 10) {
     return "medium-increase"
@@ -89,11 +89,16 @@ function getChangeStatus(percentageChange: number): ChangeStatus {
 
 // Hilfsfunktion zum Parsen des deutschen Datumsformats (DD.MM.YYYY HH:MM)
 function parseGermanDate(dateString: string): Date {
-  const [datePart, timePart] = dateString.split(" ")
-  const [day, month, year] = datePart.split(".").map(Number)
-  const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0]
+  try {
+    const [datePart, timePart] = dateString.split(" ")
+    const [day, month, year] = datePart.split(".").map(Number)
+    const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0]
 
-  return new Date(year, month - 1, day, hour, minute)
+    return new Date(year, month - 1, day, hour, minute)
+  } catch (error) {
+    console.error("Error parsing date:", dateString, error)
+    return new Date() // Return current date as fallback
+  }
 }
 
 // Wasserstandsdaten abrufen
@@ -196,6 +201,14 @@ async function fetchWaterTemperature(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
+    if (!url) {
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     const response = await fetch(url, {
       headers: {
         "User-Agent":
@@ -372,13 +385,14 @@ async function fetchWaterFlow(url: string): Promise<{
 // Alle Daten für einen Fluss parallel abrufen
 async function fetchRiverData(config): Promise<RiverData> {
   try {
+    // Use the URLs directly from the config
+    const urls = config.urls || {}
+
     // Alle Anfragen parallel ausführen
     const [levelData, temperatureData, flowData] = await Promise.all([
-      fetchWaterLevel(config.levelUrl),
-      config.temperatureUrl
-        ? fetchWaterTemperature(config.temperatureUrl)
-        : { current: null, history: [], changeStatus: "stable" },
-      config.flowUrl ? fetchWaterFlow(config.flowUrl) : { current: null, history: [], changeStatus: "stable" },
+      fetchWaterLevel(urls.level),
+      fetchWaterTemperature(urls.temperature),
+      fetchWaterFlow(urls.flow),
     ])
 
     // Flussdatenobjekt erstellen
@@ -408,11 +422,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         flowPercentage: flowData.percentageChange,
         flowStatus: flowData.changeStatus,
       },
-      urls: {
-        level: config.levelUrl,
-        temperature: config.temperatureUrl,
-        flow: config.flowUrl,
-      },
+      urls: urls,
     }
 
     return riverData
@@ -429,11 +439,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         flows: [],
       },
       changes: {},
-      urls: {
-        level: config.levelUrl,
-        temperature: config.temperatureUrl,
-        flow: config.flowUrl,
-      },
+      urls: config.urls || {},
     }
   }
 }
