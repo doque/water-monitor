@@ -3,7 +3,7 @@
 import type { RiverData, RiversData } from "@/utils/water-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface RiverDataDisplayProps {
@@ -17,6 +17,23 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("12h")
   const [activeDataType, setActiveDataType] = useState<DataType>("flow")
   const [activeRiver, setActiveRiver] = useState<RiverData>(data.rivers[0])
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect if we're on mobile
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    // Initial check
+    checkIfMobile()
+
+    // Add event listener
+    window.addEventListener("resize", checkIfMobile)
+
+    // Cleanup
+    return () => window.removeEventListener("resize", checkIfMobile)
+  }, [])
 
   if (!data || !data.rivers || data.rivers.length === 0) {
     return (
@@ -28,7 +45,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   }
 
   // Prozentuale Änderung mit entsprechendem Emoji formatieren
-  const getChangeIndicator = (percentage: number, status: string) => {
+  const getChangeIndicator = (percentage: number, status: string, compact = false) => {
     if (percentage === undefined || percentage === null) return "Keine Daten"
 
     // Formatiere die Änderung: Bei Werten über 10% keine Dezimalstellen, sonst eine
@@ -67,6 +84,15 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
         colorClass = "text-gray-700"
     }
 
+    if (compact) {
+      return (
+        <span className={colorClass}>
+          {emoji} {percentage > 0 ? "+" : ""}
+          {formattedChange}% in 24h
+        </span>
+      )
+    }
+
     return (
       <span className={colorClass}>
         {emoji} {percentage > 0 ? "+" : ""}
@@ -76,7 +102,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   }
 
   // Temperaturänderung mit entsprechendem Emoji formatieren
-  const getTemperatureChangeIndicator = (change: number, status: string) => {
+  const getTemperatureChangeIndicator = (change: number, status: string, compact = false) => {
     if (change === undefined || change === null) return "Keine Daten"
 
     // Formatiere die Änderung: Bei Werten über 10°C keine Dezimalstellen, sonst eine
@@ -113,6 +139,15 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       default:
         emoji = "→"
         colorClass = "text-gray-700"
+    }
+
+    if (compact) {
+      return (
+        <span className={colorClass}>
+          {emoji} {change > 0 ? "+" : ""}
+          {formattedChange}°C in 24h
+        </span>
+      )
     }
 
     return (
@@ -487,7 +522,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <span className={colorClass}>
           {emoji} {change.absoluteChange > 0 ? "+" : ""}
-          {formattedChange}°C ({getTimeRangeText()})
+          {formattedChange}°C in {getTimeRangeText().toLowerCase()}
         </span>
       )
     } else {
@@ -500,7 +535,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <span className={colorClass}>
           {emoji} {change.percentChange > 0 ? "+" : ""}
-          {formattedChange}% ({getTimeRangeText()})
+          {formattedChange}% in {getTimeRangeText().toLowerCase()}
         </span>
       )
     }
@@ -526,27 +561,43 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 10 }}
                 interval={
-                  timeRange === "1h"
-                    ? 0 // Alle 15 Minuten
-                    : timeRange === "2h"
-                      ? 1 // Alle 30 Minuten
-                      : timeRange === "6h"
-                        ? 3 // Alle 1 Stunde
-                        : timeRange === "12h"
-                          ? 7 // Alle 2 Stunden
-                          : timeRange === "24h"
-                            ? 11 // Alle 3 Stunden
-                            : timeRange === "48h"
-                              ? 23 // Alle 6 Stunden
-                              : isLongTimeRange
-                                ? Math.floor(chartData.length / 8) // Für längere Zeiträume weniger Beschriftungen
-                                : Math.floor(chartData.length / 10)
+                  isMobile
+                    ? timeRange === "1h"
+                      ? 1 // Mobile: Alle 30 Minuten
+                      : timeRange === "2h"
+                        ? 3 // Mobile: Alle 1 Stunde
+                        : timeRange === "6h"
+                          ? 11 // Mobile: Alle 3 Stunden
+                          : timeRange === "12h"
+                            ? 23 // Mobile: Alle 6 Stunden
+                            : timeRange === "24h"
+                              ? 47 // Mobile: Alle 12 Stunden
+                              : timeRange === "48h"
+                                ? 95 // Mobile: Alle 24 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 4) // Mobile: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 5)
+                    : timeRange === "1h"
+                      ? 0 // Desktop: Alle 15 Minuten
+                      : timeRange === "2h"
+                        ? 1 // Desktop: Alle 30 Minuten
+                        : timeRange === "6h"
+                          ? 3 // Desktop: Alle 1 Stunde
+                          : timeRange === "12h"
+                            ? 7 // Desktop: Alle 2 Stunden
+                            : timeRange === "24h"
+                              ? 11 // Desktop: Alle 3 Stunden
+                              : timeRange === "48h"
+                                ? 23 // Desktop: Alle 6 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 8) // Desktop: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 10)
                 }
                 angle={isLongTimeRange ? -45 : 0}
                 textAnchor={isLongTimeRange ? "end" : "middle"}
@@ -554,25 +605,27 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tickCount={8}
+                tickCount={6}
                 tickFormatter={(value) => Math.round(value).toString()}
-                tick={{ fontSize: 12 }}
-                width={40}
+                tick={{ fontSize: 10 }}
+                width={30}
               />
-              <Tooltip
-                formatter={(value) => [`${value} cm`, "Pegel"]}
-                labelFormatter={(_, data) => {
-                  if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
-                  return `Zeit: ${data[0].payload.fullDate}`
-                }}
-              />
+              {!isMobile && (
+                <Tooltip
+                  formatter={(value) => [`${value} cm`, "Pegel"]}
+                  labelFormatter={(_, data) => {
+                    if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
+                    return `Zeit: ${data[0].payload.fullDate}`
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="level"
                 stroke="#2563eb"
                 fill="#dbeafe"
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={!isMobile ? { r: 2 } : false}
                 activeDot={{ r: 6 }}
               />
             </AreaChart>
@@ -586,27 +639,43 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 10 }}
                 interval={
-                  timeRange === "1h"
-                    ? 0 // Alle 15 Minuten
-                    : timeRange === "2h"
-                      ? 1 // Alle 30 Minuten
-                      : timeRange === "6h"
-                        ? 3 // Alle 1 Stunde
-                        : timeRange === "12h"
-                          ? 7 // Alle 2 Stunden
-                          : timeRange === "24h"
-                            ? 11 // Alle 3 Stunden
-                            : timeRange === "48h"
-                              ? 23 // Alle 6 Stunden
-                              : isLongTimeRange
-                                ? Math.floor(chartData.length / 8) // Für längere Zeiträume weniger Beschriftungen
-                                : Math.floor(chartData.length / 10)
+                  isMobile
+                    ? timeRange === "1h"
+                      ? 1 // Mobile: Alle 30 Minuten
+                      : timeRange === "2h"
+                        ? 3 // Mobile: Alle 1 Stunde
+                        : timeRange === "6h"
+                          ? 11 // Mobile: Alle 3 Stunden
+                          : timeRange === "12h"
+                            ? 23 // Mobile: Alle 6 Stunden
+                            : timeRange === "24h"
+                              ? 47 // Mobile: Alle 12 Stunden
+                              : timeRange === "48h"
+                                ? 95 // Mobile: Alle 24 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 4) // Mobile: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 5)
+                    : timeRange === "1h"
+                      ? 0 // Desktop: Alle 15 Minuten
+                      : timeRange === "2h"
+                        ? 1 // Desktop: Alle 30 Minuten
+                        : timeRange === "6h"
+                          ? 3 // Desktop: Alle 1 Stunde
+                          : timeRange === "12h"
+                            ? 7 // Desktop: Alle 2 Stunden
+                            : timeRange === "24h"
+                              ? 11 // Desktop: Alle 3 Stunden
+                              : timeRange === "48h"
+                                ? 23 // Desktop: Alle 6 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 8) // Desktop: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 10)
                 }
                 angle={isLongTimeRange ? -45 : 0}
                 textAnchor={isLongTimeRange ? "end" : "middle"}
@@ -614,25 +683,27 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tickCount={8}
-                tickFormatter={(value) => value.toFixed(1)}
-                tick={{ fontSize: 12 }}
-                width={40}
+                tickCount={6}
+                tickFormatter={(value) => Math.round(value).toString()}
+                tick={{ fontSize: 10 }}
+                width={30}
               />
-              <Tooltip
-                formatter={(value) => [`${value}°C`, "Temperatur"]}
-                labelFormatter={(_, data) => {
-                  if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
-                  return `Zeit: ${data[0].payload.fullDate}`
-                }}
-              />
+              {!isMobile && (
+                <Tooltip
+                  formatter={(value) => [`${value}°C`, "Temperatur"]}
+                  labelFormatter={(_, data) => {
+                    if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
+                    return `Zeit: ${data[0].payload.fullDate}`
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="temperature"
                 stroke="#ea580c"
                 fill="#ffedd5"
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={!isMobile ? { r: 2 } : false}
                 activeDot={{ r: 6 }}
               />
             </AreaChart>
@@ -646,27 +717,43 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       return (
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 10 }}
                 interval={
-                  timeRange === "1h"
-                    ? 0 // Alle 15 Minuten
-                    : timeRange === "2h"
-                      ? 1 // Alle 30 Minuten
-                      : timeRange === "6h"
-                        ? 3 // Alle 1 Stunde
-                        : timeRange === "12h"
-                          ? 7 // Alle 2 Stunden
-                          : timeRange === "24h"
-                            ? 11 // Alle 3 Stunden
-                            : timeRange === "48h"
-                              ? 23 // Alle 6 Stunden
-                              : isLongTimeRange
-                                ? Math.floor(chartData.length / 8) // Für längere Zeiträume weniger Beschriftungen
-                                : Math.floor(chartData.length / 10)
+                  isMobile
+                    ? timeRange === "1h"
+                      ? 1 // Mobile: Alle 30 Minuten
+                      : timeRange === "2h"
+                        ? 3 // Mobile: Alle 1 Stunde
+                        : timeRange === "6h"
+                          ? 11 // Mobile: Alle 3 Stunden
+                          : timeRange === "12h"
+                            ? 23 // Mobile: Alle 6 Stunden
+                            : timeRange === "24h"
+                              ? 47 // Mobile: Alle 12 Stunden
+                              : timeRange === "48h"
+                                ? 95 // Mobile: Alle 24 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 4) // Mobile: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 5)
+                    : timeRange === "1h"
+                      ? 0 // Desktop: Alle 15 Minuten
+                      : timeRange === "2h"
+                        ? 1 // Desktop: Alle 30 Minuten
+                        : timeRange === "6h"
+                          ? 3 // Desktop: Alle 1 Stunde
+                          : timeRange === "12h"
+                            ? 7 // Desktop: Alle 2 Stunden
+                            : timeRange === "24h"
+                              ? 11 // Desktop: Alle 3 Stunden
+                              : timeRange === "48h"
+                                ? 23 // Desktop: Alle 6 Stunden
+                                : isLongTimeRange
+                                  ? Math.floor(chartData.length / 8) // Desktop: Für längere Zeiträume weniger Beschriftungen
+                                  : Math.floor(chartData.length / 10)
                 }
                 angle={isLongTimeRange ? -45 : 0}
                 textAnchor={isLongTimeRange ? "end" : "middle"}
@@ -674,25 +761,27 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tickCount={8}
-                tickFormatter={(value) => value.toFixed(1)}
-                tick={{ fontSize: 12 }}
-                width={40}
+                tickCount={6}
+                tickFormatter={(value) => Math.round(value).toString()}
+                tick={{ fontSize: 10 }}
+                width={30}
               />
-              <Tooltip
-                formatter={(value) => [`${value} m³/s`, "Abfluss"]}
-                labelFormatter={(_, data) => {
-                  if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
-                  return `Zeit: ${data[0].payload.fullDate}`
-                }}
-              />
+              {!isMobile && (
+                <Tooltip
+                  formatter={(value) => [`${value} m³/s`, "Abfluss"]}
+                  labelFormatter={(_, data) => {
+                    if (!data || !data[0] || !data[0].payload) return "Zeit: Unbekannt"
+                    return `Zeit: ${data[0].payload.fullDate}`
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="flow"
                 stroke="#16a34a"
                 fill="#dcfce7"
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={!isMobile ? { r: 2 } : false}
                 activeDot={{ r: 6 }}
               />
             </AreaChart>
@@ -709,9 +798,9 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between mb-4">
-        <div className="w-full sm:w-1/2">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex mb-2 sm:mb-4">
+        <div className="w-[68%] pr-[0.2rem]">
           <Select
             defaultValue={data.rivers[0].name.toLowerCase()}
             onValueChange={(value) => {
@@ -738,9 +827,9 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:w-1/2">
+        <div className="w-[32%] pl-0">
           <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRangeOption)}>
-            <SelectTrigger>
+            <SelectTrigger className="pl-2">
               <SelectValue placeholder="Zeitraum wählen" />
             </SelectTrigger>
             <SelectContent>
@@ -755,21 +844,29 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       </div>
 
       {/* Display the active river data */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="grid gap-4">
-          {/* Abfluss-Karte (always visible and first) */}
-          <Card
-            className={`cursor-pointer transition-all ${activeDataType === "flow" ? "bg-gray-50" : "hover:bg-gray-50"}`}
-            onClick={() => setActiveDataType("flow")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Abfluss</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activeRiver.current.flow ? (
-                <>
+          {/* Desktop layout: Abfluss, Pegel, and Temperatur in a row above the chart */}
+          <div className="hidden md:grid md:grid-cols-3 gap-4">
+            {/* Abfluss-Karte */}
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "flow" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => setActiveDataType("flow")}
+            >
+              <CardHeader className="pb-2 p-3 sm:p-6">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
+                  {activeRiver.changes.flowPercentage !== undefined && (
+                    <span className="text-sm font-normal">
+                      {getChangeIndicator(activeRiver.changes.flowPercentage, activeRiver.changes.flowStatus, true)}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6 pt-0">
+                {activeRiver.current.flow ? (
                   <div
-                    className={`text-3xl font-bold mb-2 ${
+                    className={`text-3xl font-bold ${
                       activeRiver.changes.flowStatus === "large-increase" ||
                       activeRiver.changes.flowStatus === "large-decrease"
                         ? "text-red-600"
@@ -778,66 +875,41 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
                   >
                     {activeRiver.current.flow.flow.toFixed(1)} m³/s
                   </div>
-                  <div className="text-sm">
-                    24h Änderung:{" "}
-                    {activeRiver.changes.flowPercentage !== undefined
-                      ? getChangeIndicator(activeRiver.changes.flowPercentage, activeRiver.changes.flowStatus)
-                      : "Keine Vortragsdaten"}
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500">Keine Daten verfügbar</div>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Diagramm-Bereich (placed second on all devices) */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <CardTitle>Entwicklung</CardTitle>
-                  <span className="text-sm font-normal ml-2">
-                    {formatTrendForTimeRange(activeRiver, activeDataType)}
-                  </span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>{renderActiveChart(activeRiver)}</CardContent>
-          </Card>
-
-          {/* Additional cards container for Pegel and Temperatur (shown below chart on mobile) */}
-          <div className="grid md:grid-cols-2 gap-4">
             {/* Pegel-Karte */}
             <Card
               className={`cursor-pointer transition-all ${activeDataType === "level" ? "bg-gray-50" : "hover:bg-gray-50"}`}
               onClick={() => setActiveDataType("level")}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Pegel</CardTitle>
+              <CardHeader className="pb-2 p-3 sm:p-6">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
+                  {activeRiver.changes.levelPercentage !== undefined && (
+                    <span className="text-sm font-normal">
+                      {getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus, true)}
+                    </span>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 sm:p-6 pt-0">
                 {activeRiver.current.level ? (
-                  <>
-                    <div
-                      className={`text-3xl font-bold mb-2 ${
-                        activeRiver.changes.levelStatus === "large-increase" ||
-                        activeRiver.changes.levelStatus === "large-decrease"
-                          ? "text-red-600"
-                          : "text-black"
-                      }`}
-                    >
-                      {activeRiver.current.level.level} cm
-                    </div>
-                    <div className="text-sm">
-                      24h Änderung:{" "}
-                      {activeRiver.changes.levelPercentage !== undefined
-                        ? getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus)
-                        : "Keine Vortragsdaten"}
-                    </div>
-                  </>
+                  <div
+                    className={`text-3xl font-bold ${
+                      activeRiver.changes.levelStatus === "large-increase" ||
+                      activeRiver.changes.levelStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.level.level} cm
+                  </div>
                 ) : (
-                  <div className="text-gray-500">Keine Daten verfügbar</div>
+                  <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
                 )}
               </CardContent>
             </Card>
@@ -847,34 +919,153 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
               className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "bg-gray-50" : "hover:bg-gray-50"}`}
               onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Temperatur</CardTitle>
+              <CardHeader className="pb-2 p-3 sm:p-6">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
+                  {activeRiver.changes.temperatureChange !== undefined && (
+                    <span className="text-sm font-normal">
+                      {getTemperatureChangeIndicator(
+                        activeRiver.changes.temperatureChange,
+                        activeRiver.changes.temperatureStatus,
+                        true,
+                      )}
+                    </span>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 sm:p-6 pt-0">
                 {activeRiver.current.temperature ? (
-                  <>
-                    <div
-                      className={`text-3xl font-bold mb-2 ${
-                        activeRiver.changes.temperatureStatus === "large-increase" ||
-                        activeRiver.changes.temperatureStatus === "large-decrease"
-                          ? "text-red-600"
-                          : "text-black"
-                      }`}
-                    >
-                      {activeRiver.current.temperature.temperature.toFixed(1)}°C
-                    </div>
-                    <div className="text-sm">
-                      24h Änderung:{" "}
-                      {activeRiver.changes.temperatureChange !== undefined
-                        ? getTemperatureChangeIndicator(
-                            activeRiver.changes.temperatureChange,
-                            activeRiver.changes.temperatureStatus,
-                          )
-                        : "Keine Vortragsdaten"}
-                    </div>
-                  </>
+                  <div
+                    className={`text-3xl font-bold ${
+                      activeRiver.changes.temperatureStatus === "large-increase" ||
+                      activeRiver.changes.temperatureStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.temperature.temperature.toFixed(1)}°C
+                  </div>
                 ) : (
-                  <div className="text-gray-500">Keine Temperaturdaten verfügbar</div>
+                  <div className="text-gray-500 text-sm">Keine Temperaturdaten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Mobile layout: Only Abfluss card above the chart */}
+          <div className="md:hidden">
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "flow" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => setActiveDataType("flow")}
+            >
+              <CardHeader className="pb-2 p-3">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
+                  {activeRiver.changes.flowPercentage !== undefined && (
+                    <span className="text-sm font-normal">
+                      {getChangeIndicator(activeRiver.changes.flowPercentage, activeRiver.changes.flowStatus, true)}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                {activeRiver.current.flow ? (
+                  <div
+                    className={`text-3xl font-bold ${
+                      activeRiver.changes.flowStatus === "large-increase" ||
+                      activeRiver.changes.flowStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.flow.flow.toFixed(1)} m³/s
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Diagramm-Bereich (always visible) */}
+          <Card>
+            <CardHeader className="pb-2 p-3 sm:p-6">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+                <span className="text-sm font-normal">{formatTrendForTimeRange(activeRiver, activeDataType)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-3">{renderActiveChart(activeRiver)}</CardContent>
+          </Card>
+
+          {/* Mobile layout: Pegel and Temperatur cards below the chart */}
+          <div className="md:hidden grid grid-cols-2 gap-4">
+            {/* Pegel-Karte */}
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "level" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => setActiveDataType("level")}
+            >
+              <CardHeader className="pb-2 p-3">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
+                </div>
+                {activeRiver.changes.levelPercentage !== undefined && (
+                  <div className="text-sm font-normal mt-1">
+                    {getChangeIndicator(activeRiver.changes.levelPercentage, activeRiver.changes.levelStatus, true)}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                {activeRiver.current.level ? (
+                  <div
+                    className={`text-3xl font-bold ${
+                      activeRiver.changes.levelStatus === "large-increase" ||
+                      activeRiver.changes.levelStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.level.level} cm
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Temperatur-Karte */}
+            <Card
+              className={`cursor-pointer transition-all ${activeDataType === "temperature" ? "bg-gray-50" : "hover:bg-gray-50"}`}
+              onClick={() => (activeRiver.urls.temperature ? setActiveDataType("temperature") : null)}
+            >
+              <CardHeader className="pb-2 p-3">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
+                </div>
+                {activeRiver.changes.temperatureChange !== undefined && (
+                  <div className="text-sm font-normal mt-1">
+                    {getTemperatureChangeIndicator(
+                      activeRiver.changes.temperatureChange,
+                      activeRiver.changes.temperatureStatus,
+                      true,
+                    )}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                {activeRiver.current.temperature ? (
+                  <div
+                    className={`text-3xl font-bold ${
+                      activeRiver.changes.temperatureStatus === "large-increase" ||
+                      activeRiver.changes.temperatureStatus === "large-decrease"
+                        ? "text-red-600"
+                        : "text-black"
+                    }`}
+                  >
+                    {activeRiver.current.temperature.temperature.toFixed(1)}°C
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">Keine Temperaturdaten verfügbar</div>
                 )}
               </CardContent>
             </Card>
