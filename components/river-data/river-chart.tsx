@@ -1,6 +1,6 @@
 "use client"
 
-import { XAxis, YAxis, CartesianGrid, ResponsiveContainer, AreaChart, Area } from "recharts"
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
 import type { RiverData } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,55 @@ interface RiverChartProps {
   dataType: DataType
   timeRange: TimeRangeOption
   isMobile: boolean
+}
+
+// Custom tooltip component
+const CustomTooltip = ({ active, payload, label, dataType }) => {
+  if (active && payload && payload.length) {
+    // Get the appropriate unit based on data type
+    let unit = ""
+    let valueFormatted = ""
+
+    switch (dataType) {
+      case "level":
+        unit = "cm"
+        valueFormatted = payload[0].value
+        break
+      case "temperature":
+        unit = "°C"
+        valueFormatted = Number.parseFloat(payload[0].value).toFixed(1)
+        break
+      case "flow":
+        unit = "m³/s"
+        valueFormatted = Number.parseFloat(payload[0].value).toFixed(1)
+        break
+    }
+
+    // Format the date from the fullDate property (which is in format "DD.MM.YYYY HH:MM")
+    const fullDate = payload[0].payload.fullDate || ""
+    let formattedDate = ""
+
+    if (fullDate) {
+      const dateParts = fullDate.split(" ")
+      if (dateParts.length >= 2) {
+        // Extract DD.MM. from the date part
+        const dateComponent = dateParts[0].split(".").slice(0, 2).join(".")
+        const timeComponent = dateParts[1].substring(0, 5) // Get HH:MM
+        formattedDate = `${dateComponent} ${timeComponent}`
+      }
+    }
+
+    return (
+      <div className="bg-white dark:bg-gray-800 px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded shadow-md">
+        <p className="text-gray-600 dark:text-gray-300">{formattedDate}</p>
+        <p className="font-medium text-gray-800 dark:text-gray-200">
+          {valueFormatted} {unit}
+        </p>
+      </div>
+    )
+  }
+
+  return null
 }
 
 export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
@@ -293,6 +342,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
                 angle={isLongTimeRange ? -45 : 0}
                 textAnchor={isLongTimeRange ? "end" : "middle"}
                 height={isLongTimeRange ? 60 : 30}
+                stroke="currentColor"
               />
               <YAxis
                 domain={["auto", "auto"]}
@@ -300,13 +350,23 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
                 tickFormatter={(value) => Math.round(value).toString()}
                 tick={{ fontSize: 10 }}
                 width={30}
+                stroke="currentColor"
               />
+              {!isMobile && (
+                <Tooltip
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} />}
+                  cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                  wrapperStyle={{ zIndex: 100 }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey={chartConfig.dataKey}
                 stroke={chartConfig.stroke}
                 fill={chartConfig.fill}
                 strokeWidth={2}
+                activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
+                dot={false}
               />
             </AreaChart>
           </ResponsiveContainer>
