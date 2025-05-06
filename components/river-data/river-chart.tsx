@@ -5,7 +5,7 @@ import type { RiverData } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -65,10 +65,131 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
   return null
 }
 
+// Custom tick component for X-axis to handle line breaks
+const CustomXAxisTick = (props) => {
+  const { x, y, payload, isLongTimeRange } = props
+
+  if (isLongTimeRange) {
+    // For long time ranges, split the label into date and time
+    const parts = payload.value.split(" ")
+    if (parts.length === 2) {
+      const date = parts[0]
+      const time = parts[1]
+
+      return (
+        <g transform={`translate(${x},${y})`}>
+          <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
+            {date}
+          </text>
+          <text x={0} y={0} dy={30} textAnchor="middle" fill="currentColor" fontSize={10}>
+            {time}
+          </text>
+        </g>
+      )
+    }
+  }
+
+  // For short time ranges or fallback
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
+        {payload.value}
+      </text>
+    </g>
+  )
+}
+
+// Custom Y-axis tick formatter to avoid duplicates and ensure integer values
+const formatYAxisTick = (value) => {
+  return Math.round(value).toString()
+}
+
 export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
   const [forceUpdate, setForceUpdate] = useState(false)
 
-  // Determine alert level based on data type and current value
+  // Calculate weekly statistics for alert level determination
+  const weeklyStats = useMemo(() => {
+    let data = []
+    let min = 0
+    let max = 0
+    let avg = 0
+    let weeklyChange = 0
+
+    // Get the appropriate data array based on data type
+    if (dataType === "level" && river.history.levels.length > 0) {
+      data = river.history.levels.map((point) => point.level)
+    } else if (dataType === "temperature" && river.history.temperatures.length > 0) {
+      data = river.history.temperatures.map((point) => point.temperature)
+    } else if (dataType === "flow" && river.history.flows.length > 0) {
+      data = river.history.flows.map((point) => point.flow)
+    }
+
+    if (data.length > 0) {
+      min = Math.min(...data)
+      max = Math.max(...data)
+      avg = data.reduce((sum, val) => sum + val, 0) / data.length
+
+      // Calculate change from oldest to newest (if we have at least 2 data points)
+      if (data.length >= 2) {
+        const oldest = data[data.length - 1]
+        const newest = data[0]
+        weeklyChange = oldest > 0 ? ((newest - oldest) / oldest) * 100 : 0
+      }
+    }
+
+    return { min, max, avg, weeklyChange }
+  }, [river, dataType])
+
+  // Calculate Y-axis domain based on data range
+  const getYAxisDomain = useMemo(() => {
+    let data = []
+
+    // Get the appropriate data array based on data type and time range
+    if (dataType === "level") {
+      data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
+    } else if (dataType === "temperature") {
+      data = river.history.temperatures.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.temperature)
+    } else if (dataType === "flow") {
+      data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+    }
+
+    if (data.length === 0) return ["auto", "auto"]
+
+    const min = Math.min(...data)
+    const max = Math.max(...data)
+
+    // If the range is very small, expand it to make changes more visible
+    if (max - min < 5) {
+      // For very small ranges, create a more visible scale
+      const padding = Math.max(5, min * 0.05) // At least 5 units or 5% of the min value
+      const newMin = Math.max(0, Math.floor(min - padding))
+      const newMax = Math.ceil(max + padding)
+      return [newMin, newMax]
+    }
+
+    // For normal ranges, add some padding
+    const padding = (max - min) * 0.1 // 10% padding
+    const newMin = Math.max(0, Math.floor(min - padding))
+    const newMax = Math.ceil(max + padding)
+
+    return [newMin, newMax]
+  }, [river, dataType, timeRange])
+
+  // Helper function to get data points for time range
+  function getDataPointsForTimeRange(timeRange: TimeRangeOption): number {
+    const dataPoints = {
+      "1h": 4,
+      "2h": 8,
+      "6h": 24,
+      "12h": 48,
+      "24h": 96,
+      "48h": 192,
+      "1w": 672,
+    }
+    return dataPoints[timeRange]
+  }
+
+  // Determine alert level based on data type and weekly statistics
   const getAlertLevel = () => {
     // Default to normal if no data
     if (!river.current) return "normal"
@@ -76,36 +197,36 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     // For flow data
     if (dataType === "flow" && river.current.flow) {
       const flowValue = river.current.flow.flow
-      const flowChange = river.changes.flowPercentage || 0
+      const { max: weekMax, weeklyChange } = weeklyStats
 
-      // High alert for large increases or very high flow
-      if (flowChange > 50 || flowValue > 100) return "alert"
-      // Warning for moderate increases
-      if (flowChange > 15 || flowValue > 50) return "warning"
+      // High alert for large increases over the week or very high flow compared to weekly max
+      if (Math.abs(weeklyChange) > 50 || flowValue > 100 || flowValue > weekMax * 0.9) return "alert"
+      // Warning for moderate increases or moderately high flow
+      if (Math.abs(weeklyChange) > 15 || flowValue > 50 || flowValue > weekMax * 0.7) return "warning"
       return "normal"
     }
 
     // For level data
     if (dataType === "level" && river.current.level) {
       const levelValue = river.current.level.level
-      const levelChange = river.changes.levelPercentage || 0
+      const { max: weekMax, weeklyChange } = weeklyStats
 
-      // High alert for large increases or very high levels
-      if (levelChange > 50 || levelValue > 200) return "alert"
-      // Warning for moderate increases
-      if (levelChange > 15 || levelValue > 160) return "warning"
+      // High alert for large increases over the week or very high levels compared to weekly max
+      if (Math.abs(weeklyChange) > 50 || levelValue > 200 || levelValue > weekMax * 0.9) return "alert"
+      // Warning for moderate increases or moderately high levels
+      if (Math.abs(weeklyChange) > 15 || levelValue > 160 || levelValue > weekMax * 0.7) return "warning"
       return "normal"
     }
 
     // For temperature data
     if (dataType === "temperature" && river.current.temperature) {
       const tempValue = river.current.temperature.temperature
-      const tempChange = river.changes.temperatureChange || 0
+      const { max: weekMax, min: weekMin, weeklyChange } = weeklyStats
 
-      // High alert for large increases or very high temperature
-      if (Math.abs(tempChange) > 5 || tempValue > 25) return "alert"
-      // Warning for moderate increases
-      if (Math.abs(tempChange) > 2 || tempValue > 20) return "warning"
+      // High alert for large temperature changes over the week or extreme temperatures
+      if (Math.abs(weeklyChange) > 30 || tempValue > 25 || tempValue < weekMin * 0.8) return "alert"
+      // Warning for moderate temperature changes or notable temperatures
+      if (Math.abs(weeklyChange) > 15 || tempValue > 20 || tempValue < weekMin * 0.9) return "warning"
       return "normal"
     }
 
@@ -172,10 +293,11 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
       // For longer time ranges (> 48h) we show date and time
       const dateParts = point.date.split(" ")
       const timePart = dateParts[1].substring(0, 5) // Extract HH:MM
+      const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
 
-      // For longer time ranges we show the date in the format "DD.MM. HH:MM"
+      // For longer time ranges we keep date and time separate for the custom tick component
       const label = isLongTimeRange
-        ? `${dateParts[0].substring(0, 5)} ${timePart}` // "DD.MM. HH:MM"
+        ? `${datePart} ${timePart}` // Keep date and time separate for custom tick
         : timePart // Only "HH:MM" for shorter time ranges
 
       return {
@@ -303,6 +425,19 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     }
   }
 
+  // Calculate the optimal number of ticks for the Y-axis
+  const getOptimalTickCount = () => {
+    const [min, max] = getYAxisDomain
+    const range = max - min
+
+    // For small ranges, use fewer ticks to avoid duplicates
+    if (range <= 10) return 5
+    if (range <= 20) return 6
+
+    // For larger ranges, use more ticks
+    return 7
+  }
+
   const chartData = getChartData()
   const chartConfig = getChartConfig()
   const isLongTimeRange = timeRange === "1w"
@@ -337,20 +472,19 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
-                tick={{ fontSize: 10 }}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange} />}
                 interval={getXAxisInterval(chartData.length)}
-                angle={isLongTimeRange ? -45 : 0}
-                textAnchor={isLongTimeRange ? "end" : "middle"}
-                height={isLongTimeRange ? 60 : 30}
+                height={isLongTimeRange ? 50 : 30} // Increased height for line breaks
                 stroke="currentColor"
               />
               <YAxis
-                domain={["auto", "auto"]}
-                tickCount={6}
-                tickFormatter={(value) => Math.round(value).toString()}
+                domain={getYAxisDomain}
+                tickCount={getOptimalTickCount()}
+                tickFormatter={formatYAxisTick}
                 tick={{ fontSize: 10 }}
                 width={30}
                 stroke="currentColor"
+                allowDecimals={false}
               />
               {!isMobile && (
                 <Tooltip

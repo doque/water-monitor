@@ -32,11 +32,11 @@ export function getChangeIndicator(percentage: number, status: string, compact =
       break
     case "small-increase":
       emoji = "↗️"
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     case "small-decrease":
       emoji = "↘️"
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     default:
       emoji = "→"
@@ -89,11 +89,11 @@ export function getTemperatureChangeIndicator(change: number, status: string, co
       break
     case "small-increase":
       emoji = "↗️"
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     case "small-decrease":
       emoji = "↘️"
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     default:
       emoji = "→"
@@ -254,10 +254,10 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
       colorClass = "text-amber-600 dark:text-amber-400 font-bold"
       break
     case "small-increase":
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     case "small-decrease":
-      colorClass = "text-blue-600 dark:text-blue-400"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
       break
     default:
       colorClass = "text-gray-700 dark:text-gray-300"

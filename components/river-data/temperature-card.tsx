@@ -12,6 +12,27 @@ interface TemperatureCardProps {
 }
 
 export function TemperatureCard({ river, isActive, onClick, isMobile = false }: TemperatureCardProps) {
+  // Determine the text color based on temperature status
+  const getTextColorClass = () => {
+    // Get the weekly change percentage
+    const weeklyChange =
+      river.history.temperatures.length > 0
+        ? (((river.current.temperature?.temperature || 0) -
+            (river.history.temperatures[river.history.temperatures.length - 1]?.temperature || 0)) /
+            (river.history.temperatures[river.history.temperatures.length - 1]?.temperature || 1)) *
+          100
+        : 0
+
+    // Use significant thresholds for color coding
+    if (Math.abs(weeklyChange) > 15) {
+      return "text-red-600 dark:text-red-400"
+    } else if (Math.abs(weeklyChange) > 5) {
+      return "text-amber-600 dark:text-amber-400"
+    }
+    // For small or no changes, use default text color
+    return "text-foreground"
+  }
+
   return (
     <Card
       className={`cursor-pointer transition-all ${isActive ? "bg-muted" : "hover:bg-muted/50"}`}
@@ -34,15 +55,8 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false }: 
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
         {river.current.temperature ? (
-          <div
-            className={`text-4xl font-bold ${
-              river.changes.temperatureStatus === "large-increase" ||
-              river.changes.temperatureStatus === "large-decrease"
-                ? "text-red-600 dark:text-red-400"
-                : "text-foreground"
-            }`}
-          >
-            {river.current.temperature.temperature.toFixed(1)}°C
+          <div className={`text-4xl font-bold ${getTextColorClass()}`}>
+            {river.current.temperature.temperature.toFixed(1)} <span className="font-bold">°C</span>
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">Keine Temperaturdaten verfügbar</div>
