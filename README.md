@@ -1,30 +1,13 @@
-# whatsapp-water-alerts
+# Water Monitor
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Built with [v0](https://v0.dev) by [Vercel](https://www.vercel.com).
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/dom-bussers-projects/v0-whatsapp-water-alerts)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/hgm9CizfwOl)
+![CleanShot 2025-05-06 at 13 29 57@2x](https://github.com/user-attachments/assets/f2ba3797-ad3c-43b4-93d9-5bc644b6ec86)
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+Small Next.js to monitor water levels, flow and temperature as provided by [Hochwassernachrichtendienst Bayern](https://www.hnd.bayern.de/) and [Niedrigwasser-Informationsdienst Bayern](https://www.nid.bayern.de/). No guarantee of correctness of data.
 
 ## Deployment
 
-Your project is live at:
-
-**[https://vercel.com/dom-bussers-projects/v0-whatsapp-water-alerts](https://vercel.com/dom-bussers-projects/v0-whatsapp-water-alerts)**
-
-## Build your app
-
-Continue building your app on:
-
-**[https://v0.dev/chat/projects/hgm9CizfwOl](https://v0.dev/chat/projects/hgm9CizfwOl)**
-
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+The app is live at [https://monitor.bfv-mbteg.de](https://monitor.bfv-mbteg.de).
