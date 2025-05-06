@@ -1,6 +1,6 @@
 "use client"
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 
 export type TimeRangeOption = "1h" | "2h" | "6h" | "12h" | "24h" | "48h" | "1w"
 
@@ -20,10 +20,13 @@ export const timeRangeOptions = [
 ]
 
 export function TimeRangeSelect({ value, onValueChange }: TimeRangeSelectProps) {
+  // Find the selected option to display its label
+  const selectedOption = timeRangeOptions.find((option) => option.value === value)
+
   return (
     <Select value={value} onValueChange={(value) => onValueChange(value as TimeRangeOption)}>
-      <SelectTrigger className="pl-2">
-        <SelectValue placeholder="Zeitraum wählen" />
+      <SelectTrigger className="px-2 h-10 flex items-center justify-between">
+        <div className="truncate">{selectedOption?.label || "Zeitraum wählen"}</div>
       </SelectTrigger>
       <SelectContent>
         {timeRangeOptions.map((option) => (
