@@ -107,6 +107,20 @@ const formatYAxisTick = (value) => {
 export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
   const [forceUpdate, setForceUpdate] = useState(false)
 
+  // Helper function to get data points for time range
+  function getDataPointsForTimeRange(timeRange: TimeRangeOption): number {
+    const dataPoints = {
+      "1h": 4,
+      "2h": 8,
+      "6h": 24,
+      "12h": 48,
+      "24h": 96,
+      "48h": 192,
+      "1w": 672,
+    }
+    return dataPoints[timeRange]
+  }
+
   // Calculate weekly statistics for alert level determination
   const weeklyStats = useMemo(() => {
     let data = []
@@ -141,7 +155,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
   }, [river, dataType])
 
   // Calculate Y-axis domain based on data range
-  const getYAxisDomain = useMemo(() => {
+  const yAxisDomain = useMemo(() => {
     let data = []
 
     // Get the appropriate data array based on data type and time range
@@ -175,19 +189,21 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     return [newMin, newMax]
   }, [river, dataType, timeRange])
 
-  // Helper function to get data points for time range
-  function getDataPointsForTimeRange(timeRange: TimeRangeOption): number {
-    const dataPoints = {
-      "1h": 4,
-      "2h": 8,
-      "6h": 24,
-      "12h": 48,
-      "24h": 96,
-      "48h": 192,
-      "1w": 672,
-    }
-    return dataPoints[timeRange]
-  }
+  // Calculate the optimal number of ticks for the Y-axis
+  const optimalTickCount = useMemo(() => {
+    if (yAxisDomain[0] === "auto" || yAxisDomain[1] === "auto") return 5
+
+    const min = yAxisDomain[0] as number
+    const max = yAxisDomain[1] as number
+    const range = max - min
+
+    // For small ranges, use fewer ticks to avoid duplicates
+    if (range <= 10) return 5
+    if (range <= 20) return 6
+
+    // For larger ranges, use more ticks
+    return 7
+  }, [yAxisDomain])
 
   // Determine alert level based on data type and weekly statistics
   const getAlertLevel = () => {
@@ -425,19 +441,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     }
   }
 
-  // Calculate the optimal number of ticks for the Y-axis
-  const getOptimalTickCount = () => {
-    const [min, max] = getYAxisDomain
-    const range = max - min
-
-    // For small ranges, use fewer ticks to avoid duplicates
-    if (range <= 10) return 5
-    if (range <= 20) return 6
-
-    // For larger ranges, use more ticks
-    return 7
-  }
-
   const chartData = getChartData()
   const chartConfig = getChartConfig()
   const isLongTimeRange = timeRange === "1w"
@@ -478,8 +481,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
                 stroke="currentColor"
               />
               <YAxis
-                domain={getYAxisDomain}
-                tickCount={getOptimalTickCount()}
+                domain={yAxisDomain}
+                tickCount={optimalTickCount}
                 tickFormatter={formatYAxisTick}
                 tick={{ fontSize: 10 }}
                 width={30}
