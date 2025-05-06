@@ -100,6 +100,51 @@ function parseGermanDate(dateString: string): Date {
   return new Date(year, month - 1, day, hour, minute)
 }
 
+// Helper function to safely fetch data with retry logic
+async function safeFetch(url: string, retries = 3, timeout = 10000): Promise<Response> {
+  let lastError: Error
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      // Create an AbortController to handle timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        },
+        signal: controller.signal,
+        next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+      }
+
+      return response
+    } catch (error) {
+      console.error(`Fetch attempt ${attempt + 1}/${retries} failed for ${url}:`, error)
+      lastError = error as Error
+
+      // If it's an abort error (timeout), don't retry
+      if (error.name === "AbortError") {
+        throw new Error(`Request timeout after ${timeout}ms`)
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
+      }
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch after ${retries} attempts`)
+}
+
 // Wasserstandsdaten abrufen
 async function fetchWaterLevel(url: string): Promise<{
   current: WaterLevelDataPoint
@@ -109,18 +154,7 @@ async function fetchWaterLevel(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
-    })
-
-    if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Wasserstandsdaten: ${response.status}`)
-    }
-
+    const response = await safeFetch(url)
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -154,6 +188,16 @@ async function fetchWaterLevel(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No water level data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur gleichen Stunde finden
     let previousDay: WaterLevelDataPoint = null
     let percentageChange: number = null
@@ -182,7 +226,7 @@ async function fetchWaterLevel(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Wasserstandsdaten:", error)
+    console.error(`Fehler beim Abrufen der Wasserstandsdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -200,18 +244,7 @@ async function fetchWaterTemperature(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
-    })
-
-    if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Wassertemperaturdaten: ${response.status}`)
-    }
-
+    const response = await safeFetch(url)
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -244,6 +277,16 @@ async function fetchWaterTemperature(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No temperature data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur ungefähr gleichen Zeit finden
     let previousDay: WaterTemperatureDataPoint = null
     let change: number = null
@@ -274,7 +317,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Wassertemperaturdaten:", error)
+    console.error(`Fehler beim Abrufen der Wassertemperaturdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -292,18 +335,7 @@ async function fetchWaterFlow(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
-    })
-
-    if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Abflussdaten: ${response.status}`)
-    }
-
+    const response = await safeFetch(url)
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -336,6 +368,16 @@ async function fetchWaterFlow(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No flow data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur ungefähr gleichen Zeit finden
     let previousDay: WaterFlowDataPoint = null
     let percentageChange: number = null
@@ -364,7 +406,7 @@ async function fetchWaterFlow(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Abflussdaten:", error)
+    console.error(`Fehler beim Abrufen der Abflussdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -377,12 +419,14 @@ async function fetchWaterFlow(url: string): Promise<{
 async function fetchRiverData(config): Promise<RiverData> {
   try {
     // Alle Anfragen parallel ausführen
-    const [levelData, temperatureData, flowData] = await Promise.all([
+    const [levelData, temperatureData, flowData] = await Promise.allSettled([
       fetchWaterLevel(config.levelUrl),
       config.temperatureUrl
         ? fetchWaterTemperature(config.temperatureUrl)
-        : { current: null, history: [], changeStatus: "stable" },
-      config.flowUrl ? fetchWaterFlow(config.flowUrl) : { current: null, history: [], changeStatus: "stable" },
+        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
+      config.flowUrl
+        ? fetchWaterFlow(config.flowUrl)
+        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
     ])
 
     // Flussdatenobjekt erstellen
@@ -390,27 +434,27 @@ async function fetchRiverData(config): Promise<RiverData> {
       name: config.name,
       location: config.location,
       current: {
-        level: levelData.current,
-        temperature: temperatureData.current,
-        flow: flowData.current,
+        level: levelData.status === "fulfilled" ? levelData.value.current : null,
+        temperature: temperatureData.status === "fulfilled" ? temperatureData.value.current : null,
+        flow: flowData.status === "fulfilled" ? flowData.value.current : null,
       },
       history: {
-        levels: levelData.history,
-        temperatures: temperatureData.history,
-        flows: flowData.history,
+        levels: levelData.status === "fulfilled" ? levelData.value.history : [],
+        temperatures: temperatureData.status === "fulfilled" ? temperatureData.value.history : [],
+        flows: flowData.status === "fulfilled" ? flowData.value.history : [],
       },
       previousDay: {
-        level: levelData.previousDay,
-        temperature: temperatureData.previousDay,
-        flow: flowData.previousDay,
+        level: levelData.status === "fulfilled" ? levelData.value.previousDay : null,
+        temperature: temperatureData.status === "fulfilled" ? temperatureData.value.previousDay : null,
+        flow: flowData.status === "fulfilled" ? flowData.value.previousDay : null,
       },
       changes: {
-        levelPercentage: levelData.percentageChange,
-        levelStatus: levelData.changeStatus,
-        temperatureChange: temperatureData.change,
-        temperatureStatus: temperatureData.changeStatus,
-        flowPercentage: flowData.percentageChange,
-        flowStatus: flowData.changeStatus,
+        levelPercentage: levelData.status === "fulfilled" ? levelData.value.percentageChange : null,
+        levelStatus: levelData.status === "fulfilled" ? levelData.value.changeStatus : "stable",
+        temperatureChange: temperatureData.status === "fulfilled" ? temperatureData.value.change : null,
+        temperatureStatus: temperatureData.status === "fulfilled" ? temperatureData.value.changeStatus : "stable",
+        flowPercentage: flowData.status === "fulfilled" ? flowData.value.percentageChange : null,
+        flowStatus: flowData.status === "fulfilled" ? flowData.value.changeStatus : "stable",
       },
       urls: {
         level: config.levelUrl,
@@ -447,10 +491,22 @@ export async function fetchRiversData(): Promise<RiversData> {
   try {
     // Alle Flüsse parallel abrufen
     const riversPromises = riverSources.rivers.map((config) => fetchRiverData(config))
-    const rivers = await Promise.all(riversPromises)
+    const rivers = await Promise.allSettled(riversPromises)
+
+    // Filter out any rejected promises and extract values from fulfilled ones
+    const successfulRivers = rivers
+      .filter((result): result is PromiseFulfilledResult<RiverData> => result.status === "fulfilled")
+      .map((result) => result.value)
+
+    // Log any errors
+    rivers.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`Failed to fetch river data for ${riverSources.rivers[index].name}:`, result.reason)
+      }
+    })
 
     return {
-      rivers,
+      rivers: successfulRivers,
       lastUpdated: new Date(),
     }
   } catch (error) {
@@ -467,4 +523,31 @@ export type WaterLevelData = {
   location: string
   date: string
   level: number
+}
+
+// Add a helper function to extract river ID from URL
+export function extractRiverId(url: string): string {
+  // URLs look like: https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15
+  // We want to extract the "schmerold-18202000" part
+
+  try {
+    const urlParts = url.split("/")
+    // The ID is typically the second-to-last part before "tabelle"
+    const idIndex = urlParts.findIndex((part) => part === "tabelle") - 1
+    if (idIndex > 0) {
+      return urlParts[idIndex]
+    }
+    // Fallback: try to find the ID pattern directly
+    for (const part of urlParts) {
+      // IDs typically have a pattern like "name-number"
+      if (part.includes("-") && /\d+$/.test(part)) {
+        return part
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting river ID:", error)
+  }
+
+  // If we can't extract the ID, return a fallback
+  return "unknown"
 }

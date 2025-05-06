@@ -9,35 +9,20 @@ export const metadata = {
   title: "BFV Miesbach-Tegernsee Monitor",
   description: "Überwachung von Wasserständen, Temperaturen und Abflussraten bayerischer Flüsse",
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
-    apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    other: [{ rel: "manifest", url: "/site.webmanifest" }],
+    icon: "/favicon.ico",
   },
   openGraph: {
     title: "BFV Miesbach-Tegernsee Gewässer-Monitor",
     description:
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
-    images: [
-      {
-        url: "/images/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "BFV Miesbach-Tegernsee Gewässer-Monitor",
-      },
-    ],
     locale: "de_DE",
     type: "website",
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "BFV Miesbach-Tegernsee Gewässer-Monitor",
     description:
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
-    images: ["/images/og-image.png"],
   },
   metadataBase: new URL("https://whatsapp-water-alerts.vercel.app"),
     generator: 'v0.dev'
@@ -50,6 +35,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}

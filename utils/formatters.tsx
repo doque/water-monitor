@@ -156,7 +156,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     data = [...river.history.flows]
   }
 
-  if (data.length === 0) return { change: null, status: "stable" }
+  if (data.length === 0) return { percentChange: null, absoluteChange: null, status: "stable", timeSpan: timeRange }
 
   // Current values (newest data point)
   const current = data[0]
@@ -173,16 +173,12 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "1w": 672, // 7 days × 24 hours × 4 data points per hour
   }
 
-  let compareIndex = 0
-  if (data.length > dataPoints[timeRange]) {
-    compareIndex = dataPoints[timeRange]
-  } else if (data.length > 1) {
-    // If not enough data is available, use the oldest available data point
-    compareIndex = data.length - 1
-  }
+  // Find the oldest available data point within the selected time range
+  const compareIndex = Math.min(dataPoints[timeRange], data.length - 1)
 
   // If no comparison value is available, return no change
-  if (compareIndex >= data.length) return { change: null, status: "stable" }
+  if (compareIndex >= data.length)
+    return { percentChange: null, absoluteChange: null, status: "stable", timeSpan: timeRange }
 
   const compareValue = data[compareIndex]
 
@@ -192,6 +188,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
 
   if (dataType === "level") {
     if (compareValue.level > 0) {
+      // Calculate the percentage change correctly
       percentChange = ((current.level - compareValue.level) / compareValue.level) * 100
     }
     absoluteChange = current.level - compareValue.level

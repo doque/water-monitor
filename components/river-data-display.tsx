@@ -2,6 +2,7 @@
 
 import type { RiversData } from "@/utils/water-data"
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { RiverSelect } from "@/components/river-data/river-select"
 import { TimeRangeSelect, type TimeRangeOption } from "@/components/river-data/time-range-select"
 import { FlowCard } from "@/components/river-data/flow-card"
@@ -9,16 +10,46 @@ import { LevelCard } from "@/components/river-data/level-card"
 import { TemperatureCard } from "@/components/river-data/temperature-card"
 import { RiverChart, type DataType } from "@/components/river-data/river-chart"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
+import { extractRiverId } from "@/utils/water-data"
 
 interface RiverDataDisplayProps {
   data: RiversData
 }
 
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
-  const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
-  const [activeDataType, setActiveDataType] = useState<DataType>("flow")
-  const [activeRiver, setActiveRiver] = useState(data.rivers[0])
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Extract river IDs for each river
+  const riversWithIds = data.rivers.map((river) => ({
+    ...river,
+    id: extractRiverId(river.urls.level),
+  }))
+
+  // Get initial state from URL parameters or use defaults
+  const initialRiverId = searchParams.get("id") || extractRiverId(data.rivers[0].urls.level)
+  const initialDataType = (searchParams.get("pane") || "flow") as DataType
+  const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
+
+  const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
+  const [activeDataType, setActiveDataType] = useState<DataType>(initialDataType)
+  const [activeRiver, setActiveRiver] = useState(
+    riversWithIds.find((r) => extractRiverId(r.urls.level) === initialRiverId) || riversWithIds[0],
+  )
   const [isMobile, setIsMobile] = useState(false)
+
+  // Update URL when state changes
+  useEffect(() => {
+    if (!activeRiver) return
+
+    const params = new URLSearchParams()
+    params.set("id", extractRiverId(activeRiver.urls.level))
+    params.set("pane", activeDataType)
+    params.set("interval", timeRange)
+
+    // Update URL without causing a page reload
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [activeRiver, activeDataType, timeRange, router])
 
   // Detect if we're on mobile
   useEffect(() => {
@@ -50,11 +81,11 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-7 sm:col-span-6">
           <RiverSelect
-            rivers={data.rivers}
-            defaultValue={data.rivers[0].name.toLowerCase()}
+            rivers={riversWithIds}
+            defaultValue={extractRiverId(activeRiver.urls.level)}
             onValueChange={(value) => {
-              // Find the selected river
-              const selectedRiver = data.rivers.find((r) => r.name.toLowerCase() === value)
+              // Find the selected river by ID
+              const selectedRiver = riversWithIds.find((r) => extractRiverId(r.urls.level) === value)
               if (selectedRiver) {
                 // Set active river
                 setActiveRiver(selectedRiver)

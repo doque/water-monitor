@@ -3,6 +3,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import type { RiverData } from "@/utils/water-data"
 import { useEffect, useState } from "react"
+import { extractRiverId } from "@/utils/water-data"
 
 interface RiverSelectProps {
   rivers: RiverData[]
@@ -71,7 +72,7 @@ export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelect
   }
 
   // Find the selected river to display its name
-  const selectedRiver = rivers.find((river) => river.name.toLowerCase() === defaultValue)
+  const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === defaultValue)
   const { emoji, direction } = selectedRiver ? getRiverStatusIndicator(selectedRiver) : { emoji: "🟢", direction: "" }
 
   return (
@@ -91,8 +92,9 @@ export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelect
       <SelectContent>
         {rivers.map((river) => {
           const { emoji, direction } = getRiverStatusIndicator(river)
+          const riverId = extractRiverId(river.urls.level)
           return (
-            <SelectItem key={river.name} value={river.name.toLowerCase()}>
+            <SelectItem key={riverId} value={riverId}>
               {emoji} {direction} {river.name} ({river.location})
             </SelectItem>
           )
