@@ -100,51 +100,6 @@ function parseGermanDate(dateString: string): Date {
   return new Date(year, month - 1, day, hour, minute)
 }
 
-// Helper function to safely fetch data with retry logic
-async function safeFetch(url: string, retries = 3, timeout = 10000): Promise<Response> {
-  let lastError: Error
-
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      // Create an AbortController to handle timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
-        signal: controller.signal,
-        next: { revalidate: 3600 }, // Jede Stunde aktualisieren
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
-      }
-
-      return response
-    } catch (error) {
-      console.error(`Fetch attempt ${attempt + 1}/${retries} failed for ${url}:`, error)
-      lastError = error as Error
-
-      // If it's an abort error (timeout), don't retry
-      if (error.name === "AbortError") {
-        throw new Error(`Request timeout after ${timeout}ms`)
-      }
-
-      // Wait before retrying (exponential backoff)
-      if (attempt < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
-      }
-    }
-  }
-
-  throw lastError || new Error(`Failed to fetch after ${retries} attempts`)
-}
-
 // Wasserstandsdaten abrufen
 async function fetchWaterLevel(url: string): Promise<{
   current: WaterLevelDataPoint
@@ -154,7 +109,18 @@ async function fetchWaterLevel(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await safeFetch(url)
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+    }
+
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -244,7 +210,18 @@ async function fetchWaterTemperature(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await safeFetch(url)
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+    }
+
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -335,7 +312,18 @@ async function fetchWaterFlow(url: string): Promise<{
   changeStatus: ChangeStatus
 }> {
   try {
-    const response = await safeFetch(url)
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+    }
+
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -419,7 +407,7 @@ async function fetchWaterFlow(url: string): Promise<{
 async function fetchRiverData(config): Promise<RiverData> {
   try {
     // Alle Anfragen parallel ausführen
-    const [levelData, temperatureData, flowData] = await Promise.allSettled([
+    const [levelData, temperatureData, flowData] = await Promise.all([
       fetchWaterLevel(config.levelUrl),
       config.temperatureUrl
         ? fetchWaterTemperature(config.temperatureUrl)
@@ -434,27 +422,27 @@ async function fetchRiverData(config): Promise<RiverData> {
       name: config.name,
       location: config.location,
       current: {
-        level: levelData.status === "fulfilled" ? levelData.value.current : null,
-        temperature: temperatureData.status === "fulfilled" ? temperatureData.value.current : null,
-        flow: flowData.status === "fulfilled" ? flowData.value.current : null,
+        level: levelData.current,
+        temperature: temperatureData.current,
+        flow: flowData.current,
       },
       history: {
-        levels: levelData.status === "fulfilled" ? levelData.value.history : [],
-        temperatures: temperatureData.status === "fulfilled" ? temperatureData.value.history : [],
-        flows: flowData.status === "fulfilled" ? flowData.value.history : [],
+        levels: levelData.history,
+        temperatures: temperatureData.history,
+        flows: flowData.history,
       },
       previousDay: {
-        level: levelData.status === "fulfilled" ? levelData.value.previousDay : null,
-        temperature: temperatureData.status === "fulfilled" ? temperatureData.value.previousDay : null,
-        flow: flowData.status === "fulfilled" ? flowData.value.previousDay : null,
+        level: levelData.previousDay,
+        temperature: temperatureData.previousDay,
+        flow: flowData.previousDay,
       },
       changes: {
-        levelPercentage: levelData.status === "fulfilled" ? levelData.value.percentageChange : null,
-        levelStatus: levelData.status === "fulfilled" ? levelData.value.changeStatus : "stable",
-        temperatureChange: temperatureData.status === "fulfilled" ? temperatureData.value.change : null,
-        temperatureStatus: temperatureData.status === "fulfilled" ? temperatureData.value.changeStatus : "stable",
-        flowPercentage: flowData.status === "fulfilled" ? flowData.value.percentageChange : null,
-        flowStatus: flowData.status === "fulfilled" ? flowData.value.changeStatus : "stable",
+        levelPercentage: levelData.percentageChange,
+        levelStatus: levelData.changeStatus,
+        temperatureChange: temperatureData.change,
+        temperatureStatus: temperatureData.changeStatus,
+        flowPercentage: flowData.percentageChange,
+        flowStatus: flowData.changeStatus,
       },
       urls: {
         level: config.levelUrl,
@@ -491,22 +479,10 @@ export async function fetchRiversData(): Promise<RiversData> {
   try {
     // Alle Flüsse parallel abrufen
     const riversPromises = riverSources.rivers.map((config) => fetchRiverData(config))
-    const rivers = await Promise.allSettled(riversPromises)
-
-    // Filter out any rejected promises and extract values from fulfilled ones
-    const successfulRivers = rivers
-      .filter((result): result is PromiseFulfilledResult<RiverData> => result.status === "fulfilled")
-      .map((result) => result.value)
-
-    // Log any errors
-    rivers.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.error(`Failed to fetch river data for ${riverSources.rivers[index].name}:`, result.reason)
-      }
-    })
+    const rivers = await Promise.all(riversPromises)
 
     return {
-      rivers: successfulRivers,
+      rivers,
       lastUpdated: new Date(),
     }
   } catch (error) {

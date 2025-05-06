@@ -83,12 +83,20 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           <RiverSelect
             rivers={riversWithIds}
             defaultValue={extractRiverId(activeRiver.urls.level)}
+            key={extractRiverId(activeRiver.urls.level)} // Add a key to force re-render when river changes
             onValueChange={(value) => {
               // Find the selected river by ID
               const selectedRiver = riversWithIds.find((r) => extractRiverId(r.urls.level) === value)
               if (selectedRiver) {
                 // Set active river
                 setActiveRiver(selectedRiver)
+
+                // Update URL immediately to ensure consistency
+                const params = new URLSearchParams(searchParams.toString())
+                params.set("id", value)
+                params.set("pane", activeDataType)
+                params.set("interval", timeRange)
+                router.replace(`?${params.toString()}`, { scroll: false })
               }
             }}
           />

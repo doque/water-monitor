@@ -76,7 +76,7 @@ export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelect
   const { emoji, direction } = selectedRiver ? getRiverStatusIndicator(selectedRiver) : { emoji: "🟢", direction: "" }
 
   return (
-    <Select defaultValue={defaultValue} onValueChange={onValueChange}>
+    <Select value={defaultValue} onValueChange={onValueChange}>
       <SelectTrigger className="px-2 h-10 flex items-center justify-between">
         <div className="flex items-center truncate mr-1">
           <span className="mr-1">
