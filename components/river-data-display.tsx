@@ -9,6 +9,7 @@ import { FlowCard } from "@/components/river-data/flow-card"
 import { LevelCard } from "@/components/river-data/level-card"
 import { TemperatureCard } from "@/components/river-data/temperature-card"
 import { RiverChart, type DataType } from "@/components/river-data/river-chart"
+import { WebcamCard } from "@/components/river-data/webcam-card"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
 import { extractRiverId } from "@/utils/water-data"
 
@@ -82,7 +83,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
         <div className="col-span-7 sm:col-span-6">
           <RiverSelect
             rivers={riversWithIds}
-            defaultValue={extractRiverId(activeRiver.urls.level)}
+            value={extractRiverId(activeRiver.urls.level)}
             key={extractRiverId(activeRiver.urls.level)} // Add a key to force re-render when river changes
             onValueChange={(value) => {
               // Find the selected river by ID
@@ -139,6 +140,15 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
           {/* Chart area (always visible) */}
           <RiverChart river={activeRiver} dataType={activeDataType} timeRange={timeRange} isMobile={isMobile} />
+
+          {/* Webcam image (if available) */}
+          {activeRiver.webcamUrl && (
+            <WebcamCard
+              webcamUrl={activeRiver.webcamUrl}
+              riverName={activeRiver.name}
+              location={activeRiver.location}
+            />
+          )}
 
           {/* Mobile layout: Level and Temperature cards below the chart */}
           <div className="md:hidden grid grid-cols-2 gap-4">

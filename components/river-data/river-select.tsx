@@ -1,17 +1,17 @@
 "use client"
 
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { RiverData } from "@/utils/water-data"
 import { useEffect, useState } from "react"
 import { extractRiverId } from "@/utils/water-data"
 
 interface RiverSelectProps {
   rivers: RiverData[]
-  defaultValue: string
+  value: string
   onValueChange: (value: string) => void
 }
 
-export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelectProps) {
+export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) {
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect if we're on mobile
@@ -72,22 +72,24 @@ export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelect
   }
 
   // Find the selected river to display its name
-  const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === defaultValue)
+  const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === value)
   const { emoji, direction } = selectedRiver ? getRiverStatusIndicator(selectedRiver) : { emoji: "🟢", direction: "" }
 
   return (
-    <Select value={defaultValue} onValueChange={onValueChange}>
+    <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className="px-2 h-10 flex items-center justify-between">
-        <div className="flex items-center truncate mr-1">
-          <span className="mr-1">
-            {emoji} {direction}
-          </span>
-          <span className="truncate">
-            {selectedRiver?.name}
-            {/* Only show location on desktop */}
-            {!isMobile && selectedRiver && ` (${selectedRiver.location})`}
-          </span>
-        </div>
+        <SelectValue>
+          <div className="flex items-center truncate mr-1">
+            <span className="mr-1">
+              {emoji} {direction}
+            </span>
+            <span className="truncate">
+              {selectedRiver?.name}
+              {/* Only show location on desktop */}
+              {!isMobile && selectedRiver && ` (${selectedRiver.location})`}
+            </span>
+          </div>
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {rivers.map((river) => {
@@ -95,7 +97,14 @@ export function RiverSelect({ rivers, defaultValue, onValueChange }: RiverSelect
           const riverId = extractRiverId(river.urls.level)
           return (
             <SelectItem key={riverId} value={riverId}>
-              {emoji} {direction} {river.name} ({river.location})
+              <span className="flex items-center">
+                <span className="mr-1">
+                  {emoji} {direction}
+                </span>
+                <span>
+                  {river.name} ({river.location})
+                </span>
+              </span>
             </SelectItem>
           )
         })}

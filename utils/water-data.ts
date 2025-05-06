@@ -51,6 +51,7 @@ export interface RiverData {
     temperature?: string
     flow?: string
   }
+  webcamUrl?: string
 }
 
 export type ChangeStatus =
@@ -449,6 +450,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         temperature: config.temperatureUrl,
         flow: config.flowUrl,
       },
+      webcamUrl: config.webcamUrl,
     }
 
     return riverData
@@ -470,6 +472,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         temperature: config.temperatureUrl,
         flow: config.flowUrl,
       },
+      webcamUrl: config.webcamUrl,
     }
   }
 }
