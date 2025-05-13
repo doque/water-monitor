@@ -30,59 +30,32 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
-  // Determine the status of a river based on its 24h flow trend
-  const getRiverStatusIndicator = (river: RiverData): { emoji: string; direction: string } => {
-    // Default values
-    let emoji = "🟢"
-    let direction = ""
+  // Get emoji based on alert level
+  const getRiverStatusEmoji = (river: RiverData): string => {
+    if (!river.current.flow) return "🟢" // Default to green if no flow data
 
-    // Use the 24h flow change from the API data
-    if (river.changes.flowPercentage !== undefined && river.changes.flowStatus) {
-      const flowPercentage = river.changes.flowPercentage
+    const alertLevel = river.alertLevel || "normal"
 
-      // Determine status based on the change
-      if (Math.abs(flowPercentage) > 15) {
-        emoji = "🔴" // Major change (>15%)
-      } else if (Math.abs(flowPercentage) > 5) {
-        emoji = "🟡" // Moderate change (5-15%)
-      }
-
-      // Determine direction
-      direction = flowPercentage > 0 ? "↗️" : flowPercentage < 0 ? "↘️" : ""
-
-      return { emoji, direction }
+    switch (alertLevel) {
+      case "alert":
+        return "🔴"
+      case "warning":
+        return "🟡"
+      default:
+        return "🟢"
     }
-
-    // Fallback: If no flow data is available, check level
-    if (river.changes.levelPercentage !== undefined) {
-      const levelPercentage = river.changes.levelPercentage
-
-      // Determine status based on the change
-      if (Math.abs(levelPercentage) > 15) {
-        emoji = "🔴" // Major change (>15%)
-      } else if (Math.abs(levelPercentage) > 5) {
-        emoji = "🟡" // Moderate change (5-15%)
-      }
-
-      // Determine direction
-      direction = levelPercentage > 0 ? "↗️" : levelPercentage < 0 ? "↘️" : ""
-    }
-
-    return { emoji, direction }
   }
 
   // Find the selected river to display its name
   const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === value)
-  const { emoji, direction } = selectedRiver ? getRiverStatusIndicator(selectedRiver) : { emoji: "🟢", direction: "" }
+  const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : "🟢"
 
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className="px-2 h-10 flex items-center justify-between">
         <SelectValue>
           <div className="flex items-center truncate mr-1">
-            <span className="mr-1">
-              {emoji} {direction}
-            </span>
+            <span className="mr-1">{emoji}</span>
             <span className="truncate">
               {selectedRiver?.name}
               {/* Only show location on desktop */}
@@ -93,14 +66,12 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
       </SelectTrigger>
       <SelectContent>
         {rivers.map((river) => {
-          const { emoji, direction } = getRiverStatusIndicator(river)
+          const emoji = getRiverStatusEmoji(river)
           const riverId = extractRiverId(river.urls.level)
           return (
             <SelectItem key={riverId} value={riverId}>
               <span className="flex items-center">
-                <span className="mr-1">
-                  {emoji} {direction}
-                </span>
+                <span className="mr-1">{emoji}</span>
                 <span>
                   {river.name} ({river.location})
                 </span>

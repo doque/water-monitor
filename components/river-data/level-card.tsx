@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
-import { getChangeIndicator } from "@/utils/formatters"
 
 interface LevelCardProps {
   river: RiverData
@@ -12,24 +11,36 @@ interface LevelCardProps {
 }
 
 export function LevelCard({ river, isActive, onClick, isMobile = false }: LevelCardProps) {
-  // Update the getTextColorClass function to use weekly data and remove blue for small changes
+  // Use the same color as the flow card based on alert level
   const getTextColorClass = () => {
-    // Get the weekly change percentage
-    const weeklyChange =
-      river.history.levels.length > 0
-        ? (((river.current.level?.level || 0) - (river.history.levels[river.history.levels.length - 1]?.level || 0)) /
-            (river.history.levels[river.history.levels.length - 1]?.level || 1)) *
-          100
-        : 0
+    if (!river.current.level) return "text-foreground"
 
-    // Use significant thresholds for color coding
-    if (Math.abs(weeklyChange) > 15) {
-      return "text-red-600 dark:text-red-400"
-    } else if (Math.abs(weeklyChange) > 5) {
-      return "text-amber-600 dark:text-amber-400"
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "text-red-600 dark:text-red-400"
+      case "warning":
+        return "text-amber-600 dark:text-amber-400"
+      default:
+        return "text-green-600 dark:text-green-400"
     }
-    // For small or no changes, use default text color
-    return "text-foreground"
+  }
+
+  // Get emoji based on alert level
+  const getAlertEmoji = () => {
+    if (!river.current.level) return ""
+
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "🔴"
+      case "warning":
+        return "🟡"
+      default:
+        return "🟢"
+    }
   }
 
   return (
@@ -37,17 +48,24 @@ export function LevelCard({ river, isActive, onClick, isMobile = false }: LevelC
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
-          {!isMobile && river.changes.levelPercentage !== undefined && (
+          {!isMobile && (
             <span className="text-sm font-normal">
-              {getChangeIndicator(river.changes.levelPercentage, river.changes.levelStatus, true)}
+              {getAlertEmoji()}{" "}
+              {river.changes.levelPercentage !== undefined && (
+                <span className="ml-1">
+                  {river.changes.levelPercentage > 0 ? "+" : ""}
+                  {Math.round(river.changes.levelPercentage)}%
+                </span>
+              )}
             </span>
           )}
+          {isMobile && river.changes.levelPercentage !== undefined && (
+            <div className="text-sm font-normal mt-1">
+              {getAlertEmoji()} {river.changes.levelPercentage > 0 ? "+" : ""}
+              {Math.round(river.changes.levelPercentage)}%
+            </div>
+          )}
         </div>
-        {isMobile && river.changes.levelPercentage !== undefined && (
-          <div className="text-sm font-normal mt-1">
-            {getChangeIndicator(river.changes.levelPercentage, river.changes.levelStatus, true)}
-          </div>
-        )}
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
         {river.current.level ? (

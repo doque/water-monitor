@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
-import { getChangeIndicator } from "@/utils/formatters"
 
 interface FlowCardProps {
   river: RiverData
@@ -11,24 +10,36 @@ interface FlowCardProps {
 }
 
 export function FlowCard({ river, isActive, onClick }: FlowCardProps) {
-  // Determine the text color based on flow status
+  // Determine the text color based on alert level
   const getTextColorClass = () => {
-    // Get the weekly change percentage
-    const weeklyChange =
-      river.history.flows.length > 0
-        ? (((river.current.flow?.flow || 0) - (river.history.flows[river.history.flows.length - 1]?.flow || 0)) /
-            (river.history.flows[river.history.flows.length - 1]?.flow || 1)) *
-          100
-        : 0
+    if (!river.current.flow) return "text-foreground"
 
-    // Use significant thresholds for color coding
-    if (Math.abs(weeklyChange) > 15) {
-      return "text-red-600 dark:text-red-400"
-    } else if (Math.abs(weeklyChange) > 5) {
-      return "text-amber-600 dark:text-amber-400"
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "text-red-600 dark:text-red-400"
+      case "warning":
+        return "text-amber-600 dark:text-amber-400"
+      default:
+        return "text-green-600 dark:text-green-400"
     }
-    // For small or no changes, use default text color
-    return "text-foreground"
+  }
+
+  // Get emoji based on alert level
+  const getAlertEmoji = () => {
+    if (!river.current.flow) return ""
+
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "🔴"
+      case "warning":
+        return "🟡"
+      default:
+        return "🟢"
+    }
   }
 
   return (
@@ -36,11 +47,15 @@ export function FlowCard({ river, isActive, onClick }: FlowCardProps) {
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
-          {river.changes.flowPercentage !== undefined && (
-            <span className="text-sm font-normal">
-              {getChangeIndicator(river.changes.flowPercentage, river.changes.flowStatus, true)}
-            </span>
-          )}
+          <span className="text-sm font-normal">
+            {getAlertEmoji()}{" "}
+            {river.changes.flowPercentage !== undefined && (
+              <span className="ml-1">
+                {river.changes.flowPercentage > 0 ? "+" : ""}
+                {Math.round(river.changes.flowPercentage)}%
+              </span>
+            )}
+          </span>
         </div>
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">

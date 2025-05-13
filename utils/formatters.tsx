@@ -15,28 +15,28 @@ export function getChangeIndicator(percentage: number, status: string, compact =
 
   switch (status) {
     case "large-increase":
-      emoji = "🔴 ↗️"
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
+      emoji = "↗️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "large-decrease":
-      emoji = "🔴 ↘️"
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
+      emoji = "↘️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-increase":
-      emoji = "🟡 ↗️"
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
+      emoji = "↗️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-decrease":
-      emoji = "🟡 ↘️"
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
+      emoji = "↘️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-increase":
       emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-decrease":
       emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     default:
       emoji = "→"
@@ -72,28 +72,28 @@ export function getTemperatureChangeIndicator(change: number, status: string, co
 
   switch (status) {
     case "large-increase":
-      emoji = "🔴 ↗️"
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
+      emoji = "↗️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "large-decrease":
-      emoji = "🔴 ↘️"
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
+      emoji = "↘️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-increase":
-      emoji = "🟡 ↗️"
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
+      emoji = "↗️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-decrease":
-      emoji = "🟡 ↘️"
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
+      emoji = "↘️"
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-increase":
       emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-decrease":
       emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
+      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     default:
       emoji = "→"
@@ -235,45 +235,8 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
   const change = calculateTimeRangeChange(river, dataType, timeRange)
   if (change.percentChange === null) return null
 
-  let colorClass = "text-gray-700 dark:text-gray-300"
-
-  switch (change.status) {
-    case "large-increase":
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
-      break
-    case "large-decrease":
-      colorClass = "text-red-600 dark:text-red-400 font-bold"
-      break
-    case "medium-increase":
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
-      break
-    case "medium-decrease":
-      colorClass = "text-amber-600 dark:text-amber-400 font-bold"
-      break
-    case "small-increase":
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
-      break
-    case "small-decrease":
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold" // Changed from blue to default
-      break
-    default:
-      colorClass = "text-gray-700 dark:text-gray-300"
-  }
-
-  const emoji =
-    change.status === "large-increase"
-      ? "🔴 ↗️"
-      : change.status === "large-decrease"
-        ? "🔴 ↘️"
-        : change.status === "medium-increase"
-          ? "🟡 ↗️"
-          : change.status === "medium-decrease"
-            ? "🟡 ↘️"
-            : change.status === "small-increase"
-              ? "↗️"
-              : change.status === "small-decrease"
-                ? "↘️"
-                : "→"
+  const colorClass = "text-gray-700 dark:text-gray-300"
+  const emoji = change.status === "stable" ? "→" : change.percentChange > 0 ? "↗️" : "↘️"
 
   // Time range text for display
   const getTimeRangeText = () => {

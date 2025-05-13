@@ -1,7 +1,7 @@
 "use client"
 
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
-import type { RiverData } from "@/utils/water-data"
+import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
@@ -121,39 +121,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     return dataPoints[timeRange]
   }
 
-  // Calculate weekly statistics for alert level determination
-  const weeklyStats = useMemo(() => {
-    let data = []
-    let min = 0
-    let max = 0
-    let avg = 0
-    let weeklyChange = 0
-
-    // Get the appropriate data array based on data type
-    if (dataType === "level" && river.history.levels.length > 0) {
-      data = river.history.levels.map((point) => point.level)
-    } else if (dataType === "temperature" && river.history.temperatures.length > 0) {
-      data = river.history.temperatures.map((point) => point.temperature)
-    } else if (dataType === "flow" && river.history.flows.length > 0) {
-      data = river.history.flows.map((point) => point.flow)
-    }
-
-    if (data.length > 0) {
-      min = Math.min(...data)
-      max = Math.max(...data)
-      avg = data.reduce((sum, val) => sum + val, 0) / data.length
-
-      // Calculate change from oldest to newest (if we have at least 2 data points)
-      if (data.length >= 2) {
-        const oldest = data[data.length - 1]
-        const newest = data[0]
-        weeklyChange = oldest > 0 ? ((newest - oldest) / oldest) * 100 : 0
-      }
-    }
-
-    return { min, max, avg, weeklyChange }
-  }, [river, dataType])
-
   // Calculate Y-axis domain based on data range
   const yAxisDomain = useMemo(() => {
     let data = []
@@ -204,50 +171,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     // For larger ranges, use more ticks
     return 7
   }, [yAxisDomain])
-
-  // Determine alert level based on data type and weekly statistics
-  const getAlertLevel = () => {
-    // Default to normal if no data
-    if (!river.current) return "normal"
-
-    // For flow data
-    if (dataType === "flow" && river.current.flow) {
-      const flowValue = river.current.flow.flow
-      const { max: weekMax, weeklyChange } = weeklyStats
-
-      // High alert for large increases over the week or very high flow compared to weekly max
-      if (Math.abs(weeklyChange) > 50 || flowValue > 100 || flowValue > weekMax * 0.9) return "alert"
-      // Warning for moderate increases or moderately high flow
-      if (Math.abs(weeklyChange) > 15 || flowValue > 50 || flowValue > weekMax * 0.7) return "warning"
-      return "normal"
-    }
-
-    // For level data
-    if (dataType === "level" && river.current.level) {
-      const levelValue = river.current.level.level
-      const { max: weekMax, weeklyChange } = weeklyStats
-
-      // High alert for large increases over the week or very high levels compared to weekly max
-      if (Math.abs(weeklyChange) > 50 || levelValue > 200 || levelValue > weekMax * 0.9) return "alert"
-      // Warning for moderate increases or moderately high levels
-      if (Math.abs(weeklyChange) > 15 || levelValue > 160 || levelValue > weekMax * 0.7) return "warning"
-      return "normal"
-    }
-
-    // For temperature data
-    if (dataType === "temperature" && river.current.temperature) {
-      const tempValue = river.current.temperature.temperature
-      const { max: weekMax, min: weekMin, weeklyChange } = weeklyStats
-
-      // High alert for large temperature changes over the week or extreme temperatures
-      if (Math.abs(weeklyChange) > 30 || tempValue > 25 || tempValue < weekMin * 0.8) return "alert"
-      // Warning for moderate temperature changes or notable temperatures
-      if (Math.abs(weeklyChange) > 15 || tempValue > 20 || tempValue < weekMin * 0.9) return "warning"
-      return "normal"
-    }
-
-    return "normal"
-  }
 
   // Prepare chart data based on data type
   const getChartData = () => {
@@ -390,8 +313,12 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     const isDarkMode =
       typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
 
-    // Get alert level to determine colors
-    const alertLevel = getAlertLevel()
+    // Get alert level
+    let alertLevel: AlertLevel = "normal"
+
+    if (dataType === "flow" && river.alertLevel) {
+      alertLevel = river.alertLevel
+    }
 
     // Define colors based on alert level
     let stroke, fill
@@ -407,8 +334,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
         break
       case "normal":
       default:
-        stroke = "#2563eb" // Blue-600
-        fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode
+        stroke = "#16a34a" // Green-600
+        fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
     }
 
     // Get data type specific information

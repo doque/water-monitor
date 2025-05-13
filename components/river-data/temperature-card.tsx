@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
-import { getTemperatureChangeIndicator } from "@/utils/formatters"
 
 interface TemperatureCardProps {
   river: RiverData
@@ -12,25 +11,36 @@ interface TemperatureCardProps {
 }
 
 export function TemperatureCard({ river, isActive, onClick, isMobile = false }: TemperatureCardProps) {
-  // Determine the text color based on temperature status
+  // Use the same color as the flow card based on alert level
   const getTextColorClass = () => {
-    // Get the weekly change percentage
-    const weeklyChange =
-      river.history.temperatures.length > 0
-        ? (((river.current.temperature?.temperature || 0) -
-            (river.history.temperatures[river.history.temperatures.length - 1]?.temperature || 0)) /
-            (river.history.temperatures[river.history.temperatures.length - 1]?.temperature || 1)) *
-          100
-        : 0
+    if (!river.current.temperature) return "text-foreground"
 
-    // Use significant thresholds for color coding
-    if (Math.abs(weeklyChange) > 15) {
-      return "text-red-600 dark:text-red-400"
-    } else if (Math.abs(weeklyChange) > 5) {
-      return "text-amber-600 dark:text-amber-400"
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "text-red-600 dark:text-red-400"
+      case "warning":
+        return "text-amber-600 dark:text-amber-400"
+      default:
+        return "text-green-600 dark:text-green-400"
     }
-    // For small or no changes, use default text color
-    return "text-foreground"
+  }
+
+  // Get emoji based on alert level
+  const getAlertEmoji = () => {
+    if (!river.current.temperature) return ""
+
+    const alertLevel = river.alertLevel || "normal"
+
+    switch (alertLevel) {
+      case "alert":
+        return "🔴"
+      case "warning":
+        return "🟡"
+      default:
+        return "🟢"
+    }
   }
 
   return (
@@ -43,13 +53,15 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false }: 
           <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
           {!isMobile && river.changes.temperatureChange !== undefined && (
             <span className="text-sm font-normal">
-              {getTemperatureChangeIndicator(river.changes.temperatureChange, river.changes.temperatureStatus, true)}
+              {getAlertEmoji()} {river.changes.temperatureChange > 0 ? "+" : ""}
+              {river.changes.temperatureChange.toFixed(1)}°C
             </span>
           )}
         </div>
         {isMobile && river.changes.temperatureChange !== undefined && (
           <div className="text-sm font-normal mt-1">
-            {getTemperatureChangeIndicator(river.changes.temperatureChange, river.changes.temperatureStatus, true)}
+            {getAlertEmoji()} {river.changes.temperatureChange > 0 ? "+" : ""}
+            {river.changes.temperatureChange.toFixed(1)}°C
           </div>
         )}
       </CardHeader>

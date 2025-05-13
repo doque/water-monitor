@@ -20,6 +20,17 @@ export interface WaterFlowDataPoint {
   timestamp: Date
 }
 
+export type ThresholdRange = [number | null, number | null]
+export type ThresholdRanges = ThresholdRange | ThresholdRange[]
+
+export interface Thresholds {
+  green: ThresholdRanges
+  yellow: ThresholdRanges
+  red: ThresholdRanges
+}
+
+export type AlertLevel = "normal" | "warning" | "alert"
+
 export interface RiverData {
   name: string
   location: string
@@ -52,6 +63,8 @@ export interface RiverData {
     flow?: string
   }
   webcamUrl?: string
+  flowThresholds?: Thresholds
+  alertLevel?: AlertLevel
 }
 
 export type ChangeStatus =
@@ -67,6 +80,33 @@ export interface RiversData {
   rivers: RiverData[]
   lastUpdated: Date
   error?: string
+}
+
+// Helper function to check if a value is within a threshold range
+export function isWithinRange(value: number, range: ThresholdRanges): boolean {
+  if (Array.isArray(range[0])) {
+    // Multiple ranges
+    return (range as ThresholdRange[]).some((r) => isWithinSingleRange(value, r))
+  } else {
+    // Single range
+    return isWithinSingleRange(value, range as ThresholdRange)
+  }
+}
+
+function isWithinSingleRange(value: number, range: ThresholdRange): boolean {
+  const [min, max] = range
+  if (min === null && max === null) return true
+  if (min === null) return value <= max
+  if (max === null) return value >= min
+  return value >= min && value <= max
+}
+
+// Determine alert level based on flow thresholds
+export function getAlertLevelFromFlow(flow: number, thresholds: Thresholds): AlertLevel {
+  if (isWithinRange(flow, thresholds.red)) return "alert"
+  if (isWithinRange(flow, thresholds.yellow)) return "warning"
+  if (isWithinRange(flow, thresholds.green)) return "normal"
+  return "normal" // Default
 }
 
 // Hilfsfunktion zur Bestimmung des Änderungsstatus basierend auf dem Prozentsatz
@@ -418,6 +458,12 @@ async function fetchRiverData(config): Promise<RiverData> {
         : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
     ])
 
+    // Calculate alert level based on flow thresholds if available
+    let alertLevel: AlertLevel = "normal"
+    if (config.flowThresholds && flowData.current) {
+      alertLevel = getAlertLevelFromFlow(flowData.current.flow, config.flowThresholds)
+    }
+
     // Flussdatenobjekt erstellen
     const riverData: RiverData = {
       name: config.name,
@@ -451,6 +497,8 @@ async function fetchRiverData(config): Promise<RiverData> {
         flow: config.flowUrl,
       },
       webcamUrl: config.webcamUrl,
+      flowThresholds: config.flowThresholds,
+      alertLevel: alertLevel,
     }
 
     return riverData
@@ -473,6 +521,8 @@ async function fetchRiverData(config): Promise<RiverData> {
         flow: config.flowUrl,
       },
       webcamUrl: config.webcamUrl,
+      flowThresholds: config.flowThresholds,
+      alertLevel: "normal",
     }
   }
 }
@@ -496,12 +546,6 @@ export async function fetchRiversData(): Promise<RiversData> {
       error: error.message,
     }
   }
-}
-
-export type WaterLevelData = {
-  location: string
-  date: string
-  level: number
 }
 
 // Add a helper function to extract river ID from URL
@@ -530,3 +574,5 @@ export function extractRiverId(url: string): string {
   // If we can't extract the ID, return a fallback
   return "unknown"
 }
+
+export type WaterLevelData = RiverData
