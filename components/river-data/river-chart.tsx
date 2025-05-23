@@ -105,7 +105,25 @@ const formatYAxisTick = (value) => {
 }
 
 export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
-  const [forceUpdate, setForceUpdate] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // Check for dark mode on mount and when theme changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDarkMode(
+        typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches,
+      )
+    }
+
+    checkDarkMode()
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    mediaQuery.addEventListener("change", checkDarkMode)
+
+    return () => {
+      mediaQuery.removeEventListener("change", checkDarkMode)
+    }
+  }, [])
 
   // Helper function to get data points for time range
   function getDataPointsForTimeRange(timeRange: TimeRangeOption): number {
@@ -173,7 +191,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
   }, [yAxisDomain])
 
   // Prepare chart data based on data type
-  const getChartData = () => {
+  const chartData = useMemo(() => {
     const isLongTimeRange = timeRange === "1w"
     let data: any[] = []
 
@@ -201,10 +219,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     }
 
     return data
-  }
+  }, [river, dataType, timeRange])
 
   // Prepare chart data for the given time range
-  const prepareChartData = (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
+  function prepareChartData(rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) {
     let filteredData = [...rawData]
     const isLongTimeRange = timeRange === "1w"
 
@@ -249,8 +267,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
   }
 
   // Calculate the interval for the X-axis based on time range and device type
-  const getXAxisInterval = (dataLength: number) => {
+  const xAxisInterval = useMemo(() => {
     const isLongTimeRange = timeRange === "1w"
+    const dataLength = chartData.length
 
     if (isMobile) {
       switch (timeRange) {
@@ -291,28 +310,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
             : Math.floor(dataLength / 10)
       }
     }
-  }
+  }, [timeRange, chartData.length, isMobile])
 
-  // Update chart colors when theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-
-    const handleChange = () => {
-      // Force re-render to update chart colors
-      setForceUpdate((prev) => !prev)
-    }
-
-    mediaQuery.addEventListener("change", handleChange)
-
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange)
-    }
-  }, [])
-
-  const getChartConfig = () => {
-    const isDarkMode =
-      typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-
+  // Get chart configuration based on alert level
+  const chartConfig = useMemo(() => {
     // Get alert level
     let alertLevel: AlertLevel = "normal"
 
@@ -366,10 +367,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
       name,
       alertLevel,
     }
-  }
+  }, [dataType, river.alertLevel, isDarkMode])
 
-  const chartData = getChartData()
-  const chartConfig = getChartConfig()
   const isLongTimeRange = timeRange === "1w"
 
   if (chartData.length === 0) {
@@ -403,7 +402,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
               <XAxis
                 dataKey={isLongTimeRange ? "label" : "time"}
                 tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange} />}
-                interval={getXAxisInterval(chartData.length)}
+                interval={xAxisInterval}
                 height={isLongTimeRange ? 50 : 30} // Increased height for line breaks
                 stroke="currentColor"
               />

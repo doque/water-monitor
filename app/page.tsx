@@ -31,7 +31,7 @@ function Header() {
 // Async component to fetch and display river data
 async function RiverDataContainer() {
   try {
-    // Fetch river data
+    // Fetch river data with cache control
     const riversData = await fetchRiversData()
 
     // Check if we have any rivers data

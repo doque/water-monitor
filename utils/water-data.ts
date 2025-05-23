@@ -155,7 +155,7 @@ async function fetchWaterLevel(url: string): Promise<{
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      next: { revalidate: 3600 }, // Cache for 1 hour
     })
 
     if (!response.ok) {
@@ -256,7 +256,7 @@ async function fetchWaterTemperature(url: string): Promise<{
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      next: { revalidate: 3600 }, // Cache for 1 hour
     })
 
     if (!response.ok) {
@@ -358,7 +358,7 @@ async function fetchWaterFlow(url: string): Promise<{
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      next: { revalidate: 3600 }, // Cache for 1 hour
     })
 
     if (!response.ok) {
@@ -527,19 +527,50 @@ async function fetchRiverData(config): Promise<RiverData> {
   }
 }
 
+// Cache for river data to prevent unnecessary fetches
+let cachedRiversData: RiversData | null = null
+let lastFetchTime = 0
+const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes in milliseconds
+
 // Hauptfunktion zum Abrufen aller Flussdaten
 export async function fetchRiversData(): Promise<RiversData> {
   try {
+    const now = Date.now()
+
+    // Return cached data if it's still valid
+    if (cachedRiversData && now - lastFetchTime < CACHE_DURATION) {
+      console.log("Using cached river data")
+      return cachedRiversData
+    }
+
+    console.log("Fetching fresh river data")
+
     // Alle Flüsse parallel abrufen
     const riversPromises = riverSources.rivers.map((config) => fetchRiverData(config))
     const rivers = await Promise.all(riversPromises)
 
-    return {
+    const newData = {
       rivers,
       lastUpdated: new Date(),
     }
+
+    // Update cache
+    cachedRiversData = newData
+    lastFetchTime = now
+
+    return newData
   } catch (error) {
     console.error("Fehler beim Abrufen der Flussdaten:", error)
+
+    // If we have cached data, return it even if it's expired
+    if (cachedRiversData) {
+      console.log("Returning expired cached data due to fetch error")
+      return {
+        ...cachedRiversData,
+        error: error.message,
+      }
+    }
+
     return {
       rivers: [],
       lastUpdated: new Date(),

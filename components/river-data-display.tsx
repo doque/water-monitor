@@ -32,25 +32,40 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const initialDataType = (searchParams.get("pane") || "flow") as DataType
   const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
 
+  // State for UI controls
   const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
   const [activeDataType, setActiveDataType] = useState<DataType>(initialDataType)
-  const [activeRiver, setActiveRiver] = useState(
-    riversWithIds.find((r) => extractRiverId(r.urls.level) === initialRiverId) || riversWithIds[0],
-  )
+  const [activeRiverId, setActiveRiverId] = useState<string>(initialRiverId)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Update URL when state changes
+  // Find the active river object based on the ID
+  const activeRiver = riversWithIds.find((r) => extractRiverId(r.urls.level) === activeRiverId) || riversWithIds[0]
+
+  // Update URL when state changes - but only once on mount and when values actually change
   useEffect(() => {
-    if (!activeRiver) return
+    const params = new URLSearchParams(searchParams.toString())
 
-    const params = new URLSearchParams()
-    params.set("id", extractRiverId(activeRiver.urls.level))
-    params.set("pane", activeDataType)
-    params.set("interval", timeRange)
+    // Only update params that have changed
+    if (params.get("id") !== activeRiverId) {
+      params.set("id", activeRiverId)
+    }
 
-    // Update URL without causing a page reload
-    router.replace(`?${params.toString()}`, { scroll: false })
-  }, [activeRiver, activeDataType, timeRange, router])
+    if (params.get("pane") !== activeDataType) {
+      params.set("pane", activeDataType)
+    }
+
+    if (params.get("interval") !== timeRange) {
+      params.set("interval", timeRange)
+    }
+
+    // Only update URL if params have changed
+    const newParamsString = params.toString()
+    const currentParamsString = searchParams.toString()
+
+    if (newParamsString !== currentParamsString) {
+      router.replace(`?${newParamsString}`, { scroll: false })
+    }
+  }, [activeRiverId, activeDataType, timeRange, router, searchParams])
 
   // Detect if we're on mobile
   useEffect(() => {
@@ -81,26 +96,7 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-7 sm:col-span-6">
-          <RiverSelect
-            rivers={riversWithIds}
-            value={extractRiverId(activeRiver.urls.level)}
-            key={extractRiverId(activeRiver.urls.level)} // Add a key to force re-render when river changes
-            onValueChange={(value) => {
-              // Find the selected river by ID
-              const selectedRiver = riversWithIds.find((r) => extractRiverId(r.urls.level) === value)
-              if (selectedRiver) {
-                // Set active river
-                setActiveRiver(selectedRiver)
-
-                // Update URL immediately to ensure consistency
-                const params = new URLSearchParams(searchParams.toString())
-                params.set("id", value)
-                params.set("pane", activeDataType)
-                params.set("interval", timeRange)
-                router.replace(`?${params.toString()}`, { scroll: false })
-              }
-            }}
-          />
+          <RiverSelect rivers={riversWithIds} value={activeRiverId} onValueChange={setActiveRiverId} />
         </div>
         <div className="col-span-5 sm:col-span-6">
           <TimeRangeSelect value={timeRange} onValueChange={setTimeRange} />
@@ -139,7 +135,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           </div>
 
           {/* Chart area (always visible) */}
-          <RiverChart river={activeRiver} dataType={activeDataType} timeRange={timeRange} isMobile={isMobile} />
+          <RiverChart
+            key={`${activeRiverId}-${activeDataType}-${timeRange}`}
+            river={activeRiver}
+            dataType={activeDataType}
+            timeRange={timeRange}
+            isMobile={isMobile}
+          />
 
           {/* Webcam image (if available) */}
           {activeRiver.webcamUrl && (
