@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
 import { fetchRiversData } from "@/utils/water-data"
 
-// Cache control headers
-const cacheHeaders = {
-  "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800", // 15 minutes cache, 30 minutes stale
-}
+// Force dynamic rendering for this API route
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export async function GET() {
   try {
     const data = await fetchRiversData()
     return NextResponse.json(data, {
-      headers: cacheHeaders,
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
     })
   } catch (error) {
     console.error("Fehler beim Abrufen der Flussdaten:", error)
@@ -20,6 +23,8 @@ export async function GET() {
         status: 500,
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
         },
       },
     )
