@@ -5,7 +5,7 @@ import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -107,7 +107,17 @@ const formatYAxisTick = (value) => {
 export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
-  // Check for dark mode on mount and when theme changes
+  // Memoize the trend display for the chart header
+  const chartTrendDisplay = useMemo(() => {
+    try {
+      return formatTrendForTimeRange(river, dataType, timeRange)
+    } catch (error) {
+      console.error("Error calculating chart trend:", error)
+      return null
+    }
+  }, [river, dataType, timeRange])
+
+  // Check for dark mode on mount and when theme changes - with proper cleanup
   useEffect(() => {
     const checkDarkMode = () => {
       setIsDarkMode(
@@ -117,16 +127,18 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
 
     checkDarkMode()
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-    mediaQuery.addEventListener("change", checkDarkMode)
+    if (typeof window !== "undefined") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+      mediaQuery.addEventListener("change", checkDarkMode)
 
-    return () => {
-      mediaQuery.removeEventListener("change", checkDarkMode)
+      return () => {
+        mediaQuery.removeEventListener("change", checkDarkMode)
+      }
     }
   }, [])
 
-  // Helper function to get data points for time range
-  function getDataPointsForTimeRange(timeRange: TimeRangeOption): number {
+  // Helper function to get data points for time range - memoized
+  const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
     const dataPoints = {
       "1h": 4,
       "2h": 8,
@@ -137,9 +149,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
       "1w": 672,
     }
     return dataPoints[timeRange]
-  }
+  }, [])
 
-  // Calculate Y-axis domain based on data range
+  // Calculate Y-axis domain based on data range - with stable dependencies
   const yAxisDomain = useMemo(() => {
     let data = []
 
@@ -172,7 +184,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     const newMax = Math.ceil(max + padding)
 
     return [newMin, newMax]
-  }, [river, dataType, timeRange])
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -190,39 +202,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     return 7
   }, [yAxisDomain])
 
-  // Prepare chart data based on data type
-  const chartData = useMemo(() => {
-    const isLongTimeRange = timeRange === "1w"
-    let data: any[] = []
-
-    if (dataType === "level" && river.history.levels.length > 0) {
-      data = prepareChartData(river.history.levels, timeRange, (point) => ({
-        ...point,
-        value: point.level,
-        unit: "cm",
-        type: "Level",
-      }))
-    } else if (dataType === "temperature" && river.history.temperatures.length > 0) {
-      data = prepareChartData(river.history.temperatures, timeRange, (point) => ({
-        ...point,
-        value: point.temperature,
-        unit: "°C",
-        type: "Temperature",
-      }))
-    } else if (dataType === "flow" && river.history.flows.length > 0) {
-      data = prepareChartData(river.history.flows, timeRange, (point) => ({
-        ...point,
-        value: point.flow,
-        unit: "m³/s",
-        type: "Flow",
-      }))
-    }
-
-    return data
-  }, [river, dataType, timeRange])
-
-  // Prepare chart data for the given time range
-  function prepareChartData(rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) {
+  // Prepare chart data for the given time range - memoized function
+  const prepareChartData = useCallback((rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
     let filteredData = [...rawData]
     const isLongTimeRange = timeRange === "1w"
 
@@ -264,7 +245,37 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
         fullDate: point.date, // Full date for tooltip
       }
     })
-  }
+  }, [])
+
+  // Prepare chart data based on data type - with stable dependencies
+  const chartData = useMemo(() => {
+    let data: any[] = []
+
+    if (dataType === "level" && river.history.levels.length > 0) {
+      data = prepareChartData(river.history.levels, timeRange, (point) => ({
+        ...point,
+        value: point.level,
+        unit: "cm",
+        type: "Level",
+      }))
+    } else if (dataType === "temperature" && river.history.temperatures.length > 0) {
+      data = prepareChartData(river.history.temperatures, timeRange, (point) => ({
+        ...point,
+        value: point.temperature,
+        unit: "°C",
+        type: "Temperature",
+      }))
+    } else if (dataType === "flow" && river.history.flows.length > 0) {
+      data = prepareChartData(river.history.flows, timeRange, (point) => ({
+        ...point,
+        value: point.flow,
+        unit: "m³/s",
+        type: "Flow",
+      }))
+    }
+
+    return data
+  }, [river.history, dataType, timeRange, prepareChartData])
 
   // Calculate the interval for the X-axis based on time range and device type
   const xAxisInterval = useMemo(() => {
@@ -312,16 +323,12 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     }
   }, [timeRange, chartData.length, isMobile])
 
-  // Get chart configuration based on alert level
+  // Get chart configuration - ALWAYS based on flow alert level - with stable dependencies
   const chartConfig = useMemo(() => {
-    // Get alert level
-    let alertLevel: AlertLevel = "normal"
+    // Always use the flow-based alert level for chart colors, regardless of current data type
+    const alertLevel: AlertLevel = river.alertLevel || "normal"
 
-    if (dataType === "flow" && river.alertLevel) {
-      alertLevel = river.alertLevel
-    }
-
-    // Define colors based on alert level
+    // Define colors based on flow alert level
     let stroke, fill
 
     switch (alertLevel) {
@@ -339,35 +346,13 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
         fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
     }
 
-    // Get data type specific information
-    let unit, name
-    switch (dataType) {
-      case "level":
-        unit = "cm"
-        name = "Pegel"
-        break
-      case "temperature":
-        unit = "°C"
-        name = "Temperatur"
-        break
-      case "flow":
-        unit = "m³/s"
-        name = "Abfluss"
-        break
-      default:
-        unit = ""
-        name = "Wert"
-    }
-
     return {
       stroke,
       fill,
       dataKey: "value",
-      unit,
-      name,
       alertLevel,
     }
-  }, [dataType, river.alertLevel, isDarkMode])
+  }, [river.alertLevel, isDarkMode])
 
   const isLongTimeRange = timeRange === "1w"
 
@@ -377,6 +362,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
         <CardHeader className="pb-2 p-3 sm:p-6">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+            {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
           </div>
         </CardHeader>
         <CardContent className="p-3 flex items-center justify-center h-[300px]">
@@ -391,7 +377,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-          <span className="text-sm font-normal">{formatTrendForTimeRange(river, dataType, timeRange)}</span>
+          {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">

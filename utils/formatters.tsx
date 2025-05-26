@@ -3,149 +3,60 @@ import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 
 type DataType = "level" | "temperature" | "flow"
 
-// Format percentage change with appropriate emoji
-export function getChangeIndicator(percentage: number, status: string, compact = false) {
-  if (percentage === undefined || percentage === null) return "Keine Daten"
+// Format absolute change with appropriate emoji
+export function getChangeIndicator(absoluteChange: number, status: string, unit: string, compact = false) {
+  if (absoluteChange === undefined || absoluteChange === null) return "Keine Daten"
 
-  // Format the change: For values over 10% no decimal places, otherwise one
-  const formattedChange = Math.abs(percentage) >= 10 ? Math.round(percentage).toString() : percentage.toFixed(1)
+  // Format the change: For values over 10 no decimal places, otherwise one
+  const formattedChange =
+    Math.abs(absoluteChange) >= 10 ? Math.round(absoluteChange).toString() : Math.abs(absoluteChange).toFixed(1)
 
-  let emoji = "→"
-  let colorClass = "text-gray-700 dark:text-gray-300"
+  let emoji = "➡️"
 
   switch (status) {
     case "large-increase":
       emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "large-decrease":
       emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-increase":
       emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "medium-decrease":
       emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-increase":
       emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     case "small-decrease":
       emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
       break
     default:
-      emoji = "→"
-      colorClass = "text-gray-700 dark:text-gray-300"
+      emoji = "➡️"
   }
 
   if (compact) {
     return (
-      <span className={colorClass}>
-        {emoji} {percentage > 0 ? "+" : ""}
-        {formattedChange}% in 24h
+      <span>
+        {emoji} {absoluteChange > 0 ? "+" : ""}
+        {absoluteChange > 0 ? formattedChange : `-${formattedChange}`}
+        {unit}
       </span>
     )
   }
 
   return (
-    <span className={colorClass}>
-      {emoji} {percentage > 0 ? "+" : ""}
-      {formattedChange}%
+    <span>
+      {emoji} {absoluteChange > 0 ? "+" : ""}
+      {absoluteChange > 0 ? formattedChange : `-${formattedChange}`}
+      {unit}
     </span>
   )
 }
 
-// Format temperature change with appropriate emoji
-export function getTemperatureChangeIndicator(change: number, status: string, compact = false) {
-  if (change === undefined || change === null) return "Keine Daten"
-
-  // Format the change: For values over 10°C no decimal places, otherwise one
-  const formattedChange = Math.abs(change) >= 10 ? Math.round(change).toString() : change.toFixed(1)
-
-  let emoji = "→"
-  let colorClass = "text-gray-700 dark:text-gray-300"
-
-  switch (status) {
-    case "large-increase":
-      emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    case "large-decrease":
-      emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    case "medium-increase":
-      emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    case "medium-decrease":
-      emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    case "small-increase":
-      emoji = "↗️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    case "small-decrease":
-      emoji = "↘️"
-      colorClass = "text-gray-700 dark:text-gray-300 font-bold"
-      break
-    default:
-      emoji = "→"
-      colorClass = "text-gray-700 dark:text-gray-300"
-  }
-
-  if (compact) {
-    return (
-      <span className={colorClass}>
-        {emoji} {change > 0 ? "+" : ""}
-        {formattedChange}°C in 24h
-      </span>
-    )
-  }
-
-  return (
-    <span className={colorClass}>
-      {emoji} {change > 0 ? "+" : ""}
-      {formattedChange}°C
-    </span>
-  )
-}
-
-// Calculate the percentage change for the selected time range
+// Calculate the absolute change for the selected time range
 export function calculateTimeRangeChange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
-  // If the time range is 24h and we already have the 24h change from the API data,
-  // use it for consistency
-  if (timeRange === "24h") {
-    if (dataType === "level" && river.changes.levelPercentage !== undefined) {
-      return {
-        percentChange: river.changes.levelPercentage,
-        absoluteChange: river.current.level.level - (river.previousDay?.level?.level || river.current.level.level),
-        status: river.changes.levelStatus,
-        timeSpan: timeRange,
-      }
-    } else if (dataType === "temperature" && river.changes.temperatureChange !== undefined) {
-      return {
-        percentChange: (river.changes.temperatureChange / river.previousDay?.temperature?.temperature) * 100 || 0,
-        absoluteChange: river.changes.temperatureChange,
-        status: river.changes.temperatureStatus,
-        timeSpan: timeRange,
-      }
-    } else if (dataType === "flow" && river.changes.flowPercentage !== undefined) {
-      return {
-        percentChange: river.changes.flowPercentage,
-        absoluteChange: river.current.flow.flow - (river.previousDay?.flow?.flow || river.current.flow.flow),
-        status: river.changes.flowStatus,
-        timeSpan: timeRange,
-      }
-    }
-  }
-
   // Determine the data source based on the type
   let data: any[] = []
   if (dataType === "level") {
@@ -156,119 +67,189 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     data = [...river.history.flows]
   }
 
-  if (data.length === 0) return { percentChange: null, absoluteChange: null, status: "stable", timeSpan: timeRange }
+  if (data.length === 0) return { absoluteChange: null, status: "stable", timeSpan: timeRange }
 
   // Current values (newest data point)
   const current = data[0]
 
-  // Determine the comparison time point based on the selected time range
+  // Determine how many data points back we need to go for the selected time range
   // Each data point is in 15-minute intervals
-  const dataPoints = {
-    "1h": 4, // 1 hour × 4 data points per hour (15-minute intervals)
-    "2h": 8, // 2 hours × 4 data points per hour
-    "6h": 24, // 6 hours × 4 data points per hour
-    "12h": 48, // 12 hours × 4 data points per hour
-    "24h": 96, // 24 hours × 4 data points per hour
-    "48h": 192, // 48 hours × 4 data points per hour
-    "1w": 672, // 7 days × 24 hours × 4 data points per hour
+  const idealDataPointsBack = {
+    "1h": 4, // 1 hour = 4 × 15-minute intervals
+    "2h": 8, // 2 hours = 8 × 15-minute intervals
+    "6h": 24, // 6 hours = 24 × 15-minute intervals
+    "12h": 48, // 12 hours = 48 × 15-minute intervals
+    "24h": 96, // 24 hours = 96 × 15-minute intervals
+    "48h": 192, // 48 hours = 192 × 15-minute intervals
+    "1w": 672, // 7 days = 672 × 15-minute intervals
   }
 
-  // Find the oldest available data point within the selected time range
-  const compareIndex = Math.min(dataPoints[timeRange], data.length - 1)
+  const idealTargetIndex = idealDataPointsBack[timeRange]
 
-  // If no comparison value is available, return no change
-  if (compareIndex >= data.length)
-    return { percentChange: null, absoluteChange: null, status: "stable", timeSpan: timeRange }
+  // Minimum data requirements for reasonable extrapolation
+  const minDataPointsForTimeRange = {
+    "1h": 2, // At least 30 minutes
+    "2h": 4, // At least 1 hour
+    "6h": 8, // At least 2 hours
+    "12h": 24, // At least 6 hours
+    "24h": 48, // At least 12 hours
+    "48h": 96, // At least 24 hours
+    "1w": 192, // At least 48 hours for week extrapolation
+  }
 
-  const compareValue = data[compareIndex]
+  const minRequired = minDataPointsForTimeRange[timeRange]
 
-  // Calculate the percentage change
-  let percentChange = 0
+  if (data.length < minRequired) {
+    // Not enough data for reasonable extrapolation
+    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+  }
+
+  // Use the ideal index if we have enough data, otherwise use the oldest available data point
+  const actualTargetIndex = Math.min(idealTargetIndex, data.length - 1)
+
+  // Get the comparison value
+  const compareValue = data[actualTargetIndex]
+
+  // Calculate the absolute change
   let absoluteChange = 0
 
   if (dataType === "level") {
-    if (compareValue.level > 0) {
-      // Calculate the percentage change correctly
-      percentChange = ((current.level - compareValue.level) / compareValue.level) * 100
-    }
     absoluteChange = current.level - compareValue.level
   } else if (dataType === "temperature") {
-    if (compareValue.temperature > 0) {
-      percentChange = ((current.temperature - compareValue.temperature) / compareValue.temperature) * 100
-    }
     absoluteChange = current.temperature - compareValue.temperature
   } else if (dataType === "flow") {
-    if (compareValue.flow > 0) {
-      percentChange = ((current.flow - compareValue.flow) / compareValue.flow) * 100
-    }
     absoluteChange = current.flow - compareValue.flow
   }
 
-  // Determine the status based on the percentage change
-  // Adjusted thresholds for consistent status classifications
-  const getChangeStatus = (percentage: number) => {
-    if (percentage === undefined || percentage === null) return "stable"
+  // If we don't have the full time range, extrapolate the change
+  if (actualTargetIndex < idealTargetIndex) {
+    // Calculate the extrapolation factor
+    const actualTimePoints = actualTargetIndex
+    const idealTimePoints = idealTargetIndex
+    const extrapolationFactor = idealTimePoints / actualTimePoints
 
-    if (percentage > 50) return "large-increase"
-    if (percentage < -50) return "large-decrease"
-    if (percentage > 15) return "large-increase"
-    if (percentage < -15) return "large-decrease"
-    if (percentage > 5) return "medium-increase"
-    if (percentage < -5) return "medium-decrease"
-    if (percentage > 0) return "small-increase"
-    if (percentage < 0) return "small-decrease"
+    // Extrapolate the change to the full requested time range
+    absoluteChange = absoluteChange * extrapolationFactor
+  }
+
+  // Determine the status based on the absolute change
+  // Adjusted thresholds for different data types
+  const getChangeStatus = (change: number, dataType: DataType) => {
+    if (change === undefined || change === null || change === 0) return "stable"
+
+    // Different thresholds for different data types
+    let largeThreshold, mediumThreshold, smallThreshold
+
+    switch (dataType) {
+      case "flow":
+        largeThreshold = 1.0 // m³/s
+        mediumThreshold = 0.5
+        smallThreshold = 0.1
+        break
+      case "level":
+        largeThreshold = 50 // cm
+        mediumThreshold = 20
+        smallThreshold = 5
+        break
+      case "temperature":
+        largeThreshold = 5 // °C
+        mediumThreshold = 2
+        smallThreshold = 0.5
+        break
+      default:
+        largeThreshold = 10
+        mediumThreshold = 5
+        smallThreshold = 1
+    }
+
+    const absChange = Math.abs(change)
+
+    if (absChange >= largeThreshold) {
+      return change > 0 ? "large-increase" : "large-decrease"
+    }
+    if (absChange >= mediumThreshold) {
+      return change > 0 ? "medium-increase" : "medium-decrease"
+    }
+    if (absChange >= smallThreshold) {
+      return change > 0 ? "small-increase" : "small-decrease"
+    }
     return "stable"
   }
 
-  const status = getChangeStatus(percentChange)
+  const status = getChangeStatus(absoluteChange, dataType)
 
   return {
-    percentChange,
     absoluteChange,
     status,
-    timeSpan: timeRange,
+    timeSpan: timeRange, // Always return the requested time span
   }
 }
 
 // Format the trend for the selected time range
 export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
   const change = calculateTimeRangeChange(river, dataType, timeRange)
-  if (change.percentChange === null) return null
+  if (change.absoluteChange === null) return null
 
-  const colorClass = "text-gray-700 dark:text-gray-300"
-  const emoji = change.status === "stable" ? "→" : change.percentChange > 0 ? "↗️" : "↘️"
-
-  // Time range text for display
-  const getTimeRangeText = () => {
-    // Use abbreviated form for all time ranges
-    return timeRange
+  // Get unit based on data type
+  let unit = ""
+  switch (dataType) {
+    case "level":
+      unit = " cm"
+      break
+    case "temperature":
+      unit = "°C"
+      break
+    case "flow":
+      unit = " m³/s"
+      break
   }
 
-  if (dataType === "temperature") {
-    // Format the temperature change: For values over 10°C no decimal places, otherwise one
-    const formattedChange =
-      Math.abs(change.absoluteChange) >= 10
-        ? Math.round(change.absoluteChange).toString()
-        : change.absoluteChange.toFixed(1)
-
-    return (
-      <span className={colorClass}>
-        {emoji} {change.absoluteChange > 0 ? "+" : ""}
-        {formattedChange}°C in {getTimeRangeText().toLowerCase()}
-      </span>
-    )
-  } else {
-    // Format the percentage change: For values over 10% no decimal places, otherwise one
-    const formattedChange =
-      Math.abs(change.percentChange) >= 10
-        ? Math.round(change.percentChange).toString()
-        : change.percentChange.toFixed(1)
-
-    return (
-      <span className={colorClass}>
-        {emoji} {change.percentChange > 0 ? "+" : ""}
-        {formattedChange}% in {getTimeRangeText().toLowerCase()}
-      </span>
-    )
+  // Time range text for display - always use the requested time range
+  const getTimeRangeText = (timeSpan: TimeRangeOption) => {
+    switch (timeSpan) {
+      case "1h":
+        return "1h"
+      case "2h":
+        return "2h"
+      case "6h":
+        return "6h"
+      case "12h":
+        return "12h"
+      case "24h":
+        return "24h"
+      case "48h":
+        return "48h"
+      case "1w":
+        return "1w"
+      default:
+        return timeSpan
+    }
   }
+
+  // Format the absolute change: For values over 10 no decimal places, otherwise one decimal place
+  const formattedChange =
+    Math.abs(change.absoluteChange) >= 10
+      ? Math.abs(change.absoluteChange).toFixed(0)
+      : Math.abs(change.absoluteChange).toFixed(1)
+
+  // Get the appropriate emoji
+  let emoji = "➡️"
+  if (change.status !== "stable") {
+    emoji = change.absoluteChange > 0 ? "↗️" : "↘️"
+  }
+
+  // Format the sign and value properly
+  const sign = change.absoluteChange > 0 ? "+" : "-"
+  const displayValue = formattedChange
+
+  // Always show the requested time range
+  const timeRangeDisplay = getTimeRangeText(change.timeSpan)
+
+  return (
+    <span>
+      {emoji} {sign}
+      {displayValue}
+      {unit} in {timeRangeDisplay}
+    </span>
+  )
 }

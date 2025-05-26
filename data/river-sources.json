@@ -49,6 +49,18 @@
         "yellow": [1.5, 2.5],
         "red": [[null, 0.4], [2.5, null]]
       }
+    },
+    {
+      "name": "Söllbach",
+      "location": "Bad Wiessee",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=abfluss&setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/bad-wiessee-18218306/tabelle",
+      "flowThresholds": {
+        "green": [0.1, 0.5],
+        "yellow": [0.5, 1],
+        "red": [[null, 0.1], [1, null]]
+      }
     }
   ]
 }

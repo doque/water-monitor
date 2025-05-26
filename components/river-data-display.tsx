@@ -1,7 +1,7 @@
 "use client"
 
 import type { RiversData } from "@/utils/water-data"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { RiverSelect } from "@/components/river-data/river-select"
 import { TimeRangeSelect, type TimeRangeOption } from "@/components/river-data/time-range-select"
@@ -20,6 +20,7 @@ interface RiverDataDisplayProps {
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Extract river IDs for each river
   const riversWithIds = data.rivers.map((river) => ({
@@ -41,33 +42,45 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   // Find the active river object based on the ID
   const activeRiver = riversWithIds.find((r) => extractRiverId(r.urls.level) === activeRiverId) || riversWithIds[0]
 
-  // Update URL when state changes - but only once on mount and when values actually change
+  // Debounced URL update to prevent infinite loops
+  const updateURL = useCallback(
+    (riverId: string, dataType: DataType, timeRangeValue: TimeRangeOption) => {
+      // Clear any existing timeout
+      if (urlUpdateTimeoutRef.current) {
+        clearTimeout(urlUpdateTimeoutRef.current)
+      }
+
+      // Debounce URL updates to prevent rapid changes
+      urlUpdateTimeoutRef.current = setTimeout(() => {
+        const params = new URLSearchParams()
+        params.set("id", riverId)
+        params.set("pane", dataType)
+        params.set("interval", timeRangeValue)
+
+        const newURL = `?${params.toString()}`
+        const currentURL = `?${searchParams.toString()}`
+
+        if (newURL !== currentURL) {
+          router.replace(newURL, { scroll: false })
+        }
+      }, 100) // 100ms debounce
+    },
+    [router, searchParams],
+  )
+
+  // Update URL when state changes - with debouncing
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
+    updateURL(activeRiverId, activeDataType, timeRange)
 
-    // Only update params that have changed
-    if (params.get("id") !== activeRiverId) {
-      params.set("id", activeRiverId)
+    // Cleanup timeout on unmount
+    return () => {
+      if (urlUpdateTimeoutRef.current) {
+        clearTimeout(urlUpdateTimeoutRef.current)
+      }
     }
+  }, [activeRiverId, activeDataType, timeRange, updateURL])
 
-    if (params.get("pane") !== activeDataType) {
-      params.set("pane", activeDataType)
-    }
-
-    if (params.get("interval") !== timeRange) {
-      params.set("interval", timeRange)
-    }
-
-    // Only update URL if params have changed
-    const newParamsString = params.toString()
-    const currentParamsString = searchParams.toString()
-
-    if (newParamsString !== currentParamsString) {
-      router.replace(`?${newParamsString}`, { scroll: false })
-    }
-  }, [activeRiverId, activeDataType, timeRange, router, searchParams])
-
-  // Detect if we're on mobile
+  // Detect if we're on mobile - with cleanup
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -83,6 +96,19 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
+  // Stable handlers to prevent unnecessary re-renders
+  const handleRiverChange = useCallback((value: string) => {
+    setActiveRiverId(value)
+  }, [])
+
+  const handleTimeRangeChange = useCallback((value: TimeRangeOption) => {
+    setTimeRange(value)
+  }, [])
+
+  const handleDataTypeChange = useCallback((dataType: DataType) => {
+    setActiveDataType(dataType)
+  }, [])
+
   if (!data || !data.rivers || data.rivers.length === 0) {
     return (
       <div className="p-6 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
@@ -96,10 +122,10 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-7 sm:col-span-6">
-          <RiverSelect rivers={riversWithIds} value={activeRiverId} onValueChange={setActiveRiverId} />
+          <RiverSelect rivers={riversWithIds} value={activeRiverId} onValueChange={handleRiverChange} />
         </div>
         <div className="col-span-5 sm:col-span-6">
-          <TimeRangeSelect value={timeRange} onValueChange={setTimeRange} />
+          <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
         </div>
       </div>
 
@@ -111,17 +137,20 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             <FlowCard
               river={activeRiver}
               isActive={activeDataType === "flow"}
-              onClick={() => setActiveDataType("flow")}
+              onClick={() => handleDataTypeChange("flow")}
+              timeRange={timeRange}
             />
             <LevelCard
               river={activeRiver}
               isActive={activeDataType === "level"}
-              onClick={() => setActiveDataType("level")}
+              onClick={() => handleDataTypeChange("level")}
+              timeRange={timeRange}
             />
             <TemperatureCard
               river={activeRiver}
               isActive={activeDataType === "temperature"}
-              onClick={() => setActiveDataType("temperature")}
+              onClick={() => handleDataTypeChange("temperature")}
+              timeRange={timeRange}
             />
           </div>
 
@@ -130,18 +159,13 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             <FlowCard
               river={activeRiver}
               isActive={activeDataType === "flow"}
-              onClick={() => setActiveDataType("flow")}
+              onClick={() => handleDataTypeChange("flow")}
+              timeRange={timeRange}
             />
           </div>
 
           {/* Chart area (always visible) */}
-          <RiverChart
-            key={`${activeRiverId}-${activeDataType}-${timeRange}`}
-            river={activeRiver}
-            dataType={activeDataType}
-            timeRange={timeRange}
-            isMobile={isMobile}
-          />
+          <RiverChart river={activeRiver} dataType={activeDataType} timeRange={timeRange} isMobile={isMobile} />
 
           {/* Webcam image (if available) */}
           {activeRiver.webcamUrl && (
@@ -157,14 +181,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             <LevelCard
               river={activeRiver}
               isActive={activeDataType === "level"}
-              onClick={() => setActiveDataType("level")}
+              onClick={() => handleDataTypeChange("level")}
               isMobile={true}
+              timeRange={timeRange}
             />
             <TemperatureCard
               river={activeRiver}
               isActive={activeDataType === "temperature"}
-              onClick={() => setActiveDataType("temperature")}
+              onClick={() => handleDataTypeChange("temperature")}
               isMobile={true}
+              timeRange={timeRange}
             />
           </div>
         </div>
