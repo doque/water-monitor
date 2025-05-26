@@ -54,9 +54,9 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className="px-2 h-10 flex items-center justify-between">
         <SelectValue>
-          <div className="flex items-center truncate mr-1">
+          <div className="flex items-center mr-1">
             <span className="mr-1">{emoji}</span>
-            <span className="truncate">
+            <span>
               {selectedRiver?.name}
               {/* Only show location on desktop */}
               {!isMobile && selectedRiver && ` (${selectedRiver.location})`}

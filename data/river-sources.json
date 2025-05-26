@@ -19,9 +19,9 @@
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelle",
       "webcamUrl": "https://webcams.hnd.bayern.de/ro/Stauden/webcam.jpg",
       "flowThresholds": {
-        "green": [2, 4],
-        "yellow": [4, 5],
-        "red": [[null, 2], [5, null]]
+        "green": [2, 3],
+        "yellow": [3, 3.5],
+        "red": [[null, 2], [3.5, null]]
       }
     },
     {
