@@ -20,6 +20,17 @@ export interface WaterFlowDataPoint {
   timestamp: Date
 }
 
+export type ThresholdRange = [number | null, number | null]
+export type ThresholdRanges = ThresholdRange | ThresholdRange[]
+
+export interface Thresholds {
+  green: ThresholdRanges
+  yellow: ThresholdRanges
+  red: ThresholdRanges
+}
+
+export type AlertLevel = "normal" | "warning" | "alert"
+
 export interface RiverData {
   name: string
   location: string
@@ -51,6 +62,9 @@ export interface RiverData {
     temperature?: string
     flow?: string
   }
+  webcamUrl?: string
+  flowThresholds?: Thresholds
+  alertLevel?: AlertLevel
 }
 
 export type ChangeStatus =
@@ -66,6 +80,33 @@ export interface RiversData {
   rivers: RiverData[]
   lastUpdated: Date
   error?: string
+}
+
+// Helper function to check if a value is within a threshold range
+export function isWithinRange(value: number, range: ThresholdRanges): boolean {
+  if (Array.isArray(range[0])) {
+    // Multiple ranges
+    return (range as ThresholdRange[]).some((r) => isWithinSingleRange(value, r))
+  } else {
+    // Single range
+    return isWithinSingleRange(value, range as ThresholdRange)
+  }
+}
+
+function isWithinSingleRange(value: number, range: ThresholdRange): boolean {
+  const [min, max] = range
+  if (min === null && max === null) return true
+  if (min === null) return value <= max
+  if (max === null) return value >= min
+  return value >= min && value <= max
+}
+
+// Determine alert level based on flow thresholds
+export function getAlertLevelFromFlow(flow: number, thresholds: Thresholds): AlertLevel {
+  if (isWithinRange(flow, thresholds.red)) return "alert"
+  if (isWithinRange(flow, thresholds.yellow)) return "warning"
+  if (isWithinRange(flow, thresholds.green)) return "normal"
+  return "normal" // Default
 }
 
 // Hilfsfunktion zur Bestimmung des Änderungsstatus basierend auf dem Prozentsatz
@@ -113,12 +154,15 @@ async function fetchWaterLevel(url: string): Promise<{
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      cache: "no-store", // Completely disable caching
     })
 
     if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Wasserstandsdaten: ${response.status}`)
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
 
     const html = await response.text()
@@ -154,6 +198,16 @@ async function fetchWaterLevel(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No water level data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur gleichen Stunde finden
     let previousDay: WaterLevelDataPoint = null
     let percentageChange: number = null
@@ -182,7 +236,7 @@ async function fetchWaterLevel(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Wasserstandsdaten:", error)
+    console.error(`Fehler beim Abrufen der Wasserstandsdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -204,12 +258,15 @@ async function fetchWaterTemperature(url: string): Promise<{
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      cache: "no-store", // Completely disable caching
     })
 
     if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Wassertemperaturdaten: ${response.status}`)
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
 
     const html = await response.text()
@@ -244,6 +301,16 @@ async function fetchWaterTemperature(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No temperature data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur ungefähr gleichen Zeit finden
     let previousDay: WaterTemperatureDataPoint = null
     let change: number = null
@@ -274,7 +341,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Wassertemperaturdaten:", error)
+    console.error(`Fehler beim Abrufen der Wassertemperaturdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -296,12 +363,15 @@ async function fetchWaterFlow(url: string): Promise<{
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
       },
-      next: { revalidate: 3600 }, // Jede Stunde aktualisieren
+      cache: "no-store", // Completely disable caching
     })
 
     if (!response.ok) {
-      throw new Error(`Fehler beim Abrufen der Abflussdaten: ${response.status}`)
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
 
     const html = await response.text()
@@ -336,6 +406,16 @@ async function fetchWaterFlow(url: string): Promise<{
       }
     })
 
+    // Check if we actually got any data
+    if (history.length === 0) {
+      console.warn(`No flow data found for URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
     // Daten vom Vortag zur ungefähr gleichen Zeit finden
     let previousDay: WaterFlowDataPoint = null
     let percentageChange: number = null
@@ -364,7 +444,7 @@ async function fetchWaterFlow(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Abflussdaten:", error)
+    console.error(`Fehler beim Abrufen der Abflussdaten für ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -381,9 +461,17 @@ async function fetchRiverData(config): Promise<RiverData> {
       fetchWaterLevel(config.levelUrl),
       config.temperatureUrl
         ? fetchWaterTemperature(config.temperatureUrl)
-        : { current: null, history: [], changeStatus: "stable" },
-      config.flowUrl ? fetchWaterFlow(config.flowUrl) : { current: null, history: [], changeStatus: "stable" },
+        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
+      config.flowUrl
+        ? fetchWaterFlow(config.flowUrl)
+        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
     ])
+
+    // Calculate alert level based on flow thresholds if available
+    let alertLevel: AlertLevel = "normal"
+    if (config.flowThresholds && flowData.current) {
+      alertLevel = getAlertLevelFromFlow(flowData.current.flow, config.flowThresholds)
+    }
 
     // Flussdatenobjekt erstellen
     const riverData: RiverData = {
@@ -417,6 +505,9 @@ async function fetchRiverData(config): Promise<RiverData> {
         temperature: config.temperatureUrl,
         flow: config.flowUrl,
       },
+      webcamUrl: config.webcamUrl,
+      flowThresholds: config.flowThresholds,
+      alertLevel: alertLevel,
     }
 
     return riverData
@@ -438,14 +529,19 @@ async function fetchRiverData(config): Promise<RiverData> {
         temperature: config.temperatureUrl,
         flow: config.flowUrl,
       },
+      webcamUrl: config.webcamUrl,
+      flowThresholds: config.flowThresholds,
+      alertLevel: "normal",
     }
   }
 }
 
-// Hauptfunktion zum Abrufen aller Flussdaten
+// Hauptfunktion zum Abrufen aller Flussdaten - NO CACHING
 export async function fetchRiversData(): Promise<RiversData> {
   try {
-    // Alle Flüsse parallel abrufen
+    console.log("Fetching fresh river data (no cache)")
+
+    // Alle Flüsse parallel abrufen - NO CACHING
     const riversPromises = riverSources.rivers.map((config) => fetchRiverData(config))
     const rivers = await Promise.all(riversPromises)
 
@@ -463,8 +559,31 @@ export async function fetchRiversData(): Promise<RiversData> {
   }
 }
 
-export type WaterLevelData = {
-  location: string
-  date: string
-  level: number
+// Add a helper function to extract river ID from URL
+export function extractRiverId(url: string): string {
+  // URLs look like: https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15
+  // We want to extract the "schmerold-18202000" part
+
+  try {
+    const urlParts = url.split("/")
+    // The ID is typically the second-to-last part before "tabelle"
+    const idIndex = urlParts.findIndex((part) => part === "tabelle") - 1
+    if (idIndex > 0) {
+      return urlParts[idIndex]
+    }
+    // Fallback: try to find the ID pattern directly
+    for (const part of urlParts) {
+      // IDs typically have a pattern like "name-number"
+      if (part.includes("-") && /\d+$/.test(part)) {
+        return part
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting river ID:", error)
+  }
+
+  // If we can't extract the ID, return a fallback
+  return "unknown"
 }
+
+export type WaterLevelData = RiverData
