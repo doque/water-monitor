@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function RiverDataSkeleton() {
-  // Create an array with 4 elements for the rivers
+  // Erstelle ein Array mit 4 Elementen für die Flüsse
   const rivers = Array(4).fill(null)
 
   return (
@@ -20,7 +20,7 @@ export function RiverDataSkeleton() {
         <TabsContent value="river-1">
           <div className="space-y-6">
             <div className="grid md:grid-cols-3 gap-4">
-              {/* Flow Card Skeleton */}
+              {/* Abfluss-Karte Skeleton */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Abfluss</CardTitle>
@@ -32,7 +32,7 @@ export function RiverDataSkeleton() {
                 </CardContent>
               </Card>
 
-              {/* Level Card Skeleton */}
+              {/* Pegel-Karte Skeleton */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Pegel</CardTitle>
@@ -44,7 +44,7 @@ export function RiverDataSkeleton() {
                 </CardContent>
               </Card>
 
-              {/* Temperature Card Skeleton */}
+              {/* Temperatur-Karte Skeleton */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Temperatur</CardTitle>
@@ -57,7 +57,7 @@ export function RiverDataSkeleton() {
               </Card>
             </div>
 
-            {/* Chart Area Skeleton */}
+            {/* Diagramm-Bereich Skeleton */}
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
@@ -69,14 +69,14 @@ export function RiverDataSkeleton() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px] w-full rounded-md animate-pulse bg-muted" />
+                <div className="h-[300px] w-full bg-gray-100 rounded-md animate-pulse" />
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
 
-      <div className="text-xs text-muted-foreground text-center">
+      <div className="text-xs text-gray-500 text-center">
         Datenquellen: Hochwassernachrichtendienst Bayern und Niedrigwasser-Informationsdienst Bayern
       </div>
     </div>
