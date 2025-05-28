@@ -1,8 +1,7 @@
 "use client"
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import type { RiverData } from "@/utils/water-data"
-import { useEffect, useState } from "react"
 import { extractRiverId } from "@/utils/water-data"
 
 interface RiverSelectProps {
@@ -12,24 +11,6 @@ interface RiverSelectProps {
 }
 
 export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Detect if we're on mobile
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 640)
-    }
-
-    // Initial check
-    checkIfMobile()
-
-    // Add event listener
-    window.addEventListener("resize", checkIfMobile)
-
-    // Cleanup
-    return () => window.removeEventListener("resize", checkIfMobile)
-  }, [])
-
   // Get emoji based on alert level
   const getRiverStatusEmoji = (river: RiverData): string => {
     if (!river.current.flow) return "🟢" // Default to green if no flow data
@@ -51,68 +32,57 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
   const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : "🟢"
 
   return (
-    <div className="w-full">
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger
-          className="px-2 h-10 w-full"
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger
+        className="px-2 h-10"
+        style={{
+          textOverflow: "unset",
+          overflow: "visible",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <div
+          className="flex items-center w-full"
           style={{
+            textOverflow: "unset",
             overflow: "visible",
-            textOverflow: "clip",
             whiteSpace: "nowrap",
+            textDecoration: "none",
+            wordBreak: "keep-all",
+            hyphens: "none",
           }}
         >
-          <SelectValue
-            placeholder="Gewässer auswählen"
-            className="!overflow-visible !text-ellipsis-[unset] !whitespace-nowrap"
+          <span className="mr-1">{emoji}</span>
+          <span
             style={{
+              textOverflow: "unset",
               overflow: "visible",
-              textOverflow: "clip",
               whiteSpace: "nowrap",
-              maxWidth: "none",
+              textDecoration: "none",
+              wordBreak: "keep-all",
+              hyphens: "none",
             }}
           >
-            {selectedRiver && (
-              <div
-                className="flex items-center w-full"
-                style={{
-                  overflow: "visible",
-                  textOverflow: "clip",
-                  whiteSpace: "nowrap",
-                  maxWidth: "none",
-                }}
-              >
-                <span className="mr-1 flex-shrink-0">{emoji}</span>
-                <span
-                  style={{
-                    overflow: "visible",
-                    textOverflow: "clip",
-                    whiteSpace: "nowrap",
-                    maxWidth: "none",
-                  }}
-                >
-                  {selectedRiver.name}
+            {selectedRiver?.name || "Gewässer auswählen"}
+          </span>
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        {rivers.map((river) => {
+          const emoji = getRiverStatusEmoji(river)
+          const riverId = extractRiverId(river.urls.level)
+          return (
+            <SelectItem key={riverId} value={riverId}>
+              <span className="flex items-center">
+                <span className="mr-1">{emoji}</span>
+                <span>
+                  {river.name} ({river.location})
                 </span>
-              </div>
-            )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {rivers.map((river) => {
-            const emoji = getRiverStatusEmoji(river)
-            const riverId = extractRiverId(river.urls.level)
-            return (
-              <SelectItem key={riverId} value={riverId}>
-                <span className="flex items-center">
-                  <span className="mr-1">{emoji}</span>
-                  <span>
-                    {river.name} ({river.location})
-                  </span>
-                </span>
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-    </div>
+              </span>
+            </SelectItem>
+          )
+        })}
+      </SelectContent>
+    </Select>
   )
 }
