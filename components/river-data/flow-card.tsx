@@ -55,7 +55,7 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
       <CardContent className="p-3 sm:p-6 pt-0">
         {river.current.flow ? (
           <div className="text-4xl font-bold">
-            {river.current.flow.flow.toFixed(1)} <span className="font-bold">m³/s</span>
+            {river.current.flow.flow.toFixed(2)} <span className="font-bold">m³/s</span>
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>

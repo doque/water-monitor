@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
         break
       case "flow":
         unit = "m³/s"
-        valueFormatted = Number.parseFloat(payload[0].value).toFixed(1)
+        valueFormatted = Number.parseFloat(payload[0].value).toFixed(2)
         break
     }
 

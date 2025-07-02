@@ -226,11 +226,16 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
     }
   }
 
-  // Format the absolute change: For values over 10 no decimal places, otherwise one decimal place
-  const formattedChange =
-    Math.abs(change.absoluteChange) >= 10
-      ? Math.abs(change.absoluteChange).toFixed(0)
-      : Math.abs(change.absoluteChange).toFixed(1)
+  // Format the absolute change: For flow use 2 decimal places, for others use existing logic
+  let formattedChange = ""
+  if (dataType === "flow") {
+    formattedChange = Math.abs(change.absoluteChange).toFixed(2)
+  } else {
+    formattedChange =
+      Math.abs(change.absoluteChange) >= 10
+        ? Math.abs(change.absoluteChange).toFixed(0)
+        : Math.abs(change.absoluteChange).toFixed(1)
+  }
 
   // Get the appropriate emoji
   let emoji = "➡️"
