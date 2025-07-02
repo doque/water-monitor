@@ -11,12 +11,13 @@ interface FlowCardProps {
   isActive: boolean
   onClick: () => void
   timeRange: TimeRangeOption
+  showColors?: boolean
 }
 
-export function FlowCard({ river, isActive, onClick, timeRange }: FlowCardProps) {
+export function FlowCard({ river, isActive, onClick, timeRange, showColors = false }: FlowCardProps) {
   // Get emoji based on alert level - memoized
   const alertEmoji = useMemo(() => {
-    if (!river.current.flow) return ""
+    if (!showColors || !river.current.flow) return ""
 
     const alertLevel = river.alertLevel || "normal"
 
@@ -28,7 +29,7 @@ export function FlowCard({ river, isActive, onClick, timeRange }: FlowCardProps)
       default:
         return "🟢"
     }
-  }, [river.current.flow, river.alertLevel])
+  }, [river.current.flow, river.alertLevel, showColors])
 
   // Memoize the trend display to ensure it updates when timeRange changes
   const trendDisplay = useMemo(() => {

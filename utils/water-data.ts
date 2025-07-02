@@ -537,12 +537,17 @@ async function fetchRiverData(config): Promise<RiverData> {
 }
 
 // Hauptfunktion zum Abrufen aller Flussdaten - NO CACHING
-export async function fetchRiversData(): Promise<RiversData> {
+export async function fetchRiversData(includeAllRivers = false): Promise<RiversData> {
   try {
     console.log("Fetching fresh river data (no cache)")
 
+    // Filter rivers based on admin mode - exclude Söllbach in normal mode
+    const riversToFetch = includeAllRivers
+      ? riverSources.rivers
+      : riverSources.rivers.filter((river) => river.name !== "Söllbach")
+
     // Alle Flüsse parallel abrufen - NO CACHING
-    const riversPromises = riverSources.rivers.map((config) => fetchRiverData(config))
+    const riversPromises = riversToFetch.map((config) => fetchRiverData(config))
     const rivers = await Promise.all(riversPromises)
 
     return {

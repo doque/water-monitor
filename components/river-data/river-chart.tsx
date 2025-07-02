@@ -14,6 +14,7 @@ interface RiverChartProps {
   dataType: DataType
   timeRange: TimeRangeOption
   isMobile: boolean
+  isAdminMode?: boolean
 }
 
 // Custom tooltip component
@@ -104,7 +105,7 @@ const formatYAxisTick = (value) => {
   return Math.round(value).toString()
 }
 
-export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartProps) {
+export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
   // Memoize the trend display for the chart header
@@ -323,36 +324,40 @@ export function RiverChart({ river, dataType, timeRange, isMobile }: RiverChartP
     }
   }, [timeRange, chartData.length, isMobile])
 
-  // Get chart configuration - ALWAYS based on flow alert level - with stable dependencies
+  // Get chart configuration - with stable dependencies
   const chartConfig = useMemo(() => {
-    // Always use the flow-based alert level for chart colors, regardless of current data type
-    const alertLevel: AlertLevel = river.alertLevel || "normal"
-
-    // Define colors based on flow alert level
     let stroke, fill
 
-    switch (alertLevel) {
-      case "alert":
-        stroke = "#dc2626" // Red-600
-        fill = isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#fee2e2" // Red-100 for light mode
-        break
-      case "warning":
-        stroke = "#d97706" // Amber-600
-        fill = isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#fef3c7" // Amber-100 for light mode
-        break
-      case "normal":
-      default:
-        stroke = "#16a34a" // Green-600
-        fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
+    if (isAdminMode) {
+      // Admin mode: Use flow-based alert level colors
+      const alertLevel: AlertLevel = river.alertLevel || "normal"
+
+      switch (alertLevel) {
+        case "alert":
+          stroke = "#dc2626" // Red-600
+          fill = isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#fee2e2" // Red-100 for light mode
+          break
+        case "warning":
+          stroke = "#d97706" // Amber-600
+          fill = isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#fef3c7" // Amber-100 for light mode
+          break
+        case "normal":
+        default:
+          stroke = "#16a34a" // Green-600
+          fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
+      }
+    } else {
+      // Standard mode: Always use blue
+      stroke = "#2563eb" // Blue-600
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode
     }
 
     return {
       stroke,
       fill,
       dataKey: "value",
-      alertLevel,
     }
-  }, [river.alertLevel, isDarkMode])
+  }, [river.alertLevel, isDarkMode, isAdminMode])
 
   const isLongTimeRange = timeRange === "1w"
 

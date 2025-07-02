@@ -8,12 +8,13 @@ interface RiverSelectProps {
   rivers: RiverData[]
   value: string
   onValueChange: (value: string) => void
+  showColors?: boolean
 }
 
-export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) {
+export function RiverSelect({ rivers, value, onValueChange, showColors = false }: RiverSelectProps) {
   // Get emoji based on alert level
   const getRiverStatusEmoji = (river: RiverData): string => {
-    if (!river.current.flow) return "🟢" // Default to green if no flow data
+    if (!showColors || !river.current.flow) return "" // No emoji in normal mode
 
     const alertLevel = river.alertLevel || "normal"
 
@@ -29,7 +30,7 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
 
   // Find the selected river to display its name
   const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === value)
-  const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : "🟢"
+  const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : ""
 
   return (
     <Select value={value} onValueChange={onValueChange}>
@@ -52,7 +53,7 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
             hyphens: "none",
           }}
         >
-          <span className="mr-1">{emoji}</span>
+          {emoji && <span className="mr-1">{emoji}</span>}
           <span
             style={{
               textOverflow: "unset",
@@ -74,7 +75,7 @@ export function RiverSelect({ rivers, value, onValueChange }: RiverSelectProps) 
           return (
             <SelectItem key={riverId} value={riverId}>
               <span className="flex items-center">
-                <span className="mr-1">{emoji}</span>
+                {emoji && <span className="mr-1">{emoji}</span>}
                 <span>
                   {river.name} ({river.location})
                 </span>
