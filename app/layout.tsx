@@ -14,7 +14,9 @@ export const metadata = {
   description: "Überwachung von Wasserständen, Temperaturen und Abflussraten bayerischer Flüsse",
   icons: {
     icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png", // Apple touch icon
   },
+  manifest: "/site.webmanifest", // Link to the web app manifest
   openGraph: {
     title: "BFV Miesbach-Tegernsee Gewässer-Monitor",
     description:
@@ -44,6 +46,12 @@ export default function RootLayout({
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
+        {/* PWA Meta Tags for Apple */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Gewässer-Monitor" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
