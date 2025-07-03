@@ -67,36 +67,10 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "spin-slow": {
-          // Custom slow spin
-          from: { transform: "rotate(0deg)" },
-          to: { transform: "rotate(360deg)" },
-        },
-        "flashy-fireworks": {
-          // Custom flashy effect
-          "0%, 100%": {
-            boxShadow: "0 0 10px 5px rgba(255, 255, 0, 0.7)", // Yellow
-            filter: "brightness(1)",
-          },
-          "25%": {
-            boxShadow: "0 0 30px 15px rgba(255, 165, 0, 0.8)", // Orange
-            filter: "brightness(1.1)", // Reduced brightness
-          },
-          "50%": {
-            boxShadow: "0 0 50px 25px rgba(255, 0, 0, 0.9)", // Red
-            filter: "brightness(1.2)", // Reduced brightness
-          },
-          "75%": {
-            boxShadow: "0 0 30px 15px rgba(255, 165, 0, 0.8)", // Orange
-            filter: "brightness(1.1)", // Reduced brightness
-          },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "spin-slow": "spin-slow 3s linear infinite", // Apply custom duration
-        "flashy-fireworks": "flashy-fireworks 1.5s ease-in-out infinite", // Apply custom duration and timing
       },
     },
   },
