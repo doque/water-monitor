@@ -7,15 +7,18 @@ import { isAdminMode, toggleAdminMode } from "@/utils/admin-mode"
 
 export function AdminModeHeader() {
   const [clickCount, setClickCount] = useState(0)
+  const [superSecretClickCount, setSuperSecretClickCount] = useState(0) // New state for secret clicks
   const [adminMode, setAdminMode] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [showSuperSecretAnimation, setShowSuperSecretAnimation] = useState(false) // New state for animation visibility
+  const [animationPlayed, setAnimationPlayed] = useState(false) // New state to play animation only once
 
   // Check admin mode on mount
   useEffect(() => {
     setAdminMode(isAdminMode())
   }, [])
 
-  // Reset click count after 3 seconds of inactivity
+  // Reset click count after 3 seconds of inactivity for admin mode
   useEffect(() => {
     if (clickCount > 0 && clickCount < 5) {
       const timer = setTimeout(() => {
@@ -25,21 +28,50 @@ export function AdminModeHeader() {
     }
   }, [clickCount])
 
+  // Reset super secret click count after 3 seconds of inactivity
+  useEffect(() => {
+    if (superSecretClickCount > 0 && superSecretClickCount < 10) {
+      const timer = setTimeout(() => {
+        setSuperSecretClickCount(0)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [superSecretClickCount])
+
   const handleLogoClick = () => {
+    // Handle admin mode clicks
     const newClickCount = clickCount + 1
     setClickCount(newClickCount)
 
     if (newClickCount === 5) {
       const newAdminMode = toggleAdminMode()
       setAdminMode(newAdminMode)
-      setClickCount(0)
+      setClickCount(0) // Reset admin click count after toggling
 
-      // Trigger animation
+      // Trigger animation for admin mode toggle
       setIsAnimating(true)
       setTimeout(() => setIsAnimating(false), 1000)
 
       // Dispatch custom event to notify other components
       window.dispatchEvent(new CustomEvent("adminModeChanged", { detail: { adminMode: newAdminMode } }))
+    }
+
+    // Handle super secret clicks for the animation
+    if (!animationPlayed) {
+      // Only track if animation hasn't played yet
+      const newSuperSecretClickCount = superSecretClickCount + 1
+      setSuperSecretClickCount(newSuperSecretClickCount)
+
+      if (newSuperSecretClickCount === 10) {
+        setShowSuperSecretAnimation(true)
+        setAnimationPlayed(true) // Mark animation as played
+        setSuperSecretClickCount(0) // Reset secret click count
+
+        // Hide animation after 3 seconds
+        setTimeout(() => {
+          setShowSuperSecretAnimation(false)
+        }, 3000)
+      }
     }
   }
 
@@ -72,6 +104,21 @@ export function AdminModeHeader() {
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm">Wasserstände, Temperaturen und Abflussraten</CardDescription>
       </div>
+
+      {showSuperSecretAnimation && (
+        <div className="fixed inset-0 bg-gray-200/70 flex items-center justify-center z-[100]">
+          <div className="relative w-48 h-48 animate-flashy-fireworks rounded-full">
+            {" "}
+            {/* Added flashy-fireworks animation */}
+            <Image
+              src="/images/thumbs-up-man.png"
+              alt="Thumbs up man"
+              fill
+              className="object-contain animate-spin-slow" // Changed to spin-slow
+            />
+          </div>
+        </div>
+      )}
     </CardHeader>
   )
 }
