@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
 import { formatTrendForTimeRange } from "@/utils/formatters"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
-import { useMemo } from "react" // Removed useState and useEffect
-// Removed Image import
+import { useMemo } from "react"
 
 interface FlowCardProps {
   river: RiverData
@@ -15,15 +14,7 @@ interface FlowCardProps {
   showColors?: boolean
 }
 
-// Removed SPECIAL_IMAGE_SHOWN_KEY
-
 export function FlowCard({ river, isActive, onClick, timeRange, showColors = false }: FlowCardProps) {
-  // Removed clickCount state
-  // Removed specialImageAlreadyShown state
-
-  // Removed useEffect for localStorage check
-  // Removed useEffect for clickCount reset
-
   // Get emoji based on alert level - memoized
   const alertEmoji = useMemo(() => {
     if (!showColors || !river.current.flow) return ""
@@ -50,17 +41,8 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
     }
   }, [river, timeRange])
 
-  const handleFlowCardClick = () => {
-    onClick() // Call original onClick handler
-
-    // Removed all special image trigger logic
-  }
-
   return (
-    <Card
-      className={`cursor-pointer transition-all ${isActive ? "bg-muted" : "hover:bg-muted/50"} relative overflow-hidden`}
-      onClick={handleFlowCardClick}
-    >
+    <Card className={`cursor-pointer transition-all ${isActive ? "bg-muted" : "hover:bg-muted/50"}`} onClick={onClick}>
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
@@ -79,8 +61,6 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
           <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>
         )}
       </CardContent>
-
-      {/* Removed special image rendering from here */}
     </Card>
   )
 }

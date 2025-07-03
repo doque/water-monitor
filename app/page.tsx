@@ -1,11 +1,13 @@
-"use client"
-
 import { Card, CardContent } from "@/components/ui/card"
 import { fetchRiversData } from "@/utils/water-data"
 import { RiverDataDisplay } from "@/components/river-data-display"
 import { RiverDataSkeleton } from "@/components/river-data-skeleton"
 import { Suspense } from "react"
 import { AdminModeHeader } from "@/components/admin-mode-header"
+
+// Force dynamic rendering - no static generation
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 // Async component to fetch and display river data
 async function RiverDataContainer() {
@@ -46,7 +48,7 @@ async function RiverDataContainer() {
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-2 sm:p-6 bg-gray-50 dark:bg-gray-900 relative">
+    <main className="flex min-h-screen flex-col items-center justify-center p-2 sm:p-6 bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-6xl space-y-4 sm:space-y-6">
         <Card className="border-gray-200 dark:border-gray-800">
           <AdminModeHeader />
