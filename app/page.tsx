@@ -7,10 +7,6 @@ import { RiverDataSkeleton } from "@/components/river-data-skeleton"
 import { Suspense } from "react"
 import { AdminModeHeader } from "@/components/admin-mode-header"
 
-// Force dynamic rendering - no static generation
-export const dynamic = "force-dynamic"
-export const revalidate = 0
-
 // Async component to fetch and display river data
 async function RiverDataContainer() {
   try {
