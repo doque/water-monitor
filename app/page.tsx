@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent } from "@/components/ui/card"
 import { fetchRiversData } from "@/utils/water-data"
 import { RiverDataDisplay } from "@/components/river-data-display"
@@ -48,7 +50,7 @@ async function RiverDataContainer() {
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-2 sm:p-6 bg-gray-50 dark:bg-gray-900">
+    <main className="flex min-h-screen flex-col items-center justify-center p-2 sm:p-6 bg-gray-50 dark:bg-gray-900 relative">
       <div className="w-full max-w-6xl space-y-4 sm:space-y-6">
         <Card className="border-gray-200 dark:border-gray-800">
           <AdminModeHeader />
