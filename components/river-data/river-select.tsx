@@ -30,9 +30,13 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
   // Generate a unique ID for each river - simplified and more robust
   const getRiverId = (river: RiverData): string => {
-    // For lakes, create a simple unique identifier based on name and location
+    if (!river) return "unknown-river"
+
+    const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown"
+
+    // For lakes, create a simple unique identifier based on name only
     if (river.isLake) {
-      return `lake-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+      return `lake-${name}`
     }
 
     // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
@@ -43,8 +47,9 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
       }
     }
 
-    // Fallback: create ID from name and location
-    return `river-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+    // Fallback: create ID from name and location (if available)
+    const location = river.location ? river.location.toLowerCase().replace(/\s+/g, "-") : "unknown-location"
+    return `river-${name}-${location}`
   }
 
   // Find the selected river to display its name
@@ -96,7 +101,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
               <span className="flex items-center">
                 {emoji && <span className="mr-1">{emoji}</span>}
                 <span>
-                  {river.name} ({river.location})
+                  {river.name} {river.location ? `(${river.location})` : ""}
                 </span>
               </span>
             </SelectItem>

@@ -20,9 +20,14 @@ interface RiverDataDisplayProps {
 
 // Helper function to generate consistent IDs for both rivers and lakes
 function getRiverOrLakeId(river: any): string {
-  // For lakes, create a simple unique identifier based on name and location
+  // Guard against undefined river object
+  if (!river) return "unknown"
+
+  // For lakes, create a simple unique identifier based on name
   if (river.isLake) {
-    return `lake-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+    // Guard against undefined name
+    const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-lake"
+    return `lake-${name}`
   }
 
   // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
@@ -33,14 +38,19 @@ function getRiverOrLakeId(river: any): string {
     }
   }
 
-  // Fallback: create ID from name and location
-  return `river-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+  // Fallback: create ID from name and location with guards against undefined values
+  const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-river"
+  const location = river.location ? river.location.toLowerCase().replace(/\s+/g, "-") : "unknown-location"
+  return `river-${name}-${location}`
 }
 
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+
+  // Add ref to track previous river for auto-selection logic
+  const previousRiverRef = useRef<any>(null)
 
   // Client-side admin mode state
   const [adminMode, setAdminMode] = useState(false)
@@ -106,12 +116,22 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     return riversWithIds.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds[0]
   }, [riversWithIds, activeRiverId])
 
-  // Auto-select temperature tab for lakes
+  // Auto-select appropriate tab based on water source type - only when river changes
   useEffect(() => {
-    if (activeRiver && activeRiver.isLake && activeDataType !== "temperature") {
-      setActiveDataType("temperature")
+    if (activeRiver && activeRiver !== previousRiverRef.current) {
+      // River has changed, auto-select appropriate tab
+      if (activeRiver.isLake) {
+        // For lakes, always select temperature tab
+        setActiveDataType("temperature")
+      } else {
+        // For rivers, always select flow tab
+        setActiveDataType("flow")
+      }
+
+      // Update the ref to track current river
+      previousRiverRef.current = activeRiver
     }
-  }, [activeRiver, activeDataType])
+  }, [activeRiver]) // Removed activeDataType from dependencies to prevent override of manual selections
 
   // Debounced URL update to prevent infinite loops
   const updateURL = useCallback(
