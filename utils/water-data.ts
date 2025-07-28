@@ -65,6 +65,7 @@ export interface RiverData {
   webcamUrl?: string
   flowThresholds?: Thresholds
   alertLevel?: AlertLevel
+  isLake?: boolean
 }
 
 export type ChangeStatus =
@@ -456,21 +457,60 @@ async function fetchWaterFlow(url: string): Promise<{
 // Alle Daten für einen Fluss parallel abrufen
 async function fetchRiverData(config): Promise<RiverData> {
   try {
-    // Alle Anfragen parallel ausführen
-    const [levelData, temperatureData, flowData] = await Promise.all([
-      fetchWaterLevel(config.levelUrl),
-      config.temperatureUrl
-        ? fetchWaterTemperature(config.temperatureUrl)
-        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
-      config.flowUrl
-        ? fetchWaterFlow(config.flowUrl)
-        : Promise.resolve({ current: null, history: [], changeStatus: "stable" }),
-    ])
+    // Check if this is a lake (only has temperature data)
+    const isLake = config.isLake === true
+
+    // Prepare requests based on available data sources
+    const requests = []
+    const requestTypes = []
+
+    // Only add level and flow requests if this is not a lake
+    if (!isLake) {
+      if (config.levelUrl) {
+        requests.push(fetchWaterLevel(config.levelUrl))
+        requestTypes.push("level")
+      } else {
+        requests.push(Promise.resolve({ current: null, history: [], changeStatus: "stable" }))
+        requestTypes.push("level")
+      }
+      if (config.flowUrl) {
+        requests.push(fetchWaterFlow(config.flowUrl))
+        requestTypes.push("flow")
+      } else {
+        requests.push(Promise.resolve({ current: null, history: [], changeStatus: "stable" }))
+        requestTypes.push("flow")
+      }
+    } else {
+      // For lakes, add empty level data
+      requests.push(Promise.resolve({ current: null, history: [], changeStatus: "stable" }))
+      requestTypes.push("level")
+      // For lakes, add empty flow data
+      requests.push(Promise.resolve({ current: null, history: [], changeStatus: "stable" }))
+      requestTypes.push("flow")
+    }
+
+    // Add temperature request if URL is available
+    if (config.temperatureUrl) {
+      requests.push(fetchWaterTemperature(config.temperatureUrl))
+      requestTypes.push("temperature")
+    } else {
+      requests.push(Promise.resolve({ current: null, history: [], changeStatus: "stable" }))
+      requestTypes.push("temperature")
+    }
+
+    // Execute all requests in parallel
+    const results = await Promise.all(requests)
+
+    // Map results to their respective data types
+    const dataMap = {}
+    requestTypes.forEach((type, index) => {
+      dataMap[type] = results[index]
+    })
 
     // Calculate alert level based on flow thresholds if available
     let alertLevel: AlertLevel = "normal"
-    if (config.flowThresholds && flowData.current) {
-      alertLevel = getAlertLevelFromFlow(flowData.current.flow, config.flowThresholds)
+    if (config.flowThresholds && dataMap.flow.current) {
+      alertLevel = getAlertLevelFromFlow(dataMap.flow.current.flow, config.flowThresholds)
     }
 
     // Flussdatenobjekt erstellen
@@ -478,27 +518,27 @@ async function fetchRiverData(config): Promise<RiverData> {
       name: config.name,
       location: config.location,
       current: {
-        level: levelData.current,
-        temperature: temperatureData.current,
-        flow: flowData.current,
+        level: dataMap.level.current,
+        temperature: dataMap.temperature.current,
+        flow: dataMap.flow.current,
       },
       history: {
-        levels: levelData.history,
-        temperatures: temperatureData.history,
-        flows: flowData.history,
+        levels: dataMap.level.history,
+        temperatures: dataMap.temperature.history,
+        flows: dataMap.flow.history,
       },
       previousDay: {
-        level: levelData.previousDay,
-        temperature: temperatureData.previousDay,
-        flow: flowData.previousDay,
+        level: dataMap.level.previousDay,
+        temperature: dataMap.temperature.previousDay,
+        flow: dataMap.flow.previousDay,
       },
       changes: {
-        levelPercentage: levelData.percentageChange,
-        levelStatus: levelData.changeStatus,
-        temperatureChange: temperatureData.change,
-        temperatureStatus: temperatureData.changeStatus,
-        flowPercentage: flowData.percentageChange,
-        flowStatus: flowData.changeStatus,
+        levelPercentage: dataMap.level.percentageChange,
+        levelStatus: dataMap.level.changeStatus,
+        temperatureChange: dataMap.temperature.change,
+        temperatureStatus: dataMap.temperature.changeStatus,
+        flowPercentage: dataMap.flow.percentageChange,
+        flowStatus: dataMap.flow.changeStatus,
       },
       urls: {
         level: config.levelUrl,
@@ -508,6 +548,7 @@ async function fetchRiverData(config): Promise<RiverData> {
       webcamUrl: config.webcamUrl,
       flowThresholds: config.flowThresholds,
       alertLevel: alertLevel,
+      isLake: config.isLake === true,
     }
 
     return riverData
@@ -532,6 +573,7 @@ async function fetchRiverData(config): Promise<RiverData> {
       webcamUrl: config.webcamUrl,
       flowThresholds: config.flowThresholds,
       alertLevel: "normal",
+      isLake: config.isLake === true,
     }
   }
 }
@@ -566,6 +608,12 @@ export async function fetchRiversData(includeAllRivers = false): Promise<RiversD
 
 // Add a helper function to extract river ID from URL
 export function extractRiverId(url: string): string {
+  // Handle undefined URLs
+  if (!url) {
+    console.warn("URL is undefined in extractRiverId")
+    return "unknown"
+  }
+
   // URLs look like: https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15
   // We want to extract the "schmerold-18202000" part
 

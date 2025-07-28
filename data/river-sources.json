@@ -61,6 +61,12 @@
         "yellow": [0.8, 1],
         "red": [[null, 0.3], [1, null]]
       }
+    },
+    {
+      "name": "Schliersee",
+      "location": "See",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelle",
+      "isLake": true
     }
   ]
 }

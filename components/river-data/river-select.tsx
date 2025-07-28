@@ -28,8 +28,27 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
     }
   }
 
+  // Generate a unique ID for each river - simplified and more robust
+  const getRiverId = (river: RiverData): string => {
+    // For lakes, create a simple unique identifier based on name and location
+    if (river.isLake) {
+      return `lake-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+    }
+
+    // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
+    if (river.urls?.level) {
+      const extractedId = extractRiverId(river.urls.level)
+      if (extractedId && extractedId !== "unknown") {
+        return extractedId
+      }
+    }
+
+    // Fallback: create ID from name and location
+    return `river-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+  }
+
   // Find the selected river to display its name
-  const selectedRiver = rivers.find((river) => extractRiverId(river.urls.level) === value)
+  const selectedRiver = rivers.find((river) => getRiverId(river) === value)
   const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : ""
 
   return (
@@ -71,7 +90,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
       <SelectContent>
         {rivers.map((river) => {
           const emoji = getRiverStatusEmoji(river)
-          const riverId = extractRiverId(river.urls.level)
+          const riverId = getRiverId(river)
           return (
             <SelectItem key={riverId} value={riverId}>
               <span className="flex items-center">

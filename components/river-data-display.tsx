@@ -18,6 +18,25 @@ interface RiverDataDisplayProps {
   data: RiversData
 }
 
+// Helper function to generate consistent IDs for both rivers and lakes
+function getRiverOrLakeId(river: any): string {
+  // For lakes, create a simple unique identifier based on name and location
+  if (river.isLake) {
+    return `lake-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+  }
+
+  // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
+  if (river.urls?.level) {
+    const extractedId = extractRiverId(river.urls.level)
+    if (extractedId && extractedId !== "unknown") {
+      return extractedId
+    }
+  }
+
+  // Fallback: create ID from name and location
+  return `river-${river.name.toLowerCase().replace(/\s+/g, "-")}-${river.location.toLowerCase().replace(/\s+/g, "-")}`
+}
+
 export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -47,16 +66,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     return adminMode ? data.rivers : data.rivers.filter((river) => river.name !== "Söllbach")
   }, [adminMode, data.rivers])
 
-  // Memoize rivers with IDs to prevent unnecessary recalculations
+  // Memoize rivers with IDs to prevent unnecessary recalculations - updated to handle lakes
   const riversWithIds = useMemo(() => {
     return filteredRivers.map((river) => ({
       ...river,
-      id: extractRiverId(river.urls.level),
+      id: getRiverOrLakeId(river),
     }))
   }, [filteredRivers])
 
-  // Get initial state from URL parameters or use defaults
-  const initialRiverId = searchParams.get("id") || extractRiverId(filteredRivers[0]?.urls.level || "")
+  // Get initial state from URL parameters or use defaults - updated to handle lakes
+  const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers[0] || {})
   const initialDataType = (searchParams.get("pane") || "flow") as DataType
   const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
 
@@ -66,9 +85,9 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   const [activeRiverId, setActiveRiverId] = useState<string>(initialRiverId)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Memoize valid river IDs to prevent unnecessary recalculations
+  // Memoize valid river IDs to prevent unnecessary recalculations - updated to handle lakes
   const validRiverIds = useMemo(() => {
-    return riversWithIds.map((r) => extractRiverId(r.urls.level))
+    return riversWithIds.map((r) => getRiverOrLakeId(r))
   }, [riversWithIds])
 
   // Update active river ID if it becomes invalid after filtering - with better guards
@@ -82,10 +101,17 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     }
   }, [validRiverIds, activeRiverId]) // Removed riversWithIds dependency to prevent loops
 
-  // Find the active river object based on the ID - memoized
+  // Find the active river object based on the ID - memoized and updated to handle lakes
   const activeRiver = useMemo(() => {
-    return riversWithIds.find((r) => extractRiverId(r.urls.level) === activeRiverId) || riversWithIds[0]
+    return riversWithIds.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds[0]
   }, [riversWithIds, activeRiverId])
+
+  // Auto-select temperature tab for lakes
+  useEffect(() => {
+    if (activeRiver && activeRiver.isLake && activeDataType !== "temperature") {
+      setActiveDataType("temperature")
+    }
+  }, [activeRiver, activeDataType])
 
   // Debounced URL update to prevent infinite loops
   const updateURL = useCallback(
@@ -153,9 +179,16 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     setTimeRange(value)
   }, [])
 
-  const handleDataTypeChange = useCallback((dataType: DataType) => {
-    setActiveDataType(dataType)
-  }, [])
+  const handleDataTypeChange = useCallback(
+    (dataType: DataType) => {
+      // Only allow changing to flow or level if not a lake
+      if (activeRiver && activeRiver.isLake && dataType !== "temperature") {
+        return
+      }
+      setActiveDataType(dataType)
+    },
+    [activeRiver],
+  )
 
   if (!filteredRivers || filteredRivers.length === 0) {
     return (

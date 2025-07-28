@@ -25,8 +25,14 @@ export function LevelCard({ river, isActive, onClick, isMobile = false, timeRang
     }
   }, [river, timeRange])
 
+  // Check if this is a lake (only has temperature data)
+  const isLake = river.isLake === true
+
   return (
-    <Card className={`cursor-pointer transition-all ${isActive ? "bg-muted" : "hover:bg-muted/50"}`} onClick={onClick}>
+    <Card
+      className={`transition-all ${isActive ? "bg-muted" : isLake ? "opacity-50" : "hover:bg-muted/50"} ${!isLake ? "cursor-pointer" : "cursor-not-allowed"}`}
+      onClick={() => !isLake && onClick()}
+    >
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
@@ -40,7 +46,9 @@ export function LevelCard({ river, isActive, onClick, isMobile = false, timeRang
             {river.current.level.level} <span className="font-bold">cm</span>
           </div>
         ) : (
-          <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>
+          <div className="text-muted-foreground text-sm">
+            {isLake ? "Nicht verfügbar für Seen" : "Keine Daten verfügbar"}
+          </div>
         )}
       </CardContent>
     </Card>
