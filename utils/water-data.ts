@@ -265,7 +265,7 @@ async function fetchWaterTemperature(url: string): Promise<{
     return fetchSpitzingseeTemperature(url)
   }
 
-  // Original Bavarian government site parsing logic
+  // Bayern.de parsing logic for Schliersee and Tegernsee
   try {
     const response = await fetch(url, {
       headers: {
@@ -275,7 +275,7 @@ async function fetchWaterTemperature(url: string): Promise<{
         Pragma: "no-cache",
         Expires: "0",
       },
-      cache: "no-store", // Completely disable caching
+      cache: "no-store",
     })
 
     if (!response.ok) {
@@ -285,57 +285,20 @@ async function fetchWaterTemperature(url: string): Promise<{
     const html = await response.text()
     const $ = cheerio.load(html)
 
-    // Enhanced debugging for Tegernsee
-    const isTegernsee = url.includes("tegernsee")
-    if (isTegernsee) {
-      console.log(`Debugging Tegernsee parsing for URL: ${url}`)
-      console.log(`HTML length: ${html.length}`)
-      console.log(`Found table.tblsort: ${$("table.tblsort").length}`)
-      console.log(`Found table.tblsort tbody: ${$("table.tblsort tbody").length}`)
-      console.log(`Found table.tblsort tbody tr: ${$("table.tblsort tbody tr").length}`)
-
-      // Try alternative table selectors
-      console.log(`Found table: ${$("table").length}`)
-      console.log(`Found tbody tr: ${$("tbody tr").length}`)
-      console.log(`Found tr: ${$("tr").length}`)
-
-      // Log first few table rows for debugging
-      $("table").each((i, table) => {
-        const rows = $(table).find("tr").length
-        console.log(`Table ${i}: ${rows} rows`)
-        if (rows > 0) {
-          $(table)
-            .find("tr")
-            .slice(0, 3)
-            .each((j, row) => {
-              const cells = $(row)
-                .find("td, th")
-                .map((k, cell) => $(cell).text().trim())
-                .get()
-              console.log(`  Row ${j}: [${cells.join(", ")}]`)
-            })
-        }
-      })
-    }
-
-    // Daten initialisieren
+    // Initialize data
     let current: WaterTemperatureDataPoint = null
     const history: WaterTemperatureDataPoint[] = []
 
-    // Try multiple table selectors for better compatibility
+    // Use standard Bayern.de table parsing - try multiple selectors for robustness
     let tableRows = $("table.tblsort tbody tr")
     if (tableRows.length === 0) {
-      // Fallback to any table with tbody
       tableRows = $("table tbody tr")
-      if (isTegernsee) console.log(`Using fallback selector, found ${tableRows.length} rows`)
     }
     if (tableRows.length === 0) {
-      // Final fallback to any table rows
       tableRows = $("table tr").not(":first") // Skip header row
-      if (isTegernsee) console.log(`Using final fallback selector, found ${tableRows.length} rows`)
     }
 
-    // Tabellenzeilen verarbeiten, um Daten zu extrahieren
+    // Process table rows to extract data
     tableRows.each((index, element) => {
       const $row = $(element)
       const cells = $row.find("td")
@@ -344,38 +307,31 @@ async function fetchWaterTemperature(url: string): Promise<{
 
       const dateText = cells.eq(0).text().trim()
 
-      // Try different approaches to find temperature cell
+      // Find temperature cell - try center-aligned first, then pattern matching
       let tempText = ""
-
-      // First try: look for center-aligned cell
       const centerCell = $row.find("td.center")
       if (centerCell.length > 0) {
         tempText = centerCell.first().text().trim()
       } else {
-        // Second try: look for cell containing temperature pattern (number with °C)
+        // Look for cell containing temperature pattern
         cells.each((i, cell) => {
           const cellText = $(cell).text().trim()
           if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
             tempText = cellText
           }
         })
-
-        // Third try: use second cell if no temperature pattern found
+        // Fallback to second cell
         if (!tempText && cells.length >= 2) {
           tempText = cells.eq(1).text().trim()
         }
-      }
-
-      if (isTegernsee && index < 5) {
-        console.log(`Row ${index}: date="${dateText}", temp="${tempText}", cells=${cells.length}`)
       }
 
       // Extract temperature value
       const tempMatch = tempText.match(/(\d+[.,]\d*)/)
       if (!tempMatch) return
 
-      const temperature = Number.parseFloat(tempMatch[1].replace(",", ".")) // Deutsches Dezimalformat verarbeiten
-      if (isNaN(temperature)) return // Überspringen, wenn die Temperatur keine Zahl ist
+      const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
+      if (isNaN(temperature)) return
 
       const timestamp = parseGermanDate(dateText)
 
@@ -385,31 +341,18 @@ async function fetchWaterTemperature(url: string): Promise<{
         timestamp,
       }
 
-      // Zur Historie hinzufügen
       history.push(dataPoint)
 
-      // Aktuellen Datenpunkt setzen (erste Zeile)
+      // Set current data point (first row)
       if (index === 0) {
         current = dataPoint
       }
     })
 
-    if (isTegernsee) {
-      console.log(`Tegernsee parsing result: ${history.length} data points found`)
-      if (history.length > 0) {
-        console.log(`First data point: ${history[0].date} - ${history[0].temperature}°C`)
-        console.log(
-          `Last data point: ${history[history.length - 1].date} - ${history[history.length - 1].temperature}°C`,
-        )
-      }
-    }
-
-    // Check if we actually got any data
+    // Check if we got any data
     if (history.length === 0) {
-      // Log response content for small responses to help debug
-      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
       console.warn(
-        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${tableRows.length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
+        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${tableRows.length}.`,
       )
       return {
         current: null,
@@ -418,7 +361,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       }
     }
 
-    // Daten vom Vortag zur ungefähr gleichen Zeit finden
+    // Find previous day data
     let previousDay: WaterTemperatureDataPoint = null
     let change: number = null
     let changeStatus: ChangeStatus = "stable"
@@ -428,13 +371,11 @@ async function fetchWaterTemperature(url: string): Promise<{
       previousDay = history.find((point) => {
         const hourDiff = Math.abs(point.timestamp.getHours() - currentHour)
         const timeDiff = current.timestamp.getTime() - point.timestamp.getTime()
-        // Nach Datenpunkten suchen, die ungefähr 24 Stunden zurückliegen (zwischen 23-25 Stunden)
         return hourDiff <= 1 && timeDiff >= 23 * 60 * 60 * 1000 && timeDiff <= 25 * 60 * 60 * 1000
       })
 
       if (previousDay) {
         change = current.temperature - previousDay.temperature
-        // Für die Temperatur verwenden wir die absolute Änderung anstelle des Prozentsatzes
         const percentChange = (change / previousDay.temperature) * 100
         changeStatus = getChangeStatus(percentChange)
       }
@@ -448,7 +389,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error(`Fehler beim Abrufen der Wassertemperaturdaten für ${url}:`, error)
+    console.error(`Error fetching temperature data for ${url}:`, error)
     return {
       current: null,
       history: [],
@@ -695,15 +636,13 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   table.find("tbody tr").each((index, element) => {
     const dateText = $(element).find("td").eq(0).text().trim()
 
-    // Try different approaches to find temperature cell
+    // Find temperature cell - try center-aligned first, then pattern matching
     let tempText = ""
-
-    // First try: look for center-aligned cell
     const centerCell = $(element).find("td.center")
     if (centerCell.length > 0) {
       tempText = centerCell.first().text().trim()
     } else {
-      // Second try: look for cell containing temperature pattern (number with °C)
+      // Look for cell containing temperature pattern
       $(element)
         .find("td")
         .each((i, cell) => {
@@ -712,8 +651,7 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
             tempText = cellText
           }
         })
-
-      // Third try: use second cell if no temperature pattern found
+      // Fallback to second cell
       if (!tempText && $(element).find("td").length >= 2) {
         tempText = $(element).find("td").eq(1).text().trim()
       }
@@ -727,8 +665,8 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
     const tempMatch = tempText.match(/(\d+[.,]\d*)/)
     if (!tempMatch) return
 
-    const temperature = Number.parseFloat(tempMatch[1].replace(",", ".")) // Deutsches Dezimalformat verarbeiten
-    if (isNaN(temperature)) return // Überspringen, wenn die Temperatur keine Zahl ist
+    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
+    if (isNaN(temperature)) return
 
     // Parse date (format: "Jul 30")
     const dateMatch = dateText.match(/(\w{3})\s+(\d+)/)
