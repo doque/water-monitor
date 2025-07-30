@@ -235,13 +235,37 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       // Get the number of data points to show based on time range
       const maxDataPoints = getDataPointsForTimeRange(timeRange)
 
-      // Sort data by day of year (first element) to ensure chronological order
+      // For Spitzingsee (lake data), filter to get the most recent X days
+      if (isLake && Array.isArray(rawData[0])) {
+        // Sort by day of year (first element) in descending order to get most recent first
+        const sortedData = [...rawData].sort((a, b) => b[0] - a[0])
+
+        // Take the first X elements (most recent days)
+        const filteredData = sortedData.slice(0, maxDataPoints)
+
+        // Sort again in ascending order for chronological display (oldest to newest)
+        const chronologicalData = filteredData.sort((a, b) => a[0] - b[0])
+
+        return chronologicalData.map((point) => {
+          // For lake data, create a proper date from day of year
+          const dayOfYear = point[0]
+          const temperature = point[1]
+
+          // Convert day of year to actual date (assuming 2025)
+          const date = new Date(2025, 0, dayOfYear)
+          const dateStr = `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()} 12:00`
+
+          return {
+            ...mapper({ date: dateStr, temperature }),
+            time: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.`,
+            label: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.`,
+            fullDate: dateStr,
+          }
+        })
+      }
+
+      // For river data, use existing logic
       const sortedData = [...rawData].sort((a, b) => {
-        // For Spitzingsee data, the first element is the day of year
-        if (isLake && Array.isArray(a) && Array.isArray(b)) {
-          return a[0] - b[0] // Sort by day of year ascending
-        }
-        // For other data, use existing date comparison
         return new Date(a.date).getTime() - new Date(b.date).getTime()
       })
 
