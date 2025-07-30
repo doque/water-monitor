@@ -236,15 +236,32 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       // For Schliersee and Tegernsee, show actual 2 weeks worth of data (not just 14 data points)
       if (isSchlierseeOrTegernsee) {
         // Calculate 2 weeks ago from now (14 days)
-        const twoWeeksAgo = new Date()
-        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+        const now = new Date()
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) // 14 days in milliseconds
+
+        console.log(`Filtering ${river?.name} data:`)
+        console.log(`Current time: ${now.toISOString()}`)
+        console.log(`Two weeks ago: ${twoWeeksAgo.toISOString()}`)
+        console.log(`Total data points before filtering: ${filteredData.length}`)
 
         // Filter data to only include points from 2 weeks ago onwards
         filteredData = filteredData.filter((point) => {
           // Parse the date from the data point timestamp
           const pointDate = new Date(point.timestamp)
-          return pointDate >= twoWeeksAgo
+          const isWithinRange = pointDate >= twoWeeksAgo
+
+          if (!isWithinRange) {
+            console.log(`Excluding point: ${point.timestamp} (${pointDate.toISOString()})`)
+          }
+
+          return isWithinRange
         })
+
+        console.log(`Data points after 2-week filtering: ${filteredData.length}`)
+        if (filteredData.length > 0) {
+          console.log(`Oldest point: ${filteredData[filteredData.length - 1].timestamp}`)
+          console.log(`Newest point: ${filteredData[0].timestamp}`)
+        }
 
         // Reverse to show oldest to newest chronologically in chart
         return filteredData.reverse().map((point) => {
