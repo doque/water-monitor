@@ -142,18 +142,37 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   }, [])
 
   // Helper function to get data points for time range - memoized
-  const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
-    const dataPoints = {
-      "1h": 4,
-      "2h": 8,
-      "6h": 24,
-      "12h": 48,
-      "24h": 96,
-      "48h": 192,
-      "1w": 672,
-    }
-    return dataPoints[timeRange]
-  }, [])
+  const getDataPointsForTimeRange = useCallback(
+    (timeRange: TimeRangeOption): number => {
+      // Check if this is a lake (Spitzingsee) which has daily data instead of 15-minute intervals
+      const isLake = river?.name === "Spitzingsee"
+
+      if (isLake) {
+        // For lakes with daily data, use different calculations
+        const lakeDataPoints = {
+          "1 Woche": 7, // 7 days
+          "2 Wochen": 14, // 14 days
+          "4 Wochen": 28, // 28 days
+          "3 Monate": 90, // ~3 months
+          "6 Monate": 180, // ~6 months
+        }
+        return lakeDataPoints[timeRange] || 14 // Default to 2 weeks
+      }
+
+      // For rivers with 15-minute interval data
+      const dataPoints = {
+        "1h": 4,
+        "2h": 8,
+        "6h": 24,
+        "12h": 48,
+        "24h": 96,
+        "48h": 192,
+        "1w": 672,
+      }
+      return dataPoints[timeRange]
+    },
+    [river?.name],
+  )
 
   // Calculate Y-axis domain based on data range - with stable dependencies
   const yAxisDomain = useMemo(() => {
@@ -209,23 +228,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   // Prepare chart data for the given time range - memoized function
   const prepareChartData = useCallback((rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
     let filteredData = [...rawData]
-    const isLongTimeRange = timeRange === "1w"
+    const isLake = river?.name === "Spitzingsee"
+    const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3 Monate" || timeRange === "6 Monate"))
 
-    // Filter based on selected time range
-    const dataPoints = {
-      "1h": 4, // 1 hour × 4 data points per hour (15-minute intervals)
-      "2h": 8, // 2 hours × 4 data points per hour
-      "6h": 24, // 6 hours × 4 data points per hour
-      "12h": 48, // 12 hours × 4 data points per hour
-      "24h": 96, // 24 hours × 4 data points per hour
-      "48h": 192, // 48 hours × 4 data points per hour
-      "1w": 672, // 7 days × 24 hours × 4 data points per hour
-    }
+    // Filter based on selected time range using the updated function
+    const maxDataPoints = getDataPointsForTimeRange(timeRange)
+    filteredData = filteredData.slice(0, maxDataPoints)
 
-    filteredData = filteredData.slice(0, dataPoints[timeRange])
-
-    // For longer time ranges: reduce data points to improve display
-    if (timeRange === "1w" && filteredData.length > 100) {
+    // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
+    if (!isLake && timeRange === "1w" && filteredData.length > 100) {
       const step = Math.ceil(filteredData.length / 100)
       filteredData = filteredData.filter((_, index) => index % step === 0)
     }
