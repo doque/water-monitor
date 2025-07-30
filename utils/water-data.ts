@@ -572,6 +572,9 @@ function processSpitzingseeData(
       const date = new Date(currentYear, 0, 1) // Start with Jan 1
       date.setDate(date.getDate() + dayOfYear) // Add the day offset
 
+      // Set time to noon for consistency with daily data
+      date.setHours(12, 0, 0, 0)
+
       // Format date as German format for consistency - daily data only needs date
       const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} 12:00`
 
@@ -588,13 +591,12 @@ function processSpitzingseeData(
   // Sort by timestamp (most recent first)
   dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
-  // Filter to last 7 days for consistency with time range selection
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const recentHistory = dataPoints.filter((point) => point.timestamp >= sevenDaysAgo)
+  // Don't filter here - return all data and let the chart component handle time range filtering
+  // This allows the time range selector to work properly with different week/month options
+  const allHistory = dataPoints
 
-  if (recentHistory.length === 0) {
-    console.warn(`No recent temperature data found for Spitzingsee (last 7 days)`)
+  if (allHistory.length === 0) {
+    console.warn(`No temperature data found for Spitzingsee`)
     return {
       current: null,
       history: [],
@@ -602,7 +604,7 @@ function processSpitzingseeData(
     }
   }
 
-  const current = recentHistory[0] // Most recent data point
+  const current = allHistory[0] // Most recent data point
 
   // Find previous day data (approximately 24 hours ago)
   let previousDay: WaterTemperatureDataPoint = null
@@ -611,23 +613,23 @@ function processSpitzingseeData(
 
   if (current) {
     // Find the closest data point to 24 hours ago
-    previousDay = recentHistory.find((point) => {
+    previousDay = allHistory.find((point) => {
       const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
       return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
     })
 
     if (previousDay) {
       change = current.temperature - previousDay.temperature
-      const percentChange = (change / previousDay.temperature) * 100
+      const percentChange = Math.abs(change) > 0.01 ? (change / previousDay.temperature) * 100 : 0
       changeStatus = getChangeStatus(percentChange)
     }
   }
 
-  console.log(`Successfully parsed ${recentHistory.length} Spitzingsee temperature data points (last 7 days)`)
+  console.log(`Successfully parsed ${allHistory.length} Spitzingsee temperature data points`)
 
   return {
     current,
-    history: recentHistory,
+    history: allHistory, // Return all data, let chart component filter by time range
     previousDay,
     change,
     changeStatus,
