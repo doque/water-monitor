@@ -226,46 +226,49 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   }, [yAxisDomain])
 
   // Prepare chart data for the given time range - memoized function
-  const prepareChartData = useCallback((rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
-    let filteredData = [...rawData]
-    const isLake = river?.name === "Spitzingsee"
-    const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3 Monate" || timeRange === "6 Monate"))
+  const prepareChartData = useCallback(
+    (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
+      let filteredData = [...rawData]
+      const isLake = river?.name === "Spitzingsee"
+      const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3 Monate" || timeRange === "6 Monate"))
 
-    // Filter based on selected time range using the updated function
-    const maxDataPoints = getDataPointsForTimeRange(timeRange)
-    filteredData = filteredData.slice(0, maxDataPoints)
+      // Filter based on selected time range using the updated function
+      const maxDataPoints = getDataPointsForTimeRange(timeRange)
+      filteredData = filteredData.slice(0, maxDataPoints)
 
-    // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
-    if (!isLake && timeRange === "1w" && filteredData.length > 100) {
-      const step = Math.ceil(filteredData.length / 100)
-      filteredData = filteredData.filter((_, index) => index % step === 0)
-    }
-
-    // Reverse to show oldest to newest
-    return filteredData.reverse().map((point) => {
-      // Check if this is daily data (Spitzingsee) by looking at the time component
-      const dateParts = point.date.split(" ")
-      const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // Extract HH:MM or default
-      const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
-
-      // For daily data (like Spitzingsee), show only date without time
-      const isDailyData = timePart === "12:00" // Daily data typically has noon timestamp
-
-      // For longer time ranges we show date and time, for daily data we show only date
-      const label = isLongTimeRange
-        ? isDailyData
-          ? datePart // Only date for daily data
-          : `${datePart} ${timePart}` // Date and time for hourly data
-        : timePart // Only "HH:MM" for shorter time ranges
-
-      return {
-        ...mapper(point),
-        time: isDailyData ? datePart : timePart, // Use date for daily data, time for hourly
-        label: label,
-        fullDate: point.date, // Full date for tooltip
+      // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
+      if (!isLake && timeRange === "1w" && filteredData.length > 100) {
+        const step = Math.ceil(filteredData.length / 100)
+        filteredData = filteredData.filter((_, index) => index % step === 0)
       }
-    })
-  }, [])
+
+      // Reverse to show oldest to newest
+      return filteredData.reverse().map((point) => {
+        // Check if this is daily data (Spitzingsee) by looking at the time component
+        const dateParts = point.date.split(" ")
+        const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // Extract HH:MM or default
+        const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
+
+        // For daily data (like Spitzingsee), show only date without time
+        const isDailyData = timePart === "12:00" // Daily data typically has noon timestamp
+
+        // For longer time ranges we show date and time, for daily data we show only date
+        const label = isLongTimeRange
+          ? isDailyData
+            ? datePart // Only date for daily data
+            : `${datePart} ${timePart}` // Date and time for hourly data
+          : timePart // Only "HH:MM" for shorter time ranges
+
+        return {
+          ...mapper(point),
+          time: isDailyData ? datePart : timePart, // Use date for daily data, time for hourly
+          label: label,
+          fullDate: point.date, // Full date for tooltip
+        }
+      })
+    },
+    [river?.name, getDataPointsForTimeRange],
+  ) // Added getDataPointsForTimeRange to dependencies
 
   // Prepare chart data based on data type - with stable dependencies
   const chartData = useMemo(() => {
