@@ -232,19 +232,24 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
     // Reverse to show oldest to newest
     return filteredData.reverse().map((point) => {
-      // For longer time ranges (> 48h) we show date and time
+      // Check if this is daily data (Spitzingsee) by looking at the time component
       const dateParts = point.date.split(" ")
-      const timePart = dateParts[1].substring(0, 5) // Extract HH:MM
+      const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // Extract HH:MM or default
       const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
 
-      // For longer time ranges we keep date and time separate for the custom tick component
+      // For daily data (like Spitzingsee), show only date without time
+      const isDailyData = timePart === "12:00" // Daily data typically has noon timestamp
+
+      // For longer time ranges we show date and time, for daily data we show only date
       const label = isLongTimeRange
-        ? `${datePart} ${timePart}` // Keep date and time separate for custom tick
+        ? isDailyData
+          ? datePart // Only date for daily data
+          : `${datePart} ${timePart}` // Date and time for hourly data
         : timePart // Only "HH:MM" for shorter time ranges
 
       return {
         ...mapper(point),
-        time: timePart,
+        time: isDailyData ? datePart : timePart, // Use date for daily data, time for hourly
         label: label,
         fullDate: point.date, // Full date for tooltip
       }

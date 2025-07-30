@@ -572,8 +572,8 @@ function processSpitzingseeData(
       const date = new Date(currentYear, 0, 1) // Start with Jan 1
       date.setDate(date.getDate() + dayOfYear) // Add the day offset
 
-      // Format date as German format for consistency
-      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+      // Format date as German format for consistency - daily data only needs date
+      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} 12:00`
 
       const dataPoint: WaterTemperatureDataPoint = {
         date: dateString,
@@ -588,11 +588,13 @@ function processSpitzingseeData(
   // Sort by timestamp (most recent first)
   dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
-  // Remove the 7-day filter - show all data for debugging
-  const allHistory = dataPoints
+  // Filter to last 7 days for consistency with time range selection
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const recentHistory = dataPoints.filter((point) => point.timestamp >= sevenDaysAgo)
 
-  if (allHistory.length === 0) {
-    console.warn(`No temperature data found for Spitzingsee`)
+  if (recentHistory.length === 0) {
+    console.warn(`No recent temperature data found for Spitzingsee (last 7 days)`)
     return {
       current: null,
       history: [],
@@ -600,7 +602,7 @@ function processSpitzingseeData(
     }
   }
 
-  const current = allHistory[0] // Most recent data point
+  const current = recentHistory[0] // Most recent data point
 
   // Find previous day data (approximately 24 hours ago)
   let previousDay: WaterTemperatureDataPoint = null
@@ -609,7 +611,7 @@ function processSpitzingseeData(
 
   if (current) {
     // Find the closest data point to 24 hours ago
-    previousDay = allHistory.find((point) => {
+    previousDay = recentHistory.find((point) => {
       const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
       return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
     })
@@ -621,11 +623,11 @@ function processSpitzingseeData(
     }
   }
 
-  console.log(`Successfully parsed ${allHistory.length} Spitzingsee temperature data points`)
+  console.log(`Successfully parsed ${recentHistory.length} Spitzingsee temperature data points (last 7 days)`)
 
   return {
     current,
-    history: allHistory,
+    history: recentHistory,
     previousDay,
     change,
     changeStatus,
