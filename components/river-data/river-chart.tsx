@@ -123,7 +123,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   // Check if this is Spitzingsee specifically for special handling
   const isSpitzingsee = river?.name === "Spitzingsee"
-  // Check if this is Schliersee for 2-week filtering, Tegernsee for 1-week filtering
+  // Check if this is Schliersee or Tegernsee for 2-month filtering
   const isSchliersee = river?.name === "Schliersee"
   const isTegernsee = river?.name === "Tegernsee"
 
@@ -234,12 +234,12 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         })
       }
 
-      // For Schliersee and Tegernsee, show actual 2 weeks worth of data for both lakes
+      // For Schliersee and Tegernsee, show actual 2 months worth of data
       if (isSchliersee || isTegernsee) {
-        // Calculate 2 weeks back for both lakes since they now both have 2 weeks of data
-        const weeksBack = 2
+        // Calculate 2 months back (60 days)
+        const monthsBack = 2
         const now = new Date()
-        const cutoffDate = new Date(now.getTime() - weeksBack * 7 * 24 * 60 * 60 * 1000) // 2 weeks in milliseconds
+        const cutoffDate = new Date(now.getTime() - monthsBack * 30 * 24 * 60 * 60 * 1000) // 60 days in milliseconds
 
         // Filter data to only include points from the cutoff date onwards
         filteredData = filteredData.filter((point) => {
@@ -355,15 +355,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
     }
 
-    // For Schliersee and Tegernsee, show fewer labels for their 2-week time periods
+    // For Schliersee and Tegernsee, show fewer labels for their 2-month time periods
     if (isSchliersee || isTegernsee) {
       const dataLength = chartData.length
       if (isMobile) {
-        // Mobile: Show fewer labels for 2-week period
-        return Math.max(1, Math.floor(dataLength / 4))
+        // Mobile: Show fewer labels for 2-month period
+        return Math.max(1, Math.floor(dataLength / 6))
       } else {
-        // Desktop: Show more labels for 2-week period
-        return Math.max(1, Math.floor(dataLength / 7))
+        // Desktop: Show more labels for 2-month period
+        return Math.max(1, Math.floor(dataLength / 10))
       }
     }
 
