@@ -670,25 +670,33 @@ function mergeSpitzingseeData(
 ): WaterTemperatureDataPoint[] {
   const mergedData: WaterTemperatureDataPoint[] = []
   const dateMap = new Map<string, WaterTemperatureDataPoint>()
+  const today = new Date()
+  today.setHours(23, 59, 59, 999) // Set to end of today to include today's data
 
-  // Add JavaScript data first
+  // Add JavaScript data first, filtering out future dates
   jsData.forEach((point) => {
-    const dateKey = point.timestamp.toDateString()
-    dateMap.set(dateKey, point)
+    if (point.timestamp <= today) {
+      // Only include dates up to today
+      const dateKey = point.timestamp.toDateString()
+      dateMap.set(dateKey, point)
+    }
   })
 
-  // Add table data, preferring table data for dates that exist in both
+  // Add table data, preferring table data for dates that exist in both, filtering out future dates
   tableData.forEach((point) => {
-    const dateKey = point.timestamp.toDateString()
-    dateMap.set(dateKey, point) // This will overwrite JS data if same date
+    if (point.timestamp <= today) {
+      // Only include dates up to today
+      const dateKey = point.timestamp.toDateString()
+      dateMap.set(dateKey, point) // This will overwrite JS data if same date
+    }
   })
 
-  // Convert map back to array and sort by date
+  // Convert map back to array and sort by date descending (most recent first)
   const allData = Array.from(dateMap.values())
-  allData.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+  allData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
   console.log(
-    `Merged data: ${jsData.length} JS points + ${tableData.length} table points = ${allData.length} total points`,
+    `Merged data (excluding future dates): ${jsData.length} JS points + ${tableData.length} table points = ${allData.length} total points`,
   )
 
   return allData
@@ -714,12 +722,11 @@ function processSpitzingseeDataPoints(
     }
   }
 
-  // Sort by timestamp (most recent first for current, but keep all for history)
-  const sortedData = [...dataPoints].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-  const current = sortedData[0] // Most recent data point
+  // Data is already sorted descending by timestamp (most recent first)
+  const current = dataPoints[0] // Most recent data point
 
-  // Keep all data for history (sorted chronologically for chart display)
-  const history = [...dataPoints].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+  // Keep all data for history (already sorted descending - most recent first)
+  const history = dataPoints
 
   // Find previous day data (approximately 24 hours ago)
   let previousDay: WaterTemperatureDataPoint = null
@@ -728,7 +735,7 @@ function processSpitzingseeDataPoints(
 
   if (current) {
     // Find the closest data point to 24 hours ago
-    previousDay = sortedData.find((point) => {
+    previousDay = dataPoints.find((point) => {
       const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
       return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
     })
