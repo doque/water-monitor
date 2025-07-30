@@ -233,10 +233,18 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         })
       }
 
-      // For Schliersee and Tegernsee, show only the freshest 14 data points (2 weeks)
+      // For Schliersee and Tegernsee, show actual 2 weeks worth of data (not just 14 data points)
       if (isSchlierseeOrTegernsee) {
-        // Data is already sorted newest first, so take first 14 elements for freshest data
-        filteredData = filteredData.slice(0, 14)
+        // Calculate 2 weeks ago from now
+        const twoWeeksAgo = new Date()
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+
+        // Filter data to only include points from 2 weeks ago onwards
+        filteredData = filteredData.filter((point) => {
+          // Parse the date from the data point
+          const pointDate = new Date(point.date.replace(/(\d{2})\.(\d{2})\.(\d{4})/, "$3-$2-$1"))
+          return pointDate >= twoWeeksAgo
+        })
 
         // Reverse to show oldest to newest chronologically in chart
         return filteredData.reverse().map((point) => {
