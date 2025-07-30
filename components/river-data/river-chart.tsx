@@ -149,12 +149,13 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
       if (isLake) {
         // For lakes with daily data, use different calculations
+        // Fixed: Use the actual timeRange values instead of German labels
         const lakeDataPoints = {
-          "1 Woche": 7, // 7 days
-          "2 Wochen": 14, // 14 days
-          "4 Wochen": 28, // 28 days
-          "3 Monate": 90, // ~3 months
-          "6 Monate": 180, // ~6 months
+          "1w": 7, // 7 days
+          "2w": 14, // 14 days
+          "4w": 28, // 28 days
+          "3m": 90, // ~3 months
+          "6m": 180, // ~6 months
         }
         return lakeDataPoints[timeRange] || 14 // Default to 2 weeks
       }
@@ -229,7 +230,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   const prepareChartData = useCallback(
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       const isLake = river?.name === "Spitzingsee"
-      const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3 Monate" || timeRange === "6 Monate"))
+      const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3m" || timeRange === "6m"))
 
       // Get the number of data points to show based on time range
       const maxDataPoints = getDataPointsForTimeRange(timeRange)
