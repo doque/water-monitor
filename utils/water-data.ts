@@ -498,12 +498,22 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
 
     const html = await response.text()
 
-    // Extract the JavaScript data array using regex
-    // Look for the pattern: [day,temperature],[day,temperature],...
-    const dataMatch = html.match(/arrayToDataTable$$\[\s*\['Days',\s*'[^']+'\],\s*((?:\[[-\d]+,[\d.]+\],?)+)\s*\]$$/)
+    // More robust regex to extract the JavaScript data array
+    // Look for arrayToDataTable followed by the data array, handling multiline and various whitespace
+    const dataMatch = html.match(/arrayToDataTable$$\[\s*\['Days',\s*'[^']+'\],\s*((?:\[[-\d]+,[\d.]+\],?\s*)+)\s*\]$$/)
 
     if (!dataMatch) {
+      // Try alternative pattern in case the format is slightly different
+      const altMatch = html.match(/\[[-\d]+,[\d.]+\](?:\s*,\s*\[[-\d]+,[\d.]+\])*/g)
+      if (altMatch) {
+        console.log(`Found alternative data pattern for Spitzingsee: ${altMatch[0].substring(0, 100)}...`)
+        // Process the alternative match
+        const dataString = altMatch.join(",")
+        return processSpitzingseeData(dataString, url)
+      }
+
       console.warn(`No JavaScript temperature data found for Spitzingsee URL: ${url}`)
+      console.log(`HTML sample: ${html.substring(0, 1000)}...`) // Log first 1000 chars for debugging
       return {
         current: null,
         history: [],
@@ -511,98 +521,7 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
       }
     }
 
-    // Parse the data points from the matched string
-    const dataString = dataMatch[1]
-    const dataPoints: WaterTemperatureDataPoint[] = []
-
-    // Extract individual data points [day, temperature]
-    const pointMatches = dataString.match(/\[(-?\d+),([\d.]+)\]/g)
-
-    if (!pointMatches) {
-      console.warn(`Could not parse data points from Spitzingsee data: ${dataString.substring(0, 100)}...`)
-      return {
-        current: null,
-        history: [],
-        changeStatus: "stable",
-      }
-    }
-
-    // Convert day-of-year to actual dates and create data points
-    const currentYear = 2025
-    pointMatches.forEach((match) => {
-      const pointMatch = match.match(/\[(-?\d+),([\d.]+)\]/)
-      if (pointMatch) {
-        const dayOfYear = Number.parseInt(pointMatch[1], 10)
-        const temperature = Number.parseFloat(pointMatch[2])
-
-        // Convert day of year to actual date
-        // Day 0 = January 1, 2025
-        const date = new Date(currentYear, 0, 1) // Start with Jan 1
-        date.setDate(date.getDate() + dayOfYear) // Add the day offset
-
-        // Format date as German format for consistency
-        const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
-
-        const dataPoint: WaterTemperatureDataPoint = {
-          date: dateString,
-          temperature,
-          timestamp: date,
-        }
-
-        dataPoints.push(dataPoint)
-      }
-    })
-
-    // Sort by timestamp (most recent first)
-    dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-
-    // Filter to last 7 days for consistency with other data sources
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const recentHistory = dataPoints.filter((point) => point.timestamp >= sevenDaysAgo)
-
-    if (recentHistory.length === 0) {
-      console.warn(`No recent temperature data found for Spitzingsee (last 7 days)`)
-      return {
-        current: null,
-        history: [],
-        changeStatus: "stable",
-      }
-    }
-
-    const current = recentHistory[0] // Most recent data point
-
-    // Find previous day data (approximately 24 hours ago)
-    let previousDay: WaterTemperatureDataPoint = null
-    let change: number = null
-    let changeStatus: ChangeStatus = "stable"
-
-    if (current) {
-      const oneDayAgo = new Date(current.timestamp)
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1)
-
-      // Find the closest data point to 24 hours ago
-      previousDay = recentHistory.find((point) => {
-        const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
-        return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
-      })
-
-      if (previousDay) {
-        change = current.temperature - previousDay.temperature
-        const percentChange = (change / previousDay.temperature) * 100
-        changeStatus = getChangeStatus(percentChange)
-      }
-    }
-
-    console.log(`Successfully parsed ${recentHistory.length} Spitzingsee temperature data points`)
-
-    return {
-      current,
-      history: recentHistory,
-      previousDay,
-      change,
-      changeStatus,
-    }
+    return processSpitzingseeData(dataMatch[1], url)
   } catch (error) {
     console.error(`Error fetching Spitzingsee temperature data for ${url}:`, error)
     return {
@@ -610,6 +529,108 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
       history: [],
       changeStatus: "stable",
     }
+  }
+}
+
+// Helper function to process the extracted data string
+function processSpitzingseeData(
+  dataString: string,
+  url: string,
+): {
+  current: WaterTemperatureDataPoint
+  history: WaterTemperatureDataPoint[]
+  previousDay?: WaterTemperatureDataPoint
+  change?: number
+  changeStatus: ChangeStatus
+} {
+  const dataPoints: WaterTemperatureDataPoint[] = []
+
+  // Extract individual data points [day, temperature] - more flexible regex
+  const pointMatches = dataString.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/g)
+
+  if (!pointMatches) {
+    console.warn(`Could not parse data points from Spitzingsee data: ${dataString.substring(0, 200)}...`)
+    return {
+      current: null,
+      history: [],
+      changeStatus: "stable",
+    }
+  }
+
+  console.log(`Found ${pointMatches.length} data points for Spitzingsee`)
+
+  // Convert day-of-year to actual dates and create data points
+  const currentYear = 2025
+  pointMatches.forEach((match) => {
+    const pointMatch = match.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/)
+    if (pointMatch) {
+      const dayOfYear = Number.parseInt(pointMatch[1], 10)
+      const temperature = Number.parseFloat(pointMatch[2])
+
+      // Convert day of year to actual date
+      // Day 0 = January 1, 2025
+      const date = new Date(currentYear, 0, 1) // Start with Jan 1
+      date.setDate(date.getDate() + dayOfYear) // Add the day offset
+
+      // Format date as German format for consistency
+      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+
+      const dataPoint: WaterTemperatureDataPoint = {
+        date: dateString,
+        temperature,
+        timestamp: date,
+      }
+
+      dataPoints.push(dataPoint)
+    }
+  })
+
+  // Sort by timestamp (most recent first)
+  dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+  // Filter to last 7 days for consistency with other data sources
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const recentHistory = dataPoints.filter((point) => point.timestamp >= sevenDaysAgo)
+
+  if (recentHistory.length === 0) {
+    console.warn(`No recent temperature data found for Spitzingsee (last 7 days)`)
+    return {
+      current: null,
+      history: [],
+      changeStatus: "stable",
+    }
+  }
+
+  const current = recentHistory[0] // Most recent data point
+
+  // Find previous day data (approximately 24 hours ago)
+  let previousDay: WaterTemperatureDataPoint = null
+  let change: number = null
+  let changeStatus: ChangeStatus = "stable"
+
+  if (current) {
+    // Find the closest data point to 24 hours ago
+    previousDay = recentHistory.find((point) => {
+      const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
+      return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
+    })
+
+    if (previousDay) {
+      change = current.temperature - previousDay.temperature
+      const percentChange = (change / previousDay.temperature) * 100
+      changeStatus = getChangeStatus(percentChange)
+    }
+  }
+
+  console.log(`Successfully parsed ${recentHistory.length} Spitzingsee temperature data points`)
+
+  return {
+    current,
+    history: recentHistory,
+    previousDay,
+    change,
+    changeStatus,
   }
 }
 
