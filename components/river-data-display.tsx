@@ -281,9 +281,9 @@ export function RiverDataDisplay(): JSX.Element {
               />
             </div>
             <div className="col-span-5 sm:col-span-6">
-              {/* Disabled dropdown showing "2 Wochen" for Schliersee and Tegernsee */}
+              {/* Changed from "2 Wochen" to "1 Woche" for Schliersee and Tegernsee */}
               <div className="px-2 h-10 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md opacity-75">
-                <div className="truncate text-gray-600 dark:text-gray-400">2 Wochen</div>
+                <div className="truncate text-gray-600 dark:text-gray-400">1 Woche</div>
               </div>
             </div>
           </>
