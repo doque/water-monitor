@@ -252,7 +252,7 @@ export function RiverDataDisplay(): JSX.Element {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-7 sm:col-span-6">
+        <div className={`${activeRiver?.isLake ? "col-span-12" : "col-span-7 sm:col-span-6"}`}>
           <RiverSelect
             rivers={riversWithIds || []}
             value={activeRiverId}
@@ -260,9 +260,12 @@ export function RiverDataDisplay(): JSX.Element {
             showColors={adminMode}
           />
         </div>
-        <div className="col-span-5 sm:col-span-6">
-          <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
-        </div>
+        {/* Hide time range selector for lakes */}
+        {!activeRiver?.isLake && (
+          <div className="col-span-5 sm:col-span-6">
+            <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+          </div>
+        )}
       </div>
 
       {/* Display the active river data */}
