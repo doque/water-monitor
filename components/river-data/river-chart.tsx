@@ -235,9 +235,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       // Get the number of data points to show based on time range
       const maxDataPoints = getDataPointsForTimeRange(timeRange)
 
-      // For lakes (Spitzingsee), take the most recent X points
-      // Data is already in reverse chronological order (newest first)
-      let filteredData = rawData.slice(0, maxDataPoints)
+      // Take the most recent data points from the end of the array
+      // Changed: slice from the end to get the latest data points
+      let filteredData = rawData.slice(-maxDataPoints)
 
       // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
       if (!isLake && timeRange === "1w" && filteredData.length > 100) {
@@ -245,8 +245,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         filteredData = filteredData.filter((_, index) => index % step === 0)
       }
 
-      // Reverse to show oldest to newest (for chart display)
-      return filteredData.reverse().map((point) => {
+      // Data should already be in chronological order (oldest to newest) after slicing from the end
+      return filteredData.map((point) => {
         // Check if this is daily data (Spitzingsee) by looking at the time component
         const dateParts = point.date.split(" ")
         const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // Extract HH:MM or default
