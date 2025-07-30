@@ -63,7 +63,15 @@ export function RiverDataDisplay(): JSX.Element {
   // Get initial state from URL parameters or use defaults - updated to handle lakes
   const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers?.[0] || {})
   const initialDataType = (searchParams.get("pane") || "flow") as DataType
-  const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
+  const getDefaultTimeRange = (): TimeRangeOption => {
+    const urlTimeRange = searchParams.get("interval") as TimeRangeOption
+    if (urlTimeRange) return urlTimeRange
+
+    // Check if the initial river is a lake
+    const initialRiver = filteredRivers?.find((r) => getRiverOrLakeId(r) === initialRiverId)
+    return initialRiver?.isLake ? "2w" : "24h"
+  }
+  const initialTimeRange = getDefaultTimeRange()
 
   // State for UI controls
   const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
@@ -97,17 +105,23 @@ export function RiverDataDisplay(): JSX.Element {
     if (activeRiver && activeRiver !== previousRiverRef.current) {
       // River has changed, auto-select appropriate tab
       if (activeRiver.isLake) {
-        // For lakes, always select temperature tab
+        // For lakes, always select temperature tab and set default time range to 2w
         setActiveDataType("temperature")
+        if (!searchParams.get("interval")) {
+          setTimeRange("2w")
+        }
       } else {
-        // For rivers, always select flow tab
+        // For rivers, always select flow tab and set default time range to 24h
         setActiveDataType("flow")
+        if (!searchParams.get("interval")) {
+          setTimeRange("24h")
+        }
       }
 
       // Update the ref to track current river
       previousRiverRef.current = activeRiver
     }
-  }, [activeRiver]) // Removed activeDataType from dependencies to prevent override of manual selections
+  }, [activeRiver, searchParams]) // Added searchParams to dependencies
 
   // Debounced URL update to prevent infinite loops
   const updateURL = useCallback(
@@ -261,7 +275,12 @@ export function RiverDataDisplay(): JSX.Element {
           />
         </div>
         <div className="col-span-5 sm:col-span-6">
-          <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+          {/* Pass isLake prop to TimeRangeSelect */}
+          <TimeRangeSelect
+            value={timeRange}
+            onValueChange={handleTimeRangeChange}
+            isLake={activeRiver?.isLake || false}
+          />
         </div>
       </div>
 
