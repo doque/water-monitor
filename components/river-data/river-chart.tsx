@@ -17,8 +17,30 @@ interface RiverChartProps {
   isAdminMode?: boolean
 }
 
-// Custom tooltip component
-const CustomTooltip = ({ active, payload, label, dataType }) => {
+// TypeScript interfaces for component props
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    value: number
+    payload: {
+      fullDate?: string
+    }
+  }>
+  label?: string
+  dataType: DataType
+}
+
+interface CustomXAxisTickProps {
+  x?: number
+  y?: number
+  payload?: {
+    value: string
+  }
+  isLongTimeRange?: boolean
+}
+
+// Custom tooltip component with proper TypeScript types
+const CustomTooltip = ({ active, payload, label, dataType }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     // Get the appropriate unit based on data type
     let unit = ""
@@ -27,15 +49,15 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
     switch (dataType) {
       case "level":
         unit = "cm"
-        valueFormatted = payload[0].value
+        valueFormatted = payload[0].value.toString()
         break
       case "temperature":
         unit = "°C"
-        valueFormatted = Number.parseFloat(payload[0].value).toFixed(1)
+        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(1)
         break
       case "flow":
         unit = "m³/s"
-        valueFormatted = Number.parseFloat(payload[0].value).toFixed(2)
+        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(2)
         break
     }
 
@@ -66,11 +88,11 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
   return null
 }
 
-// Custom tick component for X-axis to handle line breaks
-const CustomXAxisTick = (props) => {
+// Custom tick component for X-axis to handle line breaks with proper TypeScript types
+const CustomXAxisTick = (props: CustomXAxisTickProps) => {
   const { x, y, payload, isLongTimeRange } = props
 
-  if (isLongTimeRange) {
+  if (isLongTimeRange && payload) {
     // For long time ranges, split the label into date and time
     const parts = payload.value.split(" ")
     if (parts.length === 2) {
@@ -94,14 +116,14 @@ const CustomXAxisTick = (props) => {
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
-        {payload.value}
+        {payload?.value || ""}
       </text>
     </g>
   )
 }
 
 // Custom Y-axis tick formatter to avoid duplicates and ensure integer values
-const formatYAxisTick = (value) => {
+const formatYAxisTick = (value: number): string => {
   return Math.round(value).toString()
 }
 
@@ -170,7 +192,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         "48h": 192,
         "1w": 672,
       }
-      return dataPoints[timeRange]
+      return dataPoints[timeRange] || 96
     },
     [river?.name],
   )
@@ -235,71 +257,36 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       // Get the number of data points to show based on time range
       const maxDataPoints = getDataPointsForTimeRange(timeRange)
 
-      // For Spitzingsee (lake data), filter to get the most recent X days
-      if (isLake && Array.isArray(rawData[0])) {
-        // Sort by day of year (first element) in descending order to get most recent first
-        const sortedData = [...rawData].sort((a, b) => b[0] - a[0])
-
-        // Take the first X elements (most recent days)
-        const filteredData = sortedData.slice(0, maxDataPoints)
-
-        // Sort again in ascending order for chronological display (oldest to newest)
-        const chronologicalData = filteredData.sort((a, b) => a[0] - b[0])
-
-        return chronologicalData.map((point) => {
-          // For lake data, create a proper date from day of year
-          const dayOfYear = point[0]
-          const temperature = point[1]
-
-          // Convert day of year to actual date (assuming 2025)
-          const date = new Date(2025, 0, dayOfYear)
-          const dateStr = `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()} 12:00`
-
-          return {
-            ...mapper({ date: dateStr, temperature }),
-            time: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.`,
-            label: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.`,
-            fullDate: dateStr,
-          }
-        })
-      }
-
-      // For river data, use existing logic
+      // Step 1: Sort all data by timestamp (oldest to newest)
       const sortedData = [...rawData].sort((a, b) => {
-        return new Date(a.date).getTime() - new Date(b.date).getTime()
+        return new Date(a.timestamp || a.date).getTime() - new Date(b.timestamp || b.date).getTime()
       })
 
-      // Take the most recent data points (last X elements after sorting)
-      let filteredData = sortedData.slice(-maxDataPoints)
+      // Step 2: Take the last X data points (most recent)
+      const recentData = sortedData.slice(-maxDataPoints)
 
-      // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
-      if (!isLake && timeRange === "1w" && filteredData.length > 100) {
-        const step = Math.ceil(filteredData.length / 100)
-        filteredData = filteredData.filter((_, index) => index % step === 0)
-      }
-
-      // Data is now in chronological order (oldest to newest)
-      return filteredData.map((point) => {
-        // Check if this is daily data (Spitzingsee) by looking at the time component
+      // Step 3: Map to chart format
+      return recentData.map((point) => {
+        // Extract date and time components
         const dateParts = point.date.split(" ")
-        const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // Extract HH:MM or default
-        const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
+        const datePart = dateParts[0] ? dateParts[0].substring(0, 5) : "" // DD.MM.
+        const timePart = dateParts[1] ? dateParts[1].substring(0, 5) : "12:00" // HH:MM
 
-        // For daily data (like Spitzingsee), show only date without time
-        const isDailyData = timePart === "12:00" // Daily data typically has noon timestamp
+        // For daily data (like Spitzingsee), show only date. For hourly data, show time or date+time
+        const isDailyData = timePart === "12:00" || isLake
 
-        // For longer time ranges we show date and time, for daily data we show only date
-        const label = isLongTimeRange
-          ? isDailyData
-            ? datePart // Only date for daily data
-            : `${datePart} ${timePart}` // Date and time for hourly data
-          : timePart // Only "HH:MM" for shorter time ranges
+        let label: string
+        if (isLongTimeRange) {
+          label = isDailyData ? datePart : `${datePart} ${timePart}`
+        } else {
+          label = isDailyData ? datePart : timePart
+        }
 
         return {
           ...mapper(point),
-          time: isDailyData ? datePart : timePart, // Use date for daily data, time for hourly
+          time: isDailyData ? datePart : timePart,
           label: label,
-          fullDate: point.date, // Full date for tooltip
+          fullDate: point.date,
         }
       })
     },
