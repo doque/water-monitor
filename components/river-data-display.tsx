@@ -252,8 +252,26 @@ export function RiverDataDisplay(): JSX.Element {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
-        {/* Show time range selector for all waters except Spitzingsee */}
-        {activeRiver?.name !== "Spitzingsee" ? (
+        {/* Modified: Show disabled time range selector for Spitzingsee with "30 Tage" */}
+        {activeRiver?.name === "Spitzingsee" ? (
+          <>
+            <div className="col-span-7 sm:col-span-6">
+              <RiverSelect
+                rivers={riversWithIds || []}
+                value={activeRiverId}
+                onValueChange={handleRiverChange}
+                showColors={adminMode}
+              />
+            </div>
+            <div className="col-span-5 sm:col-span-6">
+              {/* Disabled dropdown showing "30 Tage" for Spitzingsee */}
+              <div className="px-2 h-10 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md opacity-75">
+                <div className="truncate text-gray-600 dark:text-gray-400">30 Tage</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          // For all other waters, show normal dropdown
           <>
             <div className="col-span-7 sm:col-span-6">
               <RiverSelect
@@ -267,16 +285,6 @@ export function RiverDataDisplay(): JSX.Element {
               <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
             </div>
           </>
-        ) : (
-          // For Spitzingsee, only show river selector taking full width
-          <div className="col-span-12">
-            <RiverSelect
-              rivers={riversWithIds || []}
-              value={activeRiverId}
-              onValueChange={handleRiverChange}
-              showColors={adminMode}
-            />
-          </div>
         )}
       </div>
 

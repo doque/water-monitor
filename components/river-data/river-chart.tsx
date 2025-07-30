@@ -381,9 +381,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
           fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
       }
     } else {
-      // Standard mode: Always use blue
+      // Standard mode: Always use blue with proper fill colors
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode, blue with opacity for dark
     }
 
     return {
