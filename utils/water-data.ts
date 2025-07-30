@@ -201,7 +201,11 @@ async function fetchWaterLevel(url: string): Promise<{
 
     // Check if we actually got any data
     if (history.length === 0) {
-      console.warn(`No water level data found for URL: ${url}`)
+      // Log response content for small responses to help debug
+      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
+      console.warn(
+        `No water level data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
+      )
       return {
         current: null,
         history: [],
@@ -304,7 +308,11 @@ async function fetchWaterTemperature(url: string): Promise<{
 
     // Check if we actually got any data
     if (history.length === 0) {
-      console.warn(`No temperature data found for URL: ${url}`)
+      // Log response content for small responses to help debug
+      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
+      console.warn(
+        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
+      )
       return {
         current: null,
         history: [],
@@ -409,7 +417,11 @@ async function fetchWaterFlow(url: string): Promise<{
 
     // Check if we actually got any data
     if (history.length === 0) {
-      console.warn(`No flow data found for URL: ${url}`)
+      // Log response content for small responses to help debug
+      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
+      console.warn(
+        `No flow data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
+      )
       return {
         current: null,
         history: [],

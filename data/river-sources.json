@@ -66,6 +66,11 @@
       "name": "Schliersee",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelle",
       "isLake": true
+    },
+    {
+      "name": "Tegernsee",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/gmund_tegernsee-18201303/tabelle",
+      "isLake": true
     }
   ]
 }

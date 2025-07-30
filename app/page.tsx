@@ -4,15 +4,16 @@ import { RiverDataDisplay } from "@/components/river-data-display"
 import { RiverDataSkeleton } from "@/components/river-data-skeleton"
 import { Suspense } from "react"
 import { AdminModeHeader } from "@/components/admin-mode-header"
+import { RiverDataProvider } from "@/contexts/river-data-context"
 
 // Force dynamic rendering - no static generation
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-// Async component to fetch and display river data
+// Updated async component to provide initial data to context
 async function RiverDataContainer() {
   try {
-    // Always fetch all rivers - filtering will happen on client side based on admin mode
+    // Fetch initial data server-side to avoid client-side loading
     const riversData = await fetchRiversData(true)
 
     // Check if we have any rivers data
@@ -29,7 +30,12 @@ async function RiverDataContainer() {
       )
     }
 
-    return <RiverDataDisplay data={riversData} />
+    // Wrap RiverDataDisplay with provider and pass initial data
+    return (
+      <RiverDataProvider initialData={riversData}>
+        <RiverDataDisplay />
+      </RiverDataProvider>
+    )
   } catch (error) {
     console.error("Error in RiverDataContainer:", error)
     return (
