@@ -69,7 +69,7 @@
     },
     {
       "name": "Tegernsee",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/gmund_tegernsee-18201303/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/gmund_tegernsee-18201303/letzteZweiMonate",
       "isLake": true
     },
     {

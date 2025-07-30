@@ -234,12 +234,12 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         })
       }
 
-      // For Schliersee and Tegernsee, show actual 2 weeks worth of data for Schliersee; 1 week for Tegernsee
+      // For Schliersee and Tegernsee, show actual 2 weeks worth of data for both lakes
       if (isSchliersee || isTegernsee) {
-        // Calculate the appropriate time period
-        const weeksBack = isSchliersee ? 2 : 1
+        // Calculate 2 weeks back for both lakes since they now both have 2 weeks of data
+        const weeksBack = 2
         const now = new Date()
-        const cutoffDate = new Date(now.getTime() - weeksBack * 7 * 24 * 60 * 60 * 1000) // weeks in milliseconds
+        const cutoffDate = new Date(now.getTime() - weeksBack * 7 * 24 * 60 * 60 * 1000) // 2 weeks in milliseconds
 
         // Filter data to only include points from the cutoff date onwards
         filteredData = filteredData.filter((point) => {
@@ -355,15 +355,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
     }
 
-    // For Schliersee and Tegernsee, show fewer labels for their respective time periods
+    // For Schliersee and Tegernsee, show fewer labels for their 2-week time periods
     if (isSchliersee || isTegernsee) {
       const dataLength = chartData.length
       if (isMobile) {
-        // Mobile: Show fewer labels
-        return Math.max(1, Math.floor(dataLength / (isSchliersee ? 4 : 3)))
+        // Mobile: Show fewer labels for 2-week period
+        return Math.max(1, Math.floor(dataLength / 4))
       } else {
-        // Desktop: Show more labels
-        return Math.max(1, Math.floor(dataLength / (isSchliersee ? 7 : 7)))
+        // Desktop: Show more labels for 2-week period
+        return Math.max(1, Math.floor(dataLength / 7))
       }
     }
 
