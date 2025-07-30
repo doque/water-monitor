@@ -203,12 +203,12 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       let filteredData = [...rawData]
 
-      // For Spitzingsee, show only the last 30 data points (most recent 30 days)
+      // For Spitzingsee, show only the freshest 30 data points (most recent 30 days)
       if (isSpitzingsee) {
-        // Take only the last 30 data points for Spitzingsee
-        filteredData = filteredData.slice(-30)
+        // Data is already sorted newest first, so take first 30 elements for freshest data
+        filteredData = filteredData.slice(0, 30)
 
-        // Reverse to show oldest to newest chronologically
+        // Reverse to show oldest to newest chronologically in chart
         return filteredData.reverse().map((point) => {
           // For Spitzingsee, format dates as day labels (no hours)
           const dateParts = point.date.split(" ")
@@ -371,21 +371,21 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       switch (alertLevel) {
         case "alert":
           stroke = "#dc2626" // Red-600
-          fill = isDarkMode ? "rgba(220, 38, 38, 0.3)" : "#fecaca" // Red-200 for light mode
+          fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300 for more vibrant fill
           break
         case "warning":
           stroke = "#d97706" // Amber-600
-          fill = isDarkMode ? "rgba(217, 119, 6, 0.3)" : "#fed7aa" // Amber-200 for light mode
+          fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300 for more vibrant fill
           break
         case "normal":
         default:
           stroke = "#16a34a" // Green-600
-          fill = isDarkMode ? "rgba(22, 163, 74, 0.3)" : "#bbf7d0" // Green-200 for light mode
+          fill = isDarkMode ? "rgba(22, 163, 74, 0.4)" : "#86efac" // Green-300 for more vibrant fill
       }
     } else {
-      // Standard mode: Always use blue with proper colorful fill
+      // Standard mode: Always use blue with vibrant colorful fill
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#bfdbfe" // Blue-200 for light mode, blue with opacity for dark
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.4)" : "#93c5fd" // Blue-300 for vibrant light mode fill
     }
 
     return {
