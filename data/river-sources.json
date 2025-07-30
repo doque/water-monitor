@@ -1,11 +1,6 @@
 {
   "rivers": [
     {
-      "name": "Spitzingsee",
-      "temperatureUrl": "https://wassertemperatur.site/seen/water-temp-in-spitzingsee",
-      "isLake": true
-    },
-    {
       "name": "Mangfall",
       "location": "Schmerold",
       "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
@@ -75,6 +70,11 @@
     {
       "name": "Tegernsee",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/gmund_tegernsee-18201303/tabelle",
+      "isLake": true
+    },
+    {
+      "name": "Spitzingsee",
+      "temperatureUrl": "https://wassertemperatur.site/seen/water-temp-in-spitzingsee",
       "isLake": true
     }
   ]

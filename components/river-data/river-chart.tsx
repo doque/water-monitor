@@ -123,6 +123,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   // Check if this is Spitzingsee specifically for special handling
   const isSpitzingsee = river?.name === "Spitzingsee"
+  // Check if this is Schliersee or Tegernsee for 2-week filtering
+  const isSchlierseeOrTegernsee = river?.name === "Schliersee" || river?.name === "Tegernsee"
 
   // Helper function to get data points for time range - memoized
   const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
@@ -144,6 +146,11 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
     // For Spitzingsee, use all data points regardless of time range
     if (isSpitzingsee) {
+      if (dataType === "temperature") {
+        data = river.history.temperatures.map((point) => point.temperature)
+      }
+    } else if (isSchlierseeOrTegernsee) {
+      // For Schliersee and Tegernsee, use all data points regardless of time range
       if (dataType === "temperature") {
         data = river.history.temperatures.map((point) => point.temperature)
       }
@@ -180,7 +187,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [newMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee])
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee, isSchlierseeOrTegernsee])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -198,7 +205,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return 7
   }, [yAxisDomain])
 
-  // Prepare chart data for the given time range - modified for Spitzingsee
+  // Prepare chart data for the given time range - modified for lakes
   const prepareChartData = useCallback(
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       let filteredData = [...rawData]
@@ -220,6 +227,29 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
           return {
             ...mapper(point),
             time: dayMonth, // Use day.month format for Spitzingsee
+            label: dayMonth, // Same for both short and long display
+            fullDate: point.date, // Full date for tooltip
+          }
+        })
+      }
+
+      // For Schliersee and Tegernsee, show only the freshest 14 data points (2 weeks)
+      if (isSchlierseeOrTegernsee) {
+        // Data is already sorted newest first, so take first 14 elements for freshest data
+        filteredData = filteredData.slice(0, 14)
+
+        // Reverse to show oldest to newest chronologically in chart
+        return filteredData.reverse().map((point) => {
+          // Format dates as day labels (no hours)
+          const dateParts = point.date.split(" ")
+          const datePart = dateParts[0] // Get DD.MM.YYYY or DD.MM
+
+          // Extract just DD.MM for display
+          const dayMonth = datePart.includes(".") ? datePart.split(".").slice(0, 2).join(".") : datePart
+
+          return {
+            ...mapper(point),
+            time: dayMonth, // Use day.month format
             label: dayMonth, // Same for both short and long display
             fullDate: point.date, // Full date for tooltip
           }
@@ -268,7 +298,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         }
       })
     },
-    [isSpitzingsee],
+    [isSpitzingsee, isSchlierseeOrTegernsee],
   )
 
   // Prepare chart data based on data type - with stable dependencies
@@ -301,7 +331,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return data
   }, [river.history, dataType, timeRange, prepareChartData])
 
-  // Calculate the interval for the X-axis based on time range and device type - modified for Spitzingsee
+  // Calculate the interval for the X-axis based on time range and device type - modified for lakes
   const xAxisInterval = useMemo(() => {
     // For Spitzingsee, show fewer labels since we have many daily data points
     if (isSpitzingsee) {
@@ -312,6 +342,18 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       } else {
         // Desktop: Show every 5th day approximately
         return Math.max(1, Math.floor(dataLength / 12))
+      }
+    }
+
+    // For Schliersee and Tegernsee, show fewer labels for 2-week data
+    if (isSchlierseeOrTegernsee) {
+      const dataLength = chartData.length
+      if (isMobile) {
+        // Mobile: Show every 3rd day approximately
+        return Math.max(1, Math.floor(dataLength / 4))
+      } else {
+        // Desktop: Show every 2nd day approximately
+        return Math.max(1, Math.floor(dataLength / 7))
       }
     }
 
@@ -358,7 +400,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             : Math.floor(dataLength / 10)
       }
     }
-  }, [timeRange, chartData.length, isMobile, isSpitzingsee])
+  }, [timeRange, chartData.length, isMobile, isSpitzingsee, isSchlierseeOrTegernsee])
 
   // Get chart configuration - with stable dependencies
   const chartConfig = useMemo(() => {
@@ -383,9 +425,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
           fill = isDarkMode ? "rgba(22, 163, 74, 0.4)" : "#86efac" // Green-300 for more vibrant fill
       }
     } else {
-      // Standard mode: Always use blue with vibrant colorful fill
+      // Standard mode: Always use blue with lighter colorful fill (100-level)
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.4)" : "#93c5fd" // Blue-300 for vibrant light mode fill
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100 for lighter fill
     }
 
     return {
@@ -413,7 +455,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     )
   }
 
-  // Render the actual chart for all data including Spitzingsee
+  // Render the actual chart for all data including Spitzingsee and lakes
   return (
     <Card>
       <CardHeader className="pb-2 p-3 sm:p-6">
@@ -428,10 +470,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isSpitzingsee ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isSpitzingsee} />}
+                dataKey={isSpitzingsee || isSchlierseeOrTegernsee ? "time" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => (
+                  <CustomXAxisTick
+                    {...props}
+                    isLongTimeRange={isLongTimeRange && !isSpitzingsee && !isSchlierseeOrTegernsee}
+                  />
+                )}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isSpitzingsee ? 50 : 30} // Normal height for Spitzingsee
+                height={isLongTimeRange && !isSpitzingsee && !isSchlierseeOrTegernsee ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
               />
               <YAxis
