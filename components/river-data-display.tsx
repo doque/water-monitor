@@ -252,18 +252,30 @@ export function RiverDataDisplay(): JSX.Element {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
-        <div className={`${activeRiver?.isLake ? "col-span-12" : "col-span-7 sm:col-span-6"}`}>
-          <RiverSelect
-            rivers={riversWithIds || []}
-            value={activeRiverId}
-            onValueChange={handleRiverChange}
-            showColors={adminMode}
-          />
-        </div>
-        {/* Hide time range selector for lakes */}
-        {!activeRiver?.isLake && (
-          <div className="col-span-5 sm:col-span-6">
-            <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+        {/* Show time range selector for all waters except Spitzingsee */}
+        {activeRiver?.name !== "Spitzingsee" ? (
+          <>
+            <div className="col-span-7 sm:col-span-6">
+              <RiverSelect
+                rivers={riversWithIds || []}
+                value={activeRiverId}
+                onValueChange={handleRiverChange}
+                showColors={adminMode}
+              />
+            </div>
+            <div className="col-span-5 sm:col-span-6">
+              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+            </div>
+          </>
+        ) : (
+          // For Spitzingsee, only show river selector taking full width
+          <div className="col-span-12">
+            <RiverSelect
+              rivers={riversWithIds || []}
+              value={activeRiverId}
+              onValueChange={handleRiverChange}
+              showColors={adminMode}
+            />
           </div>
         )}
       </div>

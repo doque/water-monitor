@@ -5,7 +5,7 @@ import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -50,6 +50,9 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
         const dateComponent = dateParts[0].split(".").slice(0, 2).join(".")
         const timeComponent = dateParts[1].substring(0, 5) // Get HH:MM
         formattedDate = `${dateComponent} ${timeComponent}`
+      } else {
+        // For Spitzingsee with only date part
+        formattedDate = dateParts[0]
       }
     }
 
@@ -118,28 +121,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [river, dataType, timeRange])
 
-  // Check if this is a lake (Spitzingsee) for special handling
-  const isLake = river?.isLake || river?.name === "Spitzingsee"
-
-  // Check for dark mode on mount and when theme changes - with proper cleanup
-  useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDarkMode(
-        typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches,
-      )
-    }
-
-    checkDarkMode()
-
-    if (typeof window !== "undefined") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-      mediaQuery.addEventListener("change", checkDarkMode)
-
-      return () => {
-        mediaQuery.removeEventListener("change", checkDarkMode)
-      }
-    }
-  }, [])
+  // Check if this is Spitzingsee specifically for special handling
+  const isSpitzingsee = river?.name === "Spitzingsee"
 
   // Helper function to get data points for time range - memoized
   const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
@@ -159,13 +142,22 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   const yAxisDomain = useMemo(() => {
     let data = []
 
-    // Get the appropriate data array based on data type and time range
-    if (dataType === "level") {
-      data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
-    } else if (dataType === "temperature") {
-      data = river.history.temperatures.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.temperature)
-    } else if (dataType === "flow") {
-      data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+    // For Spitzingsee, use all data points regardless of time range
+    if (isSpitzingsee) {
+      if (dataType === "temperature") {
+        data = river.history.temperatures.map((point) => point.temperature)
+      }
+    } else {
+      // Get the appropriate data array based on data type and time range for rivers
+      if (dataType === "level") {
+        data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
+      } else if (dataType === "temperature") {
+        data = river.history.temperatures
+          .slice(0, getDataPointsForTimeRange(timeRange))
+          .map((point) => point.temperature)
+      } else if (dataType === "flow") {
+        data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+      }
     }
 
     if (data.length === 0) return ["auto", "auto"]
@@ -188,7 +180,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [newMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange])
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -206,17 +198,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return 7
   }, [yAxisDomain])
 
-  // Prepare chart data for the given time range - modified for lakes
+  // Prepare chart data for the given time range - modified for Spitzingsee
   const prepareChartData = useCallback(
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       let filteredData = [...rawData]
 
-      // For lakes, show ALL data points regardless of time range
-      if (isLake) {
-        // Don't filter by time range for lakes - show all data
+      // For Spitzingsee, show ALL data points regardless of time range
+      if (isSpitzingsee) {
+        // Don't filter by time range for Spitzingsee - show all data
         // Reverse to show oldest to newest chronologically
         return filteredData.reverse().map((point) => {
-          // For lakes, format dates as day labels (no hours)
+          // For Spitzingsee, format dates as day labels (no hours)
           const dateParts = point.date.split(" ")
           const datePart = dateParts[0] // Get DD.MM.YYYY or DD.MM
 
@@ -225,7 +217,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
           return {
             ...mapper(point),
-            time: dayMonth, // Use day.month format for lakes
+            time: dayMonth, // Use day.month format for Spitzingsee
             label: dayMonth, // Same for both short and long display
             fullDate: point.date, // Full date for tooltip
           }
@@ -274,7 +266,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         }
       })
     },
-    [isLake],
+    [isSpitzingsee],
   )
 
   // Prepare chart data based on data type - with stable dependencies
@@ -307,10 +299,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return data
   }, [river.history, dataType, timeRange, prepareChartData])
 
-  // Calculate the interval for the X-axis based on time range and device type - modified for lakes
+  // Calculate the interval for the X-axis based on time range and device type - modified for Spitzingsee
   const xAxisInterval = useMemo(() => {
-    // For lakes, show fewer labels since we have many daily data points
-    if (isLake) {
+    // For Spitzingsee, show fewer labels since we have many daily data points
+    if (isSpitzingsee) {
       const dataLength = chartData.length
       if (isMobile) {
         // Mobile: Show every 7th day approximately
@@ -364,7 +356,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             : Math.floor(dataLength / 10)
       }
     }
-  }, [timeRange, chartData.length, isMobile, isLake])
+  }, [timeRange, chartData.length, isMobile, isSpitzingsee])
 
   // Get chart configuration - with stable dependencies
   const chartConfig = useMemo(() => {
@@ -419,127 +411,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     )
   }
 
-  // Debug display for Spitzingsee - show full raw data instead of chart
-  if (isLake && dataType === "temperature") {
-    return (
-      <Card>
-        <CardHeader className="pb-2 p-3 sm:p-6">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base sm:text-lg">Debug: Spitzingsee Full Raw Data</CardTitle>
-            <span className="text-sm font-normal">{river.history.temperatures.length} total data points</span>
-          </div>
-        </CardHeader>
-        <CardContent className="p-3">
-          <div className="space-y-4">
-            {/* Current temperature */}
-            {river.current.temperature && (
-              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
-                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Current Temperature</h3>
-                <p className="text-sm">
-                  <strong>Date:</strong> {river.current.temperature.date}
-                </p>
-                <p className="text-sm">
-                  <strong>Temperature:</strong> {river.current.temperature.temperature}°C
-                </p>
-                <p className="text-sm">
-                  <strong>Timestamp:</strong> {river.current.temperature.timestamp.toISOString()}
-                </p>
-              </div>
-            )}
-
-            {/* Previous day comparison */}
-            {river.previousDay?.temperature && (
-              <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg">
-                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">Previous Day</h3>
-                <p className="text-sm">
-                  <strong>Date:</strong> {river.previousDay.temperature.date}
-                </p>
-                <p className="text-sm">
-                  <strong>Temperature:</strong> {river.previousDay.temperature.temperature}°C
-                </p>
-                <p className="text-sm">
-                  <strong>Change:</strong> {river.changes.temperatureChange?.toFixed(2)}°C (
-                  {river.changes.temperatureStatus})
-                </p>
-              </div>
-            )}
-
-            {/* Full data table - scrollable */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                All Raw Data Points ({river.history.temperatures.length} total)
-              </h3>
-              <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
-                    <tr>
-                      <th className="px-2 py-1 text-left">#</th>
-                      <th className="px-2 py-1 text-left">Date</th>
-                      <th className="px-2 py-1 text-left">Temp (°C)</th>
-                      <th className="px-2 py-1 text-left">Calculated Date</th>
-                      <th className="px-2 py-1 text-left">Day of Year</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {river.history.temperatures.map((point, index) => {
-                      // Calculate day of year from the timestamp
-                      const startOfYear = new Date(point.timestamp.getFullYear(), 0, 1)
-                      const dayOfYear = Math.floor(
-                        (point.timestamp.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24),
-                      )
-
-                      return (
-                        <tr
-                          key={index}
-                          className={`border-b border-gray-200 dark:border-gray-700 ${
-                            index % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"
-                          }`}
-                        >
-                          <td className="px-2 py-1 font-mono">{index + 1}</td>
-                          <td className="px-2 py-1 font-mono">{point.date}</td>
-                          <td className="px-2 py-1 font-medium">{point.temperature}</td>
-                          <td className="px-2 py-1 text-gray-600 dark:text-gray-400">
-                            {point.timestamp.toLocaleDateString("de-DE")}
-                          </td>
-                          <td className="px-2 py-1 text-gray-500">{dayOfYear}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Data source info */}
-            <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded-lg">
-              <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Data Source Info</h3>
-              <p className="text-sm">
-                <strong>URL:</strong> {river.urls.temperature}
-              </p>
-              <p className="text-sm">
-                <strong>Parser:</strong> JavaScript data extraction from Google Charts + HTML table
-              </p>
-              <p className="text-sm">
-                <strong>Data Format:</strong> [day_of_year, temperature] + HTML table merged
-              </p>
-              <p className="text-sm">
-                <strong>Date Range:</strong>{" "}
-                {river.history.temperatures.length > 0 && (
-                  <>
-                    {river.history.temperatures[river.history.temperatures.length - 1].timestamp.toLocaleDateString(
-                      "de-DE",
-                    )}{" "}
-                    to {river.history.temperatures[0].timestamp.toLocaleDateString("de-DE")}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
+  // Render the actual chart for all data including Spitzingsee
   return (
     <Card>
       <CardHeader className="pb-2 p-3 sm:p-6">
@@ -554,10 +426,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
+                dataKey={isSpitzingsee ? "time" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isSpitzingsee} />}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
+                height={isLongTimeRange && !isSpitzingsee ? 50 : 30} // Normal height for Spitzingsee
                 stroke="currentColor"
               />
               <YAxis
