@@ -18,10 +18,6 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
   // Memoize the trend display to ensure it updates when timeRange changes
   const trendDisplay = useMemo(() => {
     try {
-      // Check if we have valid temperature data before calculating trend
-      if (!river?.current?.temperature || !river?.history?.temperatures?.length) {
-        return null
-      }
       return formatTrendForTimeRange(river, "temperature", timeRange)
     } catch (error) {
       console.error("Error calculating temperature trend:", error)
