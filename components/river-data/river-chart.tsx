@@ -235,15 +235,14 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
       // For Schliersee and Tegernsee, show actual 2 weeks worth of data (not just 14 data points)
       if (isSchlierseeOrTegernsee) {
-        // Calculate 2 weeks ago from now (14 days, not 7)
+        // Calculate 2 weeks ago from now (14 days)
         const twoWeeksAgo = new Date()
-        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14) // Changed from -7 to -14 for actual 2 weeks
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
         // Filter data to only include points from 2 weeks ago onwards
         filteredData = filteredData.filter((point) => {
-          // Parse the date from the data point (DD.MM.YYYY HH:MM format)
-          const dateTimeStr = point.date.replace(/(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2})/, "$3-$2-$1T$4:$5:00")
-          const pointDate = new Date(dateTimeStr)
+          // Parse the date from the data point timestamp
+          const pointDate = new Date(point.timestamp)
           return pointDate >= twoWeeksAgo
         })
 
