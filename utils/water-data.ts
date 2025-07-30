@@ -1,6 +1,8 @@
 import * as cheerio from "cheerio"
 import riverSources from "@/data/river-sources.json"
 
+const currentYear = 2025 // Declare the currentYear variable
+
 export interface WaterLevelDataPoint {
   date: string
   level: number
@@ -283,16 +285,96 @@ async function fetchWaterTemperature(url: string): Promise<{
     const html = await response.text()
     const $ = cheerio.load(html)
 
+    // Enhanced debugging for Tegernsee
+    const isTegernsee = url.includes("tegernsee")
+    if (isTegernsee) {
+      console.log(`Debugging Tegernsee parsing for URL: ${url}`)
+      console.log(`HTML length: ${html.length}`)
+      console.log(`Found table.tblsort: ${$("table.tblsort").length}`)
+      console.log(`Found table.tblsort tbody: ${$("table.tblsort tbody").length}`)
+      console.log(`Found table.tblsort tbody tr: ${$("table.tblsort tbody tr").length}`)
+
+      // Try alternative table selectors
+      console.log(`Found table: ${$("table").length}`)
+      console.log(`Found tbody tr: ${$("tbody tr").length}`)
+      console.log(`Found tr: ${$("tr").length}`)
+
+      // Log first few table rows for debugging
+      $("table").each((i, table) => {
+        const rows = $(table).find("tr").length
+        console.log(`Table ${i}: ${rows} rows`)
+        if (rows > 0) {
+          $(table)
+            .find("tr")
+            .slice(0, 3)
+            .each((j, row) => {
+              const cells = $(row)
+                .find("td, th")
+                .map((k, cell) => $(cell).text().trim())
+                .get()
+              console.log(`  Row ${j}: [${cells.join(", ")}]`)
+            })
+        }
+      })
+    }
+
     // Daten initialisieren
     let current: WaterTemperatureDataPoint = null
     const history: WaterTemperatureDataPoint[] = []
 
-    // Tabellenzeilen verarbeiten, um Daten zu extrahieren
-    $("table.tblsort tbody tr").each((index, element) => {
-      const dateText = $(element).find("td").eq(0).text().trim()
-      const tempText = $(element).find("td.center").text().trim()
-      const temperature = Number.parseFloat(tempText.replace(",", ".")) // Deutsches Dezimalformat verarbeiten
+    // Try multiple table selectors for better compatibility
+    let tableRows = $("table.tblsort tbody tr")
+    if (tableRows.length === 0) {
+      // Fallback to any table with tbody
+      tableRows = $("table tbody tr")
+      if (isTegernsee) console.log(`Using fallback selector, found ${tableRows.length} rows`)
+    }
+    if (tableRows.length === 0) {
+      // Final fallback to any table rows
+      tableRows = $("table tr").not(":first") // Skip header row
+      if (isTegernsee) console.log(`Using final fallback selector, found ${tableRows.length} rows`)
+    }
 
+    // Tabellenzeilen verarbeiten, um Daten zu extrahieren
+    tableRows.each((index, element) => {
+      const $row = $(element)
+      const cells = $row.find("td")
+
+      if (cells.length < 2) return // Skip rows with insufficient cells
+
+      const dateText = cells.eq(0).text().trim()
+
+      // Try different approaches to find temperature cell
+      let tempText = ""
+
+      // First try: look for center-aligned cell
+      const centerCell = $row.find("td.center")
+      if (centerCell.length > 0) {
+        tempText = centerCell.first().text().trim()
+      } else {
+        // Second try: look for cell containing temperature pattern (number with °C)
+        cells.each((i, cell) => {
+          const cellText = $(cell).text().trim()
+          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
+            tempText = cellText
+          }
+        })
+
+        // Third try: use second cell if no temperature pattern found
+        if (!tempText && cells.length >= 2) {
+          tempText = cells.eq(1).text().trim()
+        }
+      }
+
+      if (isTegernsee && index < 5) {
+        console.log(`Row ${index}: date="${dateText}", temp="${tempText}", cells=${cells.length}`)
+      }
+
+      // Extract temperature value
+      const tempMatch = tempText.match(/(\d+[.,]\d*)/)
+      if (!tempMatch) return
+
+      const temperature = Number.parseFloat(tempMatch[1].replace(",", ".")) // Deutsches Dezimalformat verarbeiten
       if (isNaN(temperature)) return // Überspringen, wenn die Temperatur keine Zahl ist
 
       const timestamp = parseGermanDate(dateText)
@@ -312,12 +394,22 @@ async function fetchWaterTemperature(url: string): Promise<{
       }
     })
 
+    if (isTegernsee) {
+      console.log(`Tegernsee parsing result: ${history.length} data points found`)
+      if (history.length > 0) {
+        console.log(`First data point: ${history[0].date} - ${history[0].temperature}°C`)
+        console.log(
+          `Last data point: ${history[history.length - 1].date} - ${history[history.length - 1].temperature}°C`,
+        )
+      }
+    }
+
     // Check if we actually got any data
     if (history.length === 0) {
       // Log response content for small responses to help debug
       const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
       console.warn(
-        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
+        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${tableRows.length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
       )
       return {
         current: null,
@@ -542,7 +634,6 @@ function parseSpitzingseeJavaScriptData(html: string, url: string): WaterTempera
 // Parse the JavaScript data string into data points
 function parseJavaScriptDataString(dataString: string): WaterTemperatureDataPoint[] {
   const dataPoints: WaterTemperatureDataPoint[] = []
-  const currentYear = 2025
 
   // Extract individual data points [day, temperature]
   const pointMatches = dataString.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/g)
@@ -603,24 +694,43 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   // Parse table rows
   table.find("tbody tr").each((index, element) => {
     const dateText = $(element).find("td").eq(0).text().trim()
-    const currentTempText = $(element).find("td").eq(1).text().trim()
-    const forecastTempText = $(element).find("td").eq(3).text().trim()
 
-    // Use current temperature if available, otherwise use forecast
-    let tempText = currentTempText
-    if (!currentTempText || currentTempText === "") {
-      tempText = forecastTempText
+    // Try different approaches to find temperature cell
+    let tempText = ""
+
+    // First try: look for center-aligned cell
+    const centerCell = $(element).find("td.center")
+    if (centerCell.length > 0) {
+      tempText = centerCell.first().text().trim()
+    } else {
+      // Second try: look for cell containing temperature pattern (number with °C)
+      $(element)
+        .find("td")
+        .each((i, cell) => {
+          const cellText = $(cell).text().trim()
+          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
+            tempText = cellText
+          }
+        })
+
+      // Third try: use second cell if no temperature pattern found
+      if (!tempText && $(element).find("td").length >= 2) {
+        tempText = $(element).find("td").eq(1).text().trim()
+      }
     }
 
-    // Extract temperature value (remove °C)
-    const tempMatch = tempText.match(/(\d+(?:\.\d+)?)/)
+    if (index < 5) {
+      console.log(`Row ${index}: date="${dateText}", temp="${tempText}"`)
+    }
+
+    // Extract temperature value
+    const tempMatch = tempText.match(/(\d+[.,]\d*)/)
     if (!tempMatch) return
 
-    const temperature = Number.parseFloat(tempMatch[1])
-    if (isNaN(temperature)) return
+    const temperature = Number.parseFloat(tempMatch[1].replace(",", ".")) // Deutsches Dezimalformat verarbeiten
+    if (isNaN(temperature)) return // Überspringen, wenn die Temperatur keine Zahl ist
 
     // Parse date (format: "Jul 30")
-    const currentYear = 2025
     const dateMatch = dateText.match(/(\w{3})\s+(\d+)/)
     if (!dateMatch) return
 
