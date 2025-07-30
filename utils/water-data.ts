@@ -258,6 +258,12 @@ async function fetchWaterTemperature(url: string): Promise<{
   change?: number
   changeStatus: ChangeStatus
 }> {
+  // Check if this is a Spitzingsee URL (wassertemperatur.site)
+  if (url.includes("wassertemperatur.site")) {
+    return fetchSpitzingseeTemperature(url)
+  }
+
+  // Original Bavarian government site parsing logic
   try {
     const response = await fetch(url, {
       headers: {
@@ -458,6 +464,147 @@ async function fetchWaterFlow(url: string): Promise<{
     }
   } catch (error) {
     console.error(`Fehler beim Abrufen der Abflussdaten für ${url}:`, error)
+    return {
+      current: null,
+      history: [],
+      changeStatus: "stable",
+    }
+  }
+}
+
+// New function to parse Spitzingsee temperature data from JavaScript
+async function fetchSpitzingseeTemperature(url: string): Promise<{
+  current: WaterTemperatureDataPoint
+  history: WaterTemperatureDataPoint[]
+  previousDay?: WaterTemperatureDataPoint
+  change?: number
+  changeStatus: ChangeStatus
+}> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+    }
+
+    const html = await response.text()
+
+    // Extract the JavaScript data array using regex
+    // Look for the pattern: [day,temperature],[day,temperature],...
+    const dataMatch = html.match(/arrayToDataTable$$\[\s*\['Days',\s*'[^']+'\],\s*((?:\[[-\d]+,[\d.]+\],?)+)\s*\]$$/)
+
+    if (!dataMatch) {
+      console.warn(`No JavaScript temperature data found for Spitzingsee URL: ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
+    // Parse the data points from the matched string
+    const dataString = dataMatch[1]
+    const dataPoints: WaterTemperatureDataPoint[] = []
+
+    // Extract individual data points [day, temperature]
+    const pointMatches = dataString.match(/\[(-?\d+),([\d.]+)\]/g)
+
+    if (!pointMatches) {
+      console.warn(`Could not parse data points from Spitzingsee data: ${dataString.substring(0, 100)}...`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
+    // Convert day-of-year to actual dates and create data points
+    const currentYear = 2025
+    pointMatches.forEach((match) => {
+      const pointMatch = match.match(/\[(-?\d+),([\d.]+)\]/)
+      if (pointMatch) {
+        const dayOfYear = Number.parseInt(pointMatch[1], 10)
+        const temperature = Number.parseFloat(pointMatch[2])
+
+        // Convert day of year to actual date
+        // Day 0 = January 1, 2025
+        const date = new Date(currentYear, 0, 1) // Start with Jan 1
+        date.setDate(date.getDate() + dayOfYear) // Add the day offset
+
+        // Format date as German format for consistency
+        const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+
+        const dataPoint: WaterTemperatureDataPoint = {
+          date: dateString,
+          temperature,
+          timestamp: date,
+        }
+
+        dataPoints.push(dataPoint)
+      }
+    })
+
+    // Sort by timestamp (most recent first)
+    dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+    // Filter to last 7 days for consistency with other data sources
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const recentHistory = dataPoints.filter((point) => point.timestamp >= sevenDaysAgo)
+
+    if (recentHistory.length === 0) {
+      console.warn(`No recent temperature data found for Spitzingsee (last 7 days)`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
+      }
+    }
+
+    const current = recentHistory[0] // Most recent data point
+
+    // Find previous day data (approximately 24 hours ago)
+    let previousDay: WaterTemperatureDataPoint = null
+    let change: number = null
+    let changeStatus: ChangeStatus = "stable"
+
+    if (current) {
+      const oneDayAgo = new Date(current.timestamp)
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+
+      // Find the closest data point to 24 hours ago
+      previousDay = recentHistory.find((point) => {
+        const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
+        return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
+      })
+
+      if (previousDay) {
+        change = current.temperature - previousDay.temperature
+        const percentChange = (change / previousDay.temperature) * 100
+        changeStatus = getChangeStatus(percentChange)
+      }
+    }
+
+    console.log(`Successfully parsed ${recentHistory.length} Spitzingsee temperature data points`)
+
+    return {
+      current,
+      history: recentHistory,
+      previousDay,
+      change,
+      changeStatus,
+    }
+  } catch (error) {
+    console.error(`Error fetching Spitzingsee temperature data for ${url}:`, error)
     return {
       current: null,
       history: [],

@@ -118,6 +118,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [river, dataType, timeRange])
 
+  // Check if this is Spitzingsee for debug display
+  const isSpitzingsee = river?.name === "Spitzingsee"
+
   // Check for dark mode on mount and when theme changes - with proper cleanup
   useEffect(() => {
     const checkDarkMode = () => {
@@ -372,6 +375,101 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         </CardHeader>
         <CardContent className="p-3 flex items-center justify-center h-[300px]">
           <div className="text-muted-foreground">Keine Daten für den ausgewählten Typ verfügbar</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Debug display for Spitzingsee - show parsed data instead of chart
+  if (isSpitzingsee && dataType === "temperature") {
+    return (
+      <Card>
+        <CardHeader className="pb-2 p-3 sm:p-6">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-base sm:text-lg">Debug: Spitzingsee Parsed Data</CardTitle>
+            <span className="text-sm font-normal">{river.history.temperatures.length} data points</span>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3">
+          <div className="space-y-4">
+            {/* Current temperature */}
+            {river.current.temperature && (
+              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Current Temperature</h3>
+                <p className="text-sm">
+                  <strong>Date:</strong> {river.current.temperature.date}
+                </p>
+                <p className="text-sm">
+                  <strong>Temperature:</strong> {river.current.temperature.temperature}°C
+                </p>
+                <p className="text-sm">
+                  <strong>Timestamp:</strong> {river.current.temperature.timestamp.toISOString()}
+                </p>
+              </div>
+            )}
+
+            {/* Previous day comparison */}
+            {river.previousDay?.temperature && (
+              <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg">
+                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">Previous Day</h3>
+                <p className="text-sm">
+                  <strong>Date:</strong> {river.previousDay.temperature.date}
+                </p>
+                <p className="text-sm">
+                  <strong>Temperature:</strong> {river.previousDay.temperature.temperature}°C
+                </p>
+                <p className="text-sm">
+                  <strong>Change:</strong> {river.changes.temperatureChange?.toFixed(2)}°C (
+                  {river.changes.temperatureStatus})
+                </p>
+              </div>
+            )}
+
+            {/* Recent data points (last 10) */}
+            <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Recent Data Points (Last 10)</h3>
+              <div className="max-h-60 overflow-y-auto">
+                <div className="grid gap-2 text-xs">
+                  {river.history.temperatures.slice(0, 10).map((point, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700"
+                    >
+                      <span className="font-mono">{point.date}</span>
+                      <span className="font-medium">{point.temperature}°C</span>
+                      <span className="text-gray-500 text-xs">{point.timestamp.toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Chart data preview */}
+            <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
+              <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Chart Data Preview (First 5)</h3>
+              <div className="text-xs space-y-1">
+                {chartData.slice(0, 5).map((point, index) => (
+                  <div key={index} className="font-mono">
+                    {point.label}: {point.value}°C (Full: {point.fullDate})
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Data source info */}
+            <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded-lg">
+              <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Data Source Info</h3>
+              <p className="text-sm">
+                <strong>URL:</strong> {river.urls.temperature}
+              </p>
+              <p className="text-sm">
+                <strong>Parser:</strong> JavaScript data extraction from Google Charts
+              </p>
+              <p className="text-sm">
+                <strong>Data Format:</strong> [day_of_year, temperature] converted to dates
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     )
