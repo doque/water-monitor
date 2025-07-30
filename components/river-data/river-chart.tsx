@@ -380,14 +380,14 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     )
   }
 
-  // Debug display for Spitzingsee - show parsed data instead of chart
+  // Debug display for Spitzingsee - show full raw data instead of chart
   if (isSpitzingsee && dataType === "temperature") {
     return (
       <Card>
         <CardHeader className="pb-2 p-3 sm:p-6">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-base sm:text-lg">Debug: Spitzingsee Parsed Data</CardTitle>
-            <span className="text-sm font-normal">{river.history.temperatures.length} data points</span>
+            <CardTitle className="text-base sm:text-lg">Debug: Spitzingsee Full Raw Data</CardTitle>
+            <span className="text-sm font-normal">{river.history.temperatures.length} total data points</span>
           </div>
         </CardHeader>
         <CardContent className="p-3">
@@ -425,34 +425,49 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               </div>
             )}
 
-            {/* Recent data points (last 10) */}
+            {/* Full data table - scrollable */}
             <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Recent Data Points (Last 10)</h3>
-              <div className="max-h-60 overflow-y-auto">
-                <div className="grid gap-2 text-xs">
-                  {river.history.temperatures.slice(0, 10).map((point, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700"
-                    >
-                      <span className="font-mono">{point.date}</span>
-                      <span className="font-medium">{point.temperature}°C</span>
-                      <span className="text-gray-500 text-xs">{point.timestamp.toLocaleDateString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                All Raw Data Points ({river.history.temperatures.length} total)
+              </h3>
+              <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-1 text-left">#</th>
+                      <th className="px-2 py-1 text-left">Date</th>
+                      <th className="px-2 py-1 text-left">Temp (°C)</th>
+                      <th className="px-2 py-1 text-left">Calculated Date</th>
+                      <th className="px-2 py-1 text-left">Day of Year</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {river.history.temperatures.map((point, index) => {
+                      // Calculate day of year from the timestamp
+                      const startOfYear = new Date(point.timestamp.getFullYear(), 0, 1)
+                      const dayOfYear = Math.floor(
+                        (point.timestamp.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24),
+                      )
 
-            {/* Chart data preview */}
-            <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
-              <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Chart Data Preview (First 5)</h3>
-              <div className="text-xs space-y-1">
-                {chartData.slice(0, 5).map((point, index) => (
-                  <div key={index} className="font-mono">
-                    {point.label}: {point.value}°C (Full: {point.fullDate})
-                  </div>
-                ))}
+                      return (
+                        <tr
+                          key={index}
+                          className={`border-b border-gray-200 dark:border-gray-700 ${
+                            index % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"
+                          }`}
+                        >
+                          <td className="px-2 py-1 font-mono">{index + 1}</td>
+                          <td className="px-2 py-1 font-mono">{point.date}</td>
+                          <td className="px-2 py-1 font-medium">{point.temperature}</td>
+                          <td className="px-2 py-1 text-gray-600 dark:text-gray-400">
+                            {point.timestamp.toLocaleDateString("de-DE")}
+                          </td>
+                          <td className="px-2 py-1 text-gray-500">{dayOfYear}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -467,6 +482,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               </p>
               <p className="text-sm">
                 <strong>Data Format:</strong> [day_of_year, temperature] converted to dates
+              </p>
+              <p className="text-sm">
+                <strong>Date Range:</strong>{" "}
+                {river.history.temperatures.length > 0 && (
+                  <>
+                    {river.history.temperatures[river.history.temperatures.length - 1].timestamp.toLocaleDateString(
+                      "de-DE",
+                    )}{" "}
+                    to {river.history.temperatures[0].timestamp.toLocaleDateString("de-DE")}
+                  </>
+                )}
               </p>
             </div>
           </div>
