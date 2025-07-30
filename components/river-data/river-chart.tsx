@@ -123,8 +123,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   // Check if this is Spitzingsee specifically for special handling
   const isSpitzingsee = river?.name === "Spitzingsee"
-  // Check if this is Schliersee or Tegernsee for 1-week filtering
-  const isSchlierseeOrTegernsee = river?.name === "Schliersee" || river?.name === "Tegernsee"
+  // Check if this is Schliersee for 2-week filtering, Tegernsee for 1-week filtering
+  const isSchliersee = river?.name === "Schliersee"
+  const isTegernsee = river?.name === "Tegernsee"
 
   // Helper function to get data points for time range - memoized
   const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
@@ -149,7 +150,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       if (dataType === "temperature") {
         data = river.history.temperatures.map((point) => point.temperature)
       }
-    } else if (isSchlierseeOrTegernsee) {
+    } else if (isSchliersee || isTegernsee) {
       // For Schliersee and Tegernsee, use all data points regardless of time range
       if (dataType === "temperature") {
         data = river.history.temperatures.map((point) => point.temperature)
@@ -187,7 +188,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [newMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee, isSchlierseeOrTegernsee])
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee, isSchliersee, isTegernsee])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -233,17 +234,18 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         })
       }
 
-      // For Schliersee and Tegernsee, show actual 1 week worth of data (not just 7 data points)
-      if (isSchlierseeOrTegernsee) {
-        // Calculate 1 week ago from now (7 days)
+      // For Schliersee and Tegernsee, show actual 2 weeks worth of data for Schliersee; 1 week for Tegernsee
+      if (isSchliersee || isTegernsee) {
+        // Calculate the appropriate time period
+        const weeksBack = isSchliersee ? 2 : 1
         const now = new Date()
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days in milliseconds
+        const cutoffDate = new Date(now.getTime() - weeksBack * 7 * 24 * 60 * 60 * 1000) // weeks in milliseconds
 
-        // Filter data to only include points from 1 week ago onwards
+        // Filter data to only include points from the cutoff date onwards
         filteredData = filteredData.filter((point) => {
           // Parse the date from the data point timestamp
           const pointDate = new Date(point.timestamp)
-          return pointDate >= oneWeekAgo
+          return pointDate >= cutoffDate
         })
 
         // Reverse to show oldest to newest chronologically in chart
@@ -306,7 +308,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         }
       })
     },
-    [isSpitzingsee, isSchlierseeOrTegernsee],
+    [isSpitzingsee, isSchliersee, isTegernsee],
   )
 
   // Prepare chart data based on data type - with stable dependencies
@@ -353,15 +355,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
     }
 
-    // For Schliersee and Tegernsee, show fewer labels for 1-week data
-    if (isSchlierseeOrTegernsee) {
+    // For Schliersee and Tegernsee, show fewer labels for their respective time periods
+    if (isSchliersee || isTegernsee) {
       const dataLength = chartData.length
       if (isMobile) {
-        // Mobile: Show every 2nd day approximately
-        return Math.max(1, Math.floor(dataLength / 3))
+        // Mobile: Show fewer labels
+        return Math.max(1, Math.floor(dataLength / (isSchliersee ? 4 : 3)))
       } else {
-        // Desktop: Show every day approximately
-        return Math.max(1, Math.floor(dataLength / 7))
+        // Desktop: Show more labels
+        return Math.max(1, Math.floor(dataLength / (isSchliersee ? 7 : 7)))
       }
     }
 
@@ -408,7 +410,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             : Math.floor(dataLength / 10)
       }
     }
-  }, [timeRange, chartData.length, isMobile, isSpitzingsee, isSchlierseeOrTegernsee])
+  }, [timeRange, chartData.length, isMobile, isSpitzingsee, isSchliersee, isTegernsee])
 
   // Get chart configuration - with stable dependencies
   const chartConfig = useMemo(() => {
@@ -478,15 +480,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isSpitzingsee || isSchlierseeOrTegernsee ? "time" : isLongTimeRange ? "label" : "time"}
+                dataKey={isSpitzingsee || isSchliersee || isTegernsee ? "time" : isLongTimeRange ? "label" : "time"}
                 tick={(props) => (
                   <CustomXAxisTick
                     {...props}
-                    isLongTimeRange={isLongTimeRange && !isSpitzingsee && !isSchlierseeOrTegernsee}
+                    isLongTimeRange={isLongTimeRange && !isSpitzingsee && !isSchliersee && !isTegernsee}
                   />
                 )}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isSpitzingsee && !isSchlierseeOrTegernsee ? 50 : 30} // Normal height for lakes
+                height={isLongTimeRange && !isSpitzingsee && !isSchliersee && !isTegernsee ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
               />
               <YAxis

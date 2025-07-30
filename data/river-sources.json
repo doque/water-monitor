@@ -64,7 +64,7 @@
     },
     {
       "name": "Schliersee",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelleZweiMonate",
       "isLake": true
     },
     {
