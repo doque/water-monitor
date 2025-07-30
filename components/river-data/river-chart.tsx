@@ -203,9 +203,11 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       let filteredData = [...rawData]
 
-      // For Spitzingsee, show ALL data points regardless of time range
+      // For Spitzingsee, show only the last 30 data points (most recent 30 days)
       if (isSpitzingsee) {
-        // Don't filter by time range for Spitzingsee - show all data
+        // Take only the last 30 data points for Spitzingsee
+        filteredData = filteredData.slice(-30)
+
         // Reverse to show oldest to newest chronologically
         return filteredData.reverse().map((point) => {
           // For Spitzingsee, format dates as day labels (no hours)
@@ -369,21 +371,21 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       switch (alertLevel) {
         case "alert":
           stroke = "#dc2626" // Red-600
-          fill = isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#fee2e2" // Red-100 for light mode
+          fill = isDarkMode ? "rgba(220, 38, 38, 0.3)" : "#fecaca" // Red-200 for light mode
           break
         case "warning":
           stroke = "#d97706" // Amber-600
-          fill = isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#fef3c7" // Amber-100 for light mode
+          fill = isDarkMode ? "rgba(217, 119, 6, 0.3)" : "#fed7aa" // Amber-200 for light mode
           break
         case "normal":
         default:
           stroke = "#16a34a" // Green-600
-          fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
+          fill = isDarkMode ? "rgba(22, 163, 74, 0.3)" : "#bbf7d0" // Green-200 for light mode
       }
     } else {
-      // Standard mode: Always use blue with proper fill colors
+      // Standard mode: Always use blue with proper colorful fill
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode, blue with opacity for dark
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#bfdbfe" // Blue-200 for light mode, blue with opacity for dark
     }
 
     return {
