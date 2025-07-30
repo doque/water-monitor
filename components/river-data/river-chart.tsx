@@ -228,13 +228,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   // Prepare chart data for the given time range - memoized function
   const prepareChartData = useCallback(
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
-      let filteredData = [...rawData]
       const isLake = river?.name === "Spitzingsee"
       const isLongTimeRange = timeRange === "1w" || (isLake && (timeRange === "3 Monate" || timeRange === "6 Monate"))
 
-      // Filter based on selected time range using the updated function
+      // Get the number of data points to show based on time range
       const maxDataPoints = getDataPointsForTimeRange(timeRange)
-      filteredData = filteredData.slice(0, maxDataPoints)
+
+      // For lakes (Spitzingsee), take the most recent X points
+      // Data is already in reverse chronological order (newest first)
+      let filteredData = rawData.slice(0, maxDataPoints)
 
       // For longer time ranges: reduce data points to improve display (but not for lakes since they're already daily)
       if (!isLake && timeRange === "1w" && filteredData.length > 100) {
@@ -242,7 +244,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         filteredData = filteredData.filter((_, index) => index % step === 0)
       }
 
-      // Reverse to show oldest to newest
+      // Reverse to show oldest to newest (for chart display)
       return filteredData.reverse().map((point) => {
         // Check if this is daily data (Spitzingsee) by looking at the time component
         const dateParts = point.date.split(" ")
@@ -268,7 +270,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       })
     },
     [river?.name, getDataPointsForTimeRange],
-  ) // Added getDataPointsForTimeRange to dependencies
+  )
 
   // Prepare chart data based on data type - with stable dependencies
   const chartData = useMemo(() => {
