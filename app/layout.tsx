@@ -1,5 +1,4 @@
 import type React from "react"
-import type { Metadata } from "next"
 import "./globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -10,8 +9,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://monitor.bfv-mbteg.de"),
+export const metadata = {
   title: "BFV Miesbach-Tegernsee Monitor",
   description: "Überwachung von Wasserständen, Temperaturen und Abflussraten bayerischer Flüsse",
   icons: {
@@ -31,11 +29,8 @@ export const metadata: Metadata = {
         width: 512,
         height: 512,
         alt: "BFV Miesbach-Tegernsee Logo",
-        type: "image/png",
       },
     ],
-    siteName: "BFV Miesbach-Tegernsee Monitor",
-    url: "https://monitor.bfv-mbteg.de",
   },
   twitter: {
     card: "summary",
@@ -44,6 +39,7 @@ export const metadata: Metadata = {
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
     images: ["/images/mbteg-logo.png"],
   },
+  metadataBase: new URL("https://whatsapp-water-alerts.vercel.app"),
   generator: "v0.dev",
 }
 
