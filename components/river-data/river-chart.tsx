@@ -667,7 +667,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 strokeWidth={2}
                 activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
                 dot={false}
-                isAnimationActive={false}
+                // Re-enabled smooth animations for chart transitions
+                isAnimationActive={true}
+                animationDuration={800}
+                animationEasing="ease-in-out"
               />
             </AreaChart>
           </ResponsiveContainer>
