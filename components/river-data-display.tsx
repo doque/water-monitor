@@ -352,6 +352,7 @@ export function RiverDataDisplay(): JSX.Element {
           {activeRiver?.webcamUrl && (
             <WebcamCard
               webcamUrl={activeRiver.webcamUrl}
+              webcamClickUrl={activeRiver.webcamClickUrl}
               riverName={activeRiver.name}
               location={activeRiver.location}
             />

@@ -8,9 +8,11 @@ interface WebcamCardProps {
   webcamUrl: string
   riverName: string
   location: string
+  // Add optional webcamClickUrl prop for separate click target
+  webcamClickUrl?: string
 }
 
-export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) {
+export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: WebcamCardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -18,6 +20,8 @@ export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) 
 
   // Generate a unique URL with a timestamp to prevent caching
   const imageUrl = `${webcamUrl}?t=${timestamp}`
+  // Use webcamClickUrl if provided, otherwise fall back to webcamUrl
+  const clickUrl = webcamClickUrl || webcamUrl
 
   return (
     <Card>
@@ -36,7 +40,7 @@ export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) 
         <CardContent className="p-0 overflow-hidden">
           <div className="p-3 sm:p-6 pt-0">
             <a
-              href={webcamUrl}
+              href={clickUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="block relative rounded-md overflow-hidden"
