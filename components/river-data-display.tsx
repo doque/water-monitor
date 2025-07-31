@@ -23,8 +23,9 @@ export function RiverDataDisplay(): JSX.Element {
   const { data, isLoading, error, refetch } = useRiverData()
   const router = useRouter()
   const searchParams = useSearchParams()
-  // Remove the URL update timeout ref since we're making updates instant
-  // const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+
+  // Add ref to track if component is mounted
+  const isMountedRef = useRef(false)
 
   // Add ref to track previous river for auto-selection logic
   const previousRiverRef = useRef<any>(null)
@@ -61,34 +62,61 @@ export function RiverDataDisplay(): JSX.Element {
     }))
   }, [filteredRivers])
 
-  // Get initial state from URL parameters or use defaults - updated to handle lakes
-  const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers?.[0] || {})
-  const initialDataType = (searchParams.get("pane") || "flow") as DataType
-  // Updated: Set default time range based on water body type
-  const getInitialTimeRange = (): TimeRangeOption => {
-    const urlTimeRange = searchParams.get("interval") as TimeRangeOption
-    if (urlTimeRange) return urlTimeRange
-
-    // Default to 24h for rivers, 2w for lakes
-    const firstRiver = filteredRivers?.[0]
-    return firstRiver?.isLake ? "2w" : "24h"
-  }
-  const initialTimeRange = getInitialTimeRange()
-
-  // State for UI controls
-  const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
-  const [activeDataType, setActiveDataType] = useState<DataType>(initialDataType)
-  const [activeRiverId, setActiveRiverId] = useState<string>(initialRiverId)
-  const [isMobile, setIsMobile] = useState(false)
-
   // Memoize valid river IDs to prevent unnecessary recalculations - updated to handle lakes
   const validRiverIds = useMemo(() => {
-    return riversWithIds?.map((r) => getRiverOrLakeId(r))
+    return riversWithIds?.map((r) => getRiverOrLakeId(r)) || []
   }, [riversWithIds])
+
+  // Get initial state from URL parameters or use defaults - updated to handle lakes
+  // Moved inside useEffect to ensure it runs after data is loaded
+  const [activeRiverId, setActiveRiverId] = useState<string>("")
+  const [activeDataType, setActiveDataType] = useState<DataType>("flow")
+  const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Initialize state from URL parameters after data is loaded
+  useEffect(() => {
+    if (!isLoading && filteredRivers && filteredRivers.length > 0) {
+      // Get URL parameters with proper fallbacks
+      const urlRiverId = searchParams.get("id") || ""
+      const urlDataType = (searchParams.get("pane") || "") as DataType
+      const urlTimeRange = (searchParams.get("interval") as TimeRangeOption) || ""
+
+      // Validate river ID from URL
+      const validRiverId = validRiverIds.includes(urlRiverId) ? urlRiverId : getRiverOrLakeId(filteredRivers[0])
+
+      // Set active river ID
+      setActiveRiverId(validRiverId)
+
+      // Find the active river object
+      const activeRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validRiverId)
+
+      // Set data type based on URL or defaults
+      const validDataType = ["flow", "level", "temperature"].includes(urlDataType)
+        ? (urlDataType as DataType)
+        : activeRiver?.isLake
+          ? "temperature"
+          : "flow"
+
+      setActiveDataType(validDataType)
+
+      // Set time range based on URL or defaults
+      const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
+      const defaultTimeRange = activeRiver?.isLake ? "2w" : "24h"
+      const validTimeRange = validTimeRanges.includes(urlTimeRange)
+        ? (urlTimeRange as TimeRangeOption)
+        : defaultTimeRange
+
+      setTimeRange(validTimeRange)
+
+      // Mark component as mounted
+      isMountedRef.current = true
+    }
+  }, [isLoading, filteredRivers, searchParams, validRiverIds, riversWithIds])
 
   // Update active river ID if it becomes invalid after filtering - with better guards
   useEffect(() => {
-    if (activeRiverId && !validRiverIds?.includes(activeRiverId) && validRiverIds?.length > 0) {
+    if (isMountedRef.current && activeRiverId && !validRiverIds?.includes(activeRiverId) && validRiverIds?.length > 0) {
       // Only update if we actually have a different valid ID to switch to
       const newRiverId = validRiverIds[0]
       if (newRiverId !== activeRiverId) {
@@ -104,7 +132,7 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Auto-select appropriate tab and time range based on water source type
   useEffect(() => {
-    if (activeRiver && activeRiver !== previousRiverRef.current) {
+    if (isMountedRef.current && activeRiver && activeRiver !== previousRiverRef.current) {
       // River has changed, auto-select appropriate tab and time range
       if (activeRiver.isLake) {
         // For lakes, always select temperature tab and appropriate time range
@@ -124,7 +152,10 @@ export function RiverDataDisplay(): JSX.Element {
   // Immediate URL update - removed debouncing for instant updates
   const updateURL = useCallback(
     (riverId: string, dataType: DataType, timeRangeValue: TimeRangeOption) => {
-      const params = new URLSearchParams()
+      // Only update URL if component is mounted and we have valid values
+      if (!isMountedRef.current || !riverId || !dataType || !timeRangeValue) return
+
+      const params = new URLSearchParams(searchParams.toString())
       params.set("id", riverId)
       params.set("pane", dataType)
       params.set("interval", timeRangeValue)
@@ -142,8 +173,8 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Update URL when state changes - now happens instantly
   useEffect(() => {
-    // Only update URL if we have valid values
-    if (activeRiverId && activeDataType && timeRange) {
+    // Only update URL if we have valid values and component is mounted
+    if (isMountedRef.current && activeRiverId && activeDataType && timeRange) {
       updateURL(activeRiverId, activeDataType, timeRange)
     }
   }, [activeRiverId, activeDataType, timeRange, updateURL])
@@ -245,6 +276,13 @@ export function RiverDataDisplay(): JSX.Element {
         </button>
       </div>
     )
+  }
+
+  // Only render the main UI if we have a valid activeRiverId
+  if (!activeRiverId && validRiverIds.length > 0) {
+    // If activeRiverId is not set but we have valid rivers, set it to the first one
+    setActiveRiverId(validRiverIds[0])
+    return <RiverDataSkeleton />
   }
 
   return (
