@@ -103,7 +103,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
           return (
             <SelectItem key={riverId} value={riverId} className="p-0">
               {/* Using exact same flex structure as trigger */}
-              <div className="flex items-center w-full px-2 py-1.5 min-h-[36px]">
+              <div className="flex items-center w-full pl-6 pr-2 py-1.5 min-h-[36px]">
                 <div className="flex items-center flex-1 min-w-0">
                   {emoji && <span className="mr-1">{emoji}</span>}
                   <span className="truncate">
