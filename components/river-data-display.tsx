@@ -102,22 +102,26 @@ export function RiverDataDisplay(): JSX.Element {
   }
 
   // Helper function to validate URL parameters
-  function validateUrlParams(urlRiverId: string, urlDataType: string, urlTimeRange: string, river: any) {
-    const validRiverIds = riversWithIds?.map((r) => getRiverOrLakeId(r)) || []
+  function validateUrlParams(
+    urlRiverId: string,
+    urlDataType: string,
+    urlTimeRange: string,
+    availableRiverIds: string[],
+  ) {
     const validDataTypes = ["flow", "level", "temperature"]
     const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
 
-    // Validate river ID
-    const validatedRiverId = validRiverIds.includes(urlRiverId) ? urlRiverId : validRiverIds[0] || ""
+    // Validate river ID - if URL has a valid ID, use it, otherwise use first available
+    const validatedRiverId = availableRiverIds.includes(urlRiverId) ? urlRiverId : availableRiverIds[0] || ""
 
-    // Find the river for this ID
+    // Find the river for this ID to get appropriate defaults
     const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
     const defaults = getDefaultsForRiver(targetRiver)
 
-    // Validate data type
+    // Validate data type - use URL param if valid, otherwise use defaults for river type
     const validatedDataType = validDataTypes.includes(urlDataType) ? (urlDataType as DataType) : defaults.dataType
 
-    // Validate time range
+    // Validate time range - use URL param if valid, otherwise use defaults for river type
     const validatedTimeRange = validTimeRanges.includes(urlTimeRange)
       ? (urlTimeRange as TimeRangeOption)
       : defaults.timeRange
@@ -129,24 +133,48 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
-  // Single initialization effect - runs once when data is loaded
+  // Enhanced initialization effect with better error handling
   useEffect(() => {
-    if (!isLoading && riversWithIds && riversWithIds.length > 0 && !isInitializedRef.current) {
+    // Only initialize once when we have data and haven't initialized yet
+    if (isLoading || !riversWithIds || riversWithIds.length === 0 || isInitializedRef.current) {
+      return
+    }
+
+    try {
       // Read URL parameters
       const urlRiverId = searchParams.get("id") || ""
       const urlDataType = searchParams.get("pane") || ""
       const urlTimeRange = searchParams.get("interval") || ""
 
+      // Get available river IDs
+      const availableRiverIds = riversWithIds.map((r) => getRiverOrLakeId(r))
+
       // Validate and get final values
-      const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, null)
+      const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, availableRiverIds)
 
-      // Set state once with validated values
-      setActiveRiverId(validated.riverId)
-      setActiveDataType(validated.dataType)
-      setTimeRange(validated.timeRange)
+      // Ensure we have a valid river ID
+      if (validated.riverId) {
+        // Set state with validated values
+        setActiveRiverId(validated.riverId)
+        setActiveDataType(validated.dataType)
+        setTimeRange(validated.timeRange)
 
-      // Mark as initialized
-      isInitializedRef.current = true
+        // Mark as initialized
+        isInitializedRef.current = true
+      }
+    } catch (error) {
+      console.error("Error during initialization:", error)
+      // Fallback to first river if initialization fails
+      if (riversWithIds.length > 0) {
+        const firstRiver = riversWithIds[0]
+        const firstRiverId = getRiverOrLakeId(firstRiver)
+        const defaults = getDefaultsForRiver(firstRiver)
+
+        setActiveRiverId(firstRiverId)
+        setActiveDataType(defaults.dataType)
+        setTimeRange(defaults.timeRange)
+        isInitializedRef.current = true
+      }
     }
   }, [isLoading, riversWithIds, searchParams])
 
@@ -247,8 +275,8 @@ export function RiverDataDisplay(): JSX.Element {
     )
   }
 
-  // Only render the main UI if we have a valid activeRiverId
-  if (!activeRiverId && validRiverIds.length > 0) {
+  // Show skeleton while initializing or if no active river yet
+  if (!isInitializedRef.current || !activeRiverId) {
     return <RiverDataSkeleton />
   }
 

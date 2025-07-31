@@ -129,8 +129,12 @@ const CustomXAxisTick = ({ x, y, payload, isLongTimeRange }: CustomXAxisTickProp
 }
 
 // Custom Y-axis tick formatter to avoid duplicates and ensure integer values
-const formatYAxisTick = (value) => {
-  return Math.round(value).toString()
+const formatYAxisTick = (value, dataType: DataType) => {
+  let formattedValue = Math.round(value).toString()
+  if (dataType === "flow") {
+    formattedValue = formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  }
+  return formattedValue
 }
 
 // Get unit label for Y-axis based on data type
@@ -191,6 +195,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   const [chartWidth, setChartWidth] = useState(0)
   // Track if this is the initial render for different animation timing
   const [isInitialRender, setIsInitialRender] = useState(true)
+  // Add state to control chart visibility with delay
+  const [shouldShowChart, setShouldShowChart] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
   // Check if this is a lake for special handling
@@ -198,6 +204,20 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   const isSpitzingsee = river?.name === "Spitzingsee"
   const isSchliersee = river?.name === "Schliersee"
   const isTegernsee = river?.name === "Tegernsee"
+
+  // Effect to delay chart rendering on initial load
+  useEffect(() => {
+    if (isInitialRender) {
+      // Delay chart rendering by 300ms to let the page settle
+      const timer = setTimeout(() => {
+        setShouldShowChart(true)
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      // For parameter changes, show immediately
+      setShouldShowChart(true)
+    }
+  }, [isInitialRender])
 
   // Effect to detect dark mode
   useEffect(() => {
@@ -629,62 +649,48 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">
-        <div className="h-[300px] w-full" ref={chartContainerRef}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 20, right: 10, left: 0, bottom: 5 }}
-              width={chartWidth > 0 ? chartWidth : undefined}
-              height={chartHeight > 0 ? chartHeight : undefined}
-            >
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chartConfig.stroke} stopOpacity={0.8} />
-                  <stop offset="95%" stopColor={chartConfig.stroke} stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
-              <XAxis
-                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
-                interval={xAxisInterval}
-                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
-                stroke="currentColor"
-                allowDataOverflow={false}
-              />
-              <YAxis
-                domain={yAxisDomain}
-                tickCount={optimalTickCount}
-                tickFormatter={formatYAxisTick}
-                tick={{ fontSize: 10 }}
-                width={30}
-                stroke="currentColor"
-                allowDecimals={false}
-                allowDataOverflow={false}
-              />
-              {!isMobile && (
-                <Tooltip
-                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
-                  cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
-                  wrapperStyle={{ zIndex: 100 }}
+        <div ref={chartContainerRef} className="h-full w-full">
+          {/* Only render chart after delay on initial load */}
+          {shouldShowChart ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#374151" : "#e5e7eb"} />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? "#9ca3af" : "#6b7280" }}
+                  axisLine={{ stroke: isDarkMode ? "#4b5563" : "#d1d5db" }}
+                  tickLine={{ stroke: isDarkMode ? "#4b5563" : "#d1d5db" }}
                 />
-              )}
-              <Area
-                type="monotone"
-                dataKey={chartConfig.dataKey}
-                stroke={chartConfig.stroke}
-                fill={chartConfig.fill}
-                fillOpacity={1}
-                strokeWidth={2}
-                activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
-                dot={false}
-                // Dynamic animation duration: longer for initial render, shorter for updates
-                isAnimationActive={true}
-                animationDuration={isInitialRender ? 1000 : 600}
-                animationEasing="ease-out"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+                <YAxis
+                  domain={yAxisDomain}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: isDarkMode ? "#9ca3af" : "#6b7280" }}
+                  axisLine={{ stroke: isDarkMode ? "#4b5563" : "#d1d5db" }}
+                  tickLine={{ stroke: isDarkMode ? "#4b5563" : "#d1d5db" }}
+                  tickFormatter={(value) => formatYAxisTick(value, dataType)}
+                />
+                <Tooltip content={<CustomTooltip dataType={dataType} />} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={chartConfig.stroke}
+                  fill={chartConfig.fill}
+                  fillOpacity={1}
+                  strokeWidth={2}
+                  activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
+                  dot={false}
+                  // Dynamic animation duration: longer for initial render, shorter for updates
+                  isAnimationActive={true}
+                  animationDuration={isInitialRender ? 1000 : 600}
+                  animationEasing="ease-out"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            // Show a subtle loading state while waiting
+            <div className="h-full w-full flex items-center justify-center">
+              <div className="animate-pulse bg-muted rounded h-full w-full" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
