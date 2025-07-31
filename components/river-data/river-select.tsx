@@ -48,9 +48,10 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
     }
   }
 
-  // Get current flow or temperature value for display - only in admin mode
+  // Get current flow or temperature value for display
   const getCurrentValue = (river: RiverData): string => {
-    if (!showColors) return "" // Only show values in admin mode
+    // Only show values in admin mode
+    if (!showColors) return ""
 
     if (river.isLake && river.current.temperature) {
       return `${river.current.temperature.temperature.toFixed(1)} °C`
