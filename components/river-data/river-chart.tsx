@@ -189,6 +189,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [chartHeight, setChartHeight] = useState(300)
   const [chartWidth, setChartWidth] = useState(0)
+  // Track if this is the initial render for different animation timing
+  const [isInitialRender, setIsInitialRender] = useState(true)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
   // Check if this is a lake for special handling
@@ -240,6 +242,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
     }
   }, [])
+
+  // Effect to track parameter changes and adjust animation timing
+  useEffect(() => {
+    if (isInitialRender) {
+      // Mark as no longer initial render after first effect
+      const timer = setTimeout(() => setIsInitialRender(false), 100)
+      return () => clearTimeout(timer)
+    }
+  }, [river?.id, dataType, timeRange, isInitialRender])
 
   // Helper function to get data points for time range - updated for lakes
   const getDataPointsForTimeRange = useCallback(
@@ -667,9 +678,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 strokeWidth={2}
                 activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
                 dot={false}
-                // Smoother, longer animation for better visual experience
+                // Dynamic animation duration: longer for initial render, shorter for updates
                 isAnimationActive={true}
-                animationDuration={1200}
+                animationDuration={isInitialRender ? 1000 : 600}
                 animationEasing="ease-out"
               />
             </AreaChart>
