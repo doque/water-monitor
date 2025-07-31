@@ -39,7 +39,6 @@ export const metadata = {
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
     images: ["/images/mbteg-logo.png"],
   },
-  metadataBase: new URL("https://whatsapp-water-alerts.vercel.app"),
   generator: "v0.dev",
 }
 
