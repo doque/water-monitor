@@ -441,8 +441,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             break
           case "normal":
           default:
-            stroke = "#16a34a" // Green-600
-            fill = isDarkMode ? "rgba(22, 163, 74, 0.4)" : "#86efac" // Green-300
+            stroke = "#2563eb" // Blue-600
+            fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
         }
       }
     } else {
