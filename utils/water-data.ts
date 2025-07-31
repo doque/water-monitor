@@ -14,6 +14,7 @@ export interface WaterTemperatureDataPoint {
   date: string
   temperature: number
   timestamp: Date
+  situation?: string // Add optional situation field for Bayern.de lakes
 }
 
 export interface WaterFlowDataPoint {
@@ -265,7 +266,7 @@ async function fetchWaterTemperature(url: string): Promise<{
     return fetchSpitzingseeTemperature(url)
   }
 
-  // Bayern.de parsing logic for Schliersee and Tegernsee
+  // Bayern.de parsing logic for Schliersee and Tegernsee - enhanced with Situation column
   try {
     const response = await fetch(url, {
       headers: {
@@ -298,7 +299,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       tableRows = $("table tr").not(":first") // Skip header row
     }
 
-    // Process table rows to extract data
+    // Process table rows to extract data including Situation column
     tableRows.each((index, element) => {
       const $row = $(element)
       const cells = $row.find("td")
@@ -326,6 +327,12 @@ async function fetchWaterTemperature(url: string): Promise<{
         }
       }
 
+      // Extract Situation column (third column) for Schliersee and Tegernsee
+      let situation = ""
+      if (cells.length >= 3) {
+        situation = cells.eq(2).text().trim()
+      }
+
       // Extract temperature value
       const tempMatch = tempText.match(/(\d+[.,]\d*)/)
       if (!tempMatch) return
@@ -339,6 +346,7 @@ async function fetchWaterTemperature(url: string): Promise<{
         date: dateText,
         temperature,
         timestamp,
+        situation: situation || undefined, // Only include situation if it exists
       }
 
       history.push(dataPoint)

@@ -398,32 +398,57 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [timeRange, chartData.length, isMobile, isLake])
 
-  // Get chart configuration - with stable dependencies
+  // Get chart configuration - enhanced with situation-based colors for Bayern.de lakes
   const chartConfig = useMemo(() => {
     let stroke, fill
 
     if (isAdminMode) {
-      // Admin mode: Use flow-based alert level colors
-      const alertLevel: AlertLevel = river.alertLevel || "normal"
+      // Special handling for Schliersee and Tegernsee in admin mode
+      if ((isSchliersee || isTegernsee) && dataType === "temperature") {
+        // Get the most recent temperature data point to check situation
+        const latestTempData = river.history.temperatures[0]
+        const situation = latestTempData?.situation?.toLowerCase() || ""
 
-      switch (alertLevel) {
-        case "alert":
+        if (situation.includes("neuer höchstwert")) {
+          // Red for "neuer Höchstwert" (new maximum value)
           stroke = "#dc2626" // Red-600
-          fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300 for more vibrant fill
-          break
-        case "warning":
+          fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300
+        } else if (situation.includes("hoch")) {
+          // Yellow/Amber for "hoch" (high)
           stroke = "#d97706" // Amber-600
-          fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300 for more vibrant fill
-          break
-        case "normal":
-        default:
-          stroke = "#16a34a" // Green-600
-          fill = isDarkMode ? "rgba(22, 163, 74, 0.4)" : "#86efac" // Green-300 for more vibrant fill
+          fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300
+        } else {
+          // Normal blue color for other situations
+          stroke = "#2563eb" // Blue-600
+          fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
+        }
+      } else if (isSpitzingsee) {
+        // Spitzingsee always uses blue color, even in admin mode
+        stroke = "#2563eb" // Blue-600
+        fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
+      } else {
+        // Admin mode for rivers: Use flow-based alert level colors
+        const alertLevel: AlertLevel = river.alertLevel || "normal"
+
+        switch (alertLevel) {
+          case "alert":
+            stroke = "#dc2626" // Red-600
+            fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300
+            break
+          case "warning":
+            stroke = "#d97706" // Amber-600
+            fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300
+            break
+          case "normal":
+          default:
+            stroke = "#16a34a" // Green-600
+            fill = isDarkMode ? "rgba(22, 163, 74, 0.4)" : "#86efac" // Green-300
+        }
       }
     } else {
       // Standard mode: Always use blue with lighter colorful fill (100-level)
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100 for lighter fill
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
     }
 
     return {
@@ -431,7 +456,16 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       fill,
       dataKey: "value",
     }
-  }, [river.alertLevel, isDarkMode, isAdminMode])
+  }, [
+    river.alertLevel,
+    river.history.temperatures,
+    isDarkMode,
+    isAdminMode,
+    isSchliersee,
+    isTegernsee,
+    isSpitzingsee,
+    dataType,
+  ])
 
   const isLongTimeRange = timeRange === "1w"
 
