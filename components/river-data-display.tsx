@@ -63,7 +63,16 @@ export function RiverDataDisplay(): JSX.Element {
   // Get initial state from URL parameters or use defaults - updated to handle lakes
   const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers?.[0] || {})
   const initialDataType = (searchParams.get("pane") || "flow") as DataType
-  const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
+  // Updated: Set default time range based on water body type
+  const getInitialTimeRange = (): TimeRangeOption => {
+    const urlTimeRange = searchParams.get("interval") as TimeRangeOption
+    if (urlTimeRange) return urlTimeRange
+
+    // Default to 24h for rivers, 2w for lakes
+    const firstRiver = filteredRivers?.[0]
+    return firstRiver?.isLake ? "2w" : "24h"
+  }
+  const initialTimeRange = getInitialTimeRange()
 
   // State for UI controls
   const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
@@ -92,22 +101,24 @@ export function RiverDataDisplay(): JSX.Element {
     return riversWithIds?.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds?.[0]
   }, [riversWithIds, activeRiverId])
 
-  // Auto-select appropriate tab based on water source type - only when river changes
+  // Auto-select appropriate tab and time range based on water source type
   useEffect(() => {
     if (activeRiver && activeRiver !== previousRiverRef.current) {
-      // River has changed, auto-select appropriate tab
+      // River has changed, auto-select appropriate tab and time range
       if (activeRiver.isLake) {
-        // For lakes, always select temperature tab
+        // For lakes, always select temperature tab and appropriate time range
         setActiveDataType("temperature")
+        setTimeRange("2w") // Default to 2 weeks for lakes
       } else {
-        // For rivers, always select flow tab
+        // For rivers, always select flow tab and reset to 24h
         setActiveDataType("flow")
+        setTimeRange("24h") // Reset to 24h default for rivers
       }
 
       // Update the ref to track current river
       previousRiverRef.current = activeRiver
     }
-  }, [activeRiver]) // Removed activeDataType from dependencies to prevent override of manual selections
+  }, [activeRiver])
 
   // Debounced URL update to prevent infinite loops
   const updateURL = useCallback(
@@ -252,8 +263,8 @@ export function RiverDataDisplay(): JSX.Element {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
-        {/* Modified: Show disabled time range selector for specific lakes */}
-        {activeRiver?.name === "Spitzingsee" ? (
+        {/* Updated: Show proper time range selectors for lakes */}
+        {activeRiver?.isLake ? (
           <>
             <div className="col-span-7 sm:col-span-6">
               <RiverSelect
@@ -264,31 +275,17 @@ export function RiverDataDisplay(): JSX.Element {
               />
             </div>
             <div className="col-span-5 sm:col-span-6">
-              {/* Disabled dropdown showing "30 Tage" for Spitzingsee */}
-              <div className="px-2 h-10 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md opacity-75">
-                <div className="truncate text-gray-600 dark:text-gray-400">30 Tage</div>
-              </div>
-            </div>
-          </>
-        ) : activeRiver?.name === "Schliersee" || activeRiver?.name === "Tegernsee" ? (
-          <>
-            <div className="col-span-7 sm:col-span-6">
-              <RiverSelect
-                rivers={riversWithIds || []}
-                value={activeRiverId}
-                onValueChange={handleRiverChange}
-                showColors={adminMode}
+              {/* Show functional time range selector for lakes */}
+              <TimeRangeSelect
+                value={timeRange}
+                onValueChange={handleTimeRangeChange}
+                isLake={true}
+                lakeName={activeRiver.name}
               />
-            </div>
-            <div className="col-span-5 sm:col-span-6">
-              {/* Updated: Show "2 Monate" for both Schliersee and Tegernsee */}
-              <div className="px-2 h-10 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md opacity-75">
-                <div className="truncate text-gray-600 dark:text-gray-400">2 Monate</div>
-              </div>
             </div>
           </>
         ) : (
-          // For all other waters (rivers), show normal dropdown
+          // For rivers, show normal dropdown with 24h default
           <>
             <div className="col-span-7 sm:col-span-6">
               <RiverSelect

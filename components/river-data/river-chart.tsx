@@ -121,39 +121,51 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [river, dataType, timeRange])
 
-  // Check if this is Spitzingsee specifically for special handling
+  // Check if this is a lake for special handling
+  const isLake = river?.isLake
   const isSpitzingsee = river?.name === "Spitzingsee"
-  // Check if this is Schliersee or Tegernsee for 2-month filtering
   const isSchliersee = river?.name === "Schliersee"
   const isTegernsee = river?.name === "Tegernsee"
 
-  // Helper function to get data points for time range - memoized
-  const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
-    const dataPoints = {
-      "1h": 4,
-      "2h": 8,
-      "6h": 24,
-      "12h": 48,
-      "24h": 96,
-      "48h": 192,
-      "1w": 672,
-    }
-    return dataPoints[timeRange]
-  }, [])
+  // Helper function to get data points for time range - updated for lakes
+  const getDataPointsForTimeRange = useCallback(
+    (timeRange: TimeRangeOption): number => {
+      // For lakes, calculate based on time range
+      if (isLake) {
+        const lakeDataPoints = {
+          "1w": 7, // 1 week = 7 days
+          "2w": 14, // 2 weeks = 14 days
+          "1m": 30, // 1 month = 30 days
+          "2m": 60, // 2 months = 60 days
+          "6m": 180, // 6 months = 180 days (Spitzingsee only)
+        }
+        return lakeDataPoints[timeRange] || 30 // Default to 30 days
+      }
 
-  // Calculate Y-axis domain based on data range - with stable dependencies
+      // For rivers, use original logic
+      const riverDataPoints = {
+        "1h": 4,
+        "2h": 8,
+        "6h": 24,
+        "12h": 48,
+        "24h": 96,
+        "48h": 192,
+        "1w": 672,
+      }
+      return riverDataPoints[timeRange] || 96
+    },
+    [isLake],
+  )
+
+  // Calculate Y-axis domain based on data range - updated for new time ranges
   const yAxisDomain = useMemo(() => {
     let data = []
 
-    // For Spitzingsee, use all data points regardless of time range
-    if (isSpitzingsee) {
+    if (isLake) {
+      // For lakes, use filtered data based on time range
       if (dataType === "temperature") {
-        data = river.history.temperatures.map((point) => point.temperature)
-      }
-    } else if (isSchliersee || isTegernsee) {
-      // For Schliersee and Tegernsee, use all data points regardless of time range
-      if (dataType === "temperature") {
-        data = river.history.temperatures.map((point) => point.temperature)
+        const maxDataPoints = getDataPointsForTimeRange(timeRange)
+        data = river.history.temperatures.slice(0, maxDataPoints).map((point) => point.temperature)
       }
     } else {
       // Get the appropriate data array based on data type and time range for rivers
@@ -188,7 +200,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [newMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isSpitzingsee, isSchliersee, isTegernsee])
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isLake])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -206,19 +218,21 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return 7
   }, [yAxisDomain])
 
-  // Prepare chart data for the given time range - modified for lakes
+  // Prepare chart data for the given time range - updated for new lake time ranges
   const prepareChartData = useCallback(
     (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
       let filteredData = [...rawData]
 
-      // For Spitzingsee, show only the freshest 30 data points (most recent 30 days)
-      if (isSpitzingsee) {
-        // Data is already sorted newest first, so take first 30 elements for freshest data
-        filteredData = filteredData.slice(0, 30)
+      if (isLake) {
+        // For lakes, filter based on the selected time range
+        const maxDataPoints = getDataPointsForTimeRange(timeRange)
+
+        // Take the most recent data points (first X elements since data is sorted newest first)
+        filteredData = filteredData.slice(0, maxDataPoints)
 
         // Reverse to show oldest to newest chronologically in chart
         return filteredData.reverse().map((point) => {
-          // For Spitzingsee, format dates as day labels (no hours)
+          // For lakes, format dates as day labels (no hours)
           const dateParts = point.date.split(" ")
           const datePart = dateParts[0] // Get DD.MM.YYYY or DD.MM
 
@@ -227,39 +241,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
           return {
             ...mapper(point),
-            time: dayMonth, // Use day.month format for Spitzingsee
-            label: dayMonth, // Same for both short and long display
-            fullDate: point.date, // Full date for tooltip
-          }
-        })
-      }
-
-      // For Schliersee and Tegernsee, show actual 2 months worth of data
-      if (isSchliersee || isTegernsee) {
-        // Calculate 2 months back (60 days)
-        const monthsBack = 2
-        const now = new Date()
-        const cutoffDate = new Date(now.getTime() - monthsBack * 30 * 24 * 60 * 60 * 1000) // 60 days in milliseconds
-
-        // Filter data to only include points from the cutoff date onwards
-        filteredData = filteredData.filter((point) => {
-          // Parse the date from the data point timestamp
-          const pointDate = new Date(point.timestamp)
-          return pointDate >= cutoffDate
-        })
-
-        // Reverse to show oldest to newest chronologically in chart
-        return filteredData.reverse().map((point) => {
-          // Format dates as day labels (no hours)
-          const dateParts = point.date.split(" ")
-          const datePart = dateParts[0] // Get DD.MM.YYYY or DD.MM
-
-          // Extract just DD.MM for display
-          const dayMonth = datePart.includes(".") ? datePart.split(".").slice(0, 2).join(".") : datePart
-
-          return {
-            ...mapper(point),
-            time: dayMonth, // Use day.month format
+            time: dayMonth, // Use day.month format for lakes
             label: dayMonth, // Same for both short and long display
             fullDate: point.date, // Full date for tooltip
           }
@@ -308,7 +290,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         }
       })
     },
-    [isSpitzingsee, isSchliersee, isTegernsee],
+    [isLake, getDataPointsForTimeRange],
   )
 
   // Prepare chart data based on data type - with stable dependencies
@@ -341,29 +323,24 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return data
   }, [river.history, dataType, timeRange, prepareChartData])
 
-  // Calculate the interval for the X-axis based on time range and device type - modified for lakes
+  // Calculate the interval for the X-axis based on time range and device type - updated for new lake time ranges
   const xAxisInterval = useMemo(() => {
-    // For Spitzingsee, show fewer labels since we have many daily data points
-    if (isSpitzingsee) {
+    if (isLake) {
       const dataLength = chartData.length
-      if (isMobile) {
-        // Mobile: Show every 7th day approximately
-        return Math.max(1, Math.floor(dataLength / 8))
-      } else {
-        // Desktop: Show every 5th day approximately
-        return Math.max(1, Math.floor(dataLength / 12))
-      }
-    }
 
-    // For Schliersee and Tegernsee, show fewer labels for their 2-month time periods
-    if (isSchliersee || isTegernsee) {
-      const dataLength = chartData.length
-      if (isMobile) {
-        // Mobile: Show fewer labels for 2-month period
-        return Math.max(1, Math.floor(dataLength / 6))
+      // Adjust intervals based on time range for lakes
+      if (timeRange === "6m") {
+        // 6 months: show fewer labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 12))
+      } else if (timeRange === "2m") {
+        // 2 months: moderate number of labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 8)) : Math.max(1, Math.floor(dataLength / 10))
+      } else if (timeRange === "1m") {
+        // 1 month: more labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 8))
       } else {
-        // Desktop: Show more labels for 2-month period
-        return Math.max(1, Math.floor(dataLength / 10))
+        // 1-2 weeks: show most labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 4)) : Math.max(1, Math.floor(dataLength / 6))
       }
     }
 
@@ -410,7 +387,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             : Math.floor(dataLength / 10)
       }
     }
-  }, [timeRange, chartData.length, isMobile, isSpitzingsee, isSchliersee, isTegernsee])
+  }, [timeRange, chartData.length, isMobile, isLake])
 
   // Get chart configuration - with stable dependencies
   const chartConfig = useMemo(() => {
@@ -465,7 +442,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     )
   }
 
-  // Render the actual chart for all data including Spitzingsee and lakes
+  // Render the actual chart for all data including lakes
   return (
     <Card>
       <CardHeader className="pb-2 p-3 sm:p-6">
@@ -480,15 +457,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isSpitzingsee || isSchliersee || isTegernsee ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => (
-                  <CustomXAxisTick
-                    {...props}
-                    isLongTimeRange={isLongTimeRange && !isSpitzingsee && !isSchliersee && !isTegernsee}
-                  />
-                )}
+                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isSpitzingsee && !isSchliersee && !isTegernsee ? 50 : 30} // Normal height for lakes
+                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
               />
               <YAxis
