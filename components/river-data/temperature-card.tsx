@@ -36,10 +36,10 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
-          {/* Show trend display for lakes, or for rivers on desktop */}
+          {/* Always show trend display for lakes, or for rivers on desktop */}
           {(isLake || !isMobile) && trendDisplay && <span className="text-sm font-normal">{trendDisplay}</span>}
         </div>
-        {/* Show trend display for rivers on mobile */}
+        {/* Show trend display for rivers on mobile below title */}
         {!isLake && isMobile && trendDisplay && <div className="text-sm font-normal mt-1">{trendDisplay}</div>}
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">

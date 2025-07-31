@@ -435,24 +435,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   const isLongTimeRange = timeRange === "1w"
 
-  const yAxisUnit = getYAxisUnit(dataType)
-
-  if (chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-2 p-3 sm:p-6">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-            {isLake && chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 flex items-center justify-center h-[300px]">
-          <div className="text-muted-foreground">Keine Daten für den ausgewählten Typ verfügbar</div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   // Render the actual chart for all data including lakes
   return (
     <Card>
@@ -482,13 +464,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 width={30}
                 stroke="currentColor"
                 allowDecimals={false}
-                label={{
-                  value: yAxisUnit,
-                  angle: 0,
-                  position: "top",
-                  offset: 10,
-                  style: { textAnchor: "middle", fontSize: "12px", fontWeight: "bold" },
-                }}
               />
               {!isMobile && (
                 <Tooltip
