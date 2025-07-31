@@ -188,6 +188,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "12h": 48, // 12 hours = 48 × 15-minute intervals
     "24h": 96, // 24 hours = 96 × 15-minute intervals
     "48h": 192, // 48 hours = 192 × 15-minute intervals
+    "1w": 672, // 1 week = 672 × 15-minute intervals (7 days × 24 hours × 4)
   }
 
   const idealTargetIndex = idealDataPointsBack[timeRange]
@@ -200,6 +201,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "12h": 24, // At least 6 hours
     "24h": 48, // At least 12 hours
     "48h": 96, // At least 24 hours
+    "1w": 192, // At least 48 hours for 1 week extrapolation
   }
 
   const minRequired = minDataPointsForTimeRange[timeRange]
