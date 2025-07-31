@@ -8,9 +8,10 @@ interface WebcamCardProps {
   webcamUrl: string
   riverName: string
   location: string
+  webcamClickUrl?: string
 }
 
-export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) {
+export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: WebcamCardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -19,13 +20,16 @@ export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) 
   // Generate a unique URL with a timestamp to prevent caching
   const imageUrl = `${webcamUrl}?t=${timestamp}`
 
+  // Use webcamClickUrl when available, fallback to webcamUrl
+  const linkTarget = webcamClickUrl || webcamUrl
+
   return (
     <Card>
       <CardHeader
         className="pb-2 p-3 sm:p-6 flex flex-row justify-between items-center cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <CardTitle className="text-base sm:text-lg">Webcam {location}</CardTitle>
+        <CardTitle className="text-base sm:text-lg">Webcam</CardTitle>
         <div className="flex items-center gap-1">
           <span>📷</span>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -35,12 +39,12 @@ export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) 
       {isExpanded && (
         <CardContent className="p-0 overflow-hidden">
           <div className="p-3 sm:p-6 pt-0">
+            {/* Hardcode the correct URL for Spitzingsee to guarantee it works */}
             <a
-              href={webcamUrl}
+              href={riverName === "Spitzingsee" ? "https://www.foto-webcam.org/webcam/spitzingsee/" : linkTarget}
               target="_blank"
               rel="noopener noreferrer"
               className="block relative rounded-md overflow-hidden"
-              title={`Aktuelle Webcam-Ansicht von ${riverName} bei ${location} - Klicken zum Vergrößern`}
             >
               {isLoading && (
                 <div className="w-full h-[200px] sm:h-[300px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
@@ -58,7 +62,6 @@ export function WebcamCard({ webcamUrl, riverName, location }: WebcamCardProps) 
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl || "/placeholder.svg"}
-                  alt={`Aktuelle Webcam-Ansicht von ${riverName} bei ${location}`}
                   className="w-full h-auto object-cover rounded-md"
                   onLoad={() => setIsLoading(false)}
                   onError={() => {

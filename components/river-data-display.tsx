@@ -1,6 +1,4 @@
 "use client"
-
-import type { RiversData } from "@/utils/water-data"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { RiverSelect } from "@/components/river-data/river-select"
@@ -13,38 +11,16 @@ import { WebcamCard } from "@/components/river-data/webcam-card"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
 import { extractRiverId } from "@/utils/water-data"
 import { isAdminMode } from "@/utils/admin-mode"
+import { useRiverData } from "@/contexts/river-data-context"
+import { RiverDataSkeleton } from "@/components/river-data-skeleton"
+import type { JSX } from "react/jsx-runtime" // Import JSX to fix the undeclared variable error
 
-interface RiverDataDisplayProps {
-  data: RiversData
-}
+// Remove the data prop interface since we'll get data from context
+type RiverDataDisplayProps = {}
 
-// Helper function to generate consistent IDs for both rivers and lakes
-function getRiverOrLakeId(river: any): string {
-  // Guard against undefined river object
-  if (!river) return "unknown"
-
-  // For lakes, create a simple unique identifier based on name
-  if (river.isLake) {
-    // Guard against undefined name
-    const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-lake"
-    return `lake-${name}`
-  }
-
-  // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
-  if (river.urls?.level) {
-    const extractedId = extractRiverId(river.urls.level)
-    if (extractedId && extractedId !== "unknown") {
-      return extractedId
-    }
-  }
-
-  // Fallback: create ID from name and location with guards against undefined values
-  const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-river"
-  const location = river.location ? river.location.toLowerCase().replace(/\s+/g, "-") : "unknown-location"
-  return `river-${name}-${location}`
-}
-
-export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
+export function RiverDataDisplay(): JSX.Element {
+  // Get data from context instead of props
+  const { data, isLoading, error, refetch } = useRiverData()
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
@@ -73,21 +49,30 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Memoize filtered rivers to prevent unnecessary recalculations
   const filteredRivers = useMemo(() => {
-    return adminMode ? data.rivers : data.rivers.filter((river) => river.name !== "Söllbach")
-  }, [adminMode, data.rivers])
+    return adminMode ? data?.rivers : data?.rivers?.filter((river) => river.name !== "Söllbach")
+  }, [adminMode, data?.rivers])
 
   // Memoize rivers with IDs to prevent unnecessary recalculations - updated to handle lakes
   const riversWithIds = useMemo(() => {
-    return filteredRivers.map((river) => ({
+    return filteredRivers?.map((river) => ({
       ...river,
       id: getRiverOrLakeId(river),
     }))
   }, [filteredRivers])
 
   // Get initial state from URL parameters or use defaults - updated to handle lakes
-  const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers[0] || {})
+  const initialRiverId = searchParams.get("id") || getRiverOrLakeId(filteredRivers?.[0] || {})
   const initialDataType = (searchParams.get("pane") || "flow") as DataType
-  const initialTimeRange = (searchParams.get("interval") || "24h") as TimeRangeOption
+  // Updated: Set default time range based on water body type
+  const getInitialTimeRange = (): TimeRangeOption => {
+    const urlTimeRange = searchParams.get("interval") as TimeRangeOption
+    if (urlTimeRange) return urlTimeRange
+
+    // Default to 24h for rivers, 2w for lakes
+    const firstRiver = filteredRivers?.[0]
+    return firstRiver?.isLake ? "2w" : "24h"
+  }
+  const initialTimeRange = getInitialTimeRange()
 
   // State for UI controls
   const [timeRange, setTimeRange] = useState<TimeRangeOption>(initialTimeRange)
@@ -97,12 +82,12 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Memoize valid river IDs to prevent unnecessary recalculations - updated to handle lakes
   const validRiverIds = useMemo(() => {
-    return riversWithIds.map((r) => getRiverOrLakeId(r))
+    return riversWithIds?.map((r) => getRiverOrLakeId(r))
   }, [riversWithIds])
 
   // Update active river ID if it becomes invalid after filtering - with better guards
   useEffect(() => {
-    if (activeRiverId && !validRiverIds.includes(activeRiverId) && validRiverIds.length > 0) {
+    if (activeRiverId && !validRiverIds?.includes(activeRiverId) && validRiverIds?.length > 0) {
       // Only update if we actually have a different valid ID to switch to
       const newRiverId = validRiverIds[0]
       if (newRiverId !== activeRiverId) {
@@ -113,25 +98,27 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
 
   // Find the active river object based on the ID - memoized and updated to handle lakes
   const activeRiver = useMemo(() => {
-    return riversWithIds.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds[0]
+    return riversWithIds?.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds?.[0]
   }, [riversWithIds, activeRiverId])
 
-  // Auto-select appropriate tab based on water source type - only when river changes
+  // Auto-select appropriate tab and time range based on water source type
   useEffect(() => {
     if (activeRiver && activeRiver !== previousRiverRef.current) {
-      // River has changed, auto-select appropriate tab
+      // River has changed, auto-select appropriate tab and time range
       if (activeRiver.isLake) {
-        // For lakes, always select temperature tab
+        // For lakes, always select temperature tab and appropriate time range
         setActiveDataType("temperature")
+        setTimeRange("2w") // Default to 2 weeks for lakes
       } else {
-        // For rivers, always select flow tab
+        // For rivers, always select flow tab and reset to 24h
         setActiveDataType("flow")
+        setTimeRange("24h") // Reset to 24h default for rivers
       }
 
       // Update the ref to track current river
       previousRiverRef.current = activeRiver
     }
-  }, [activeRiver]) // Removed activeDataType from dependencies to prevent override of manual selections
+  }, [activeRiver])
 
   // Debounced URL update to prevent infinite loops
   const updateURL = useCallback(
@@ -210,11 +197,65 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
     [activeRiver],
   )
 
-  if (!filteredRivers || filteredRivers.length === 0) {
+  // Helper function to generate consistent IDs for both rivers and lakes
+  function getRiverOrLakeId(river: any): string {
+    // Guard against undefined river object
+    if (!river) return "unknown"
+
+    // For lakes, create a simple unique identifier based on name
+    if (river.isLake) {
+      // Guard against undefined name
+      const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-lake"
+      return `lake-${name}`
+    }
+
+    // For rivers, try to extract ID from level URL, but fallback to name-based ID if URL is missing
+    if (river.urls?.level) {
+      const extractedId = extractRiverId(river.urls.level)
+      if (extractedId && extractedId !== "unknown") {
+        return extractedId
+      }
+    }
+
+    // Fallback: create ID from name and location with guards against undefined values
+    const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-river"
+    const location = river.location ? river.location.toLowerCase().replace(/\s+/g, "-") : "unknown-location"
+    return `river-${name}-${location}`
+  }
+
+  // Handle loading state - use the enhanced skeleton
+  if (isLoading) {
+    return <RiverDataSkeleton />
+  }
+
+  // Handle error state with retry option
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
+        <p className="text-red-800 dark:text-red-300 font-medium">Fehler beim Laden der Flussdaten.</p>
+        <p className="text-sm text-red-700 dark:text-red-400 mt-2">{error}</p>
+        <button
+          onClick={refetch}
+          className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+        >
+          Erneut versuchen
+        </button>
+      </div>
+    )
+  }
+
+  // Handle no data
+  if (!data || !data.rivers || data.rivers.length === 0) {
     return (
       <div className="p-6 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
         <p className="text-yellow-800 dark:text-yellow-300 font-medium">Flussdaten konnten nicht geladen werden.</p>
         {data?.error && <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-2">Fehler: {data.error}</p>}
+        <button
+          onClick={refetch}
+          className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm"
+        >
+          Erneut versuchen
+        </button>
       </div>
     )
   }
@@ -222,17 +263,43 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-7 sm:col-span-6">
-          <RiverSelect
-            rivers={riversWithIds}
-            value={activeRiverId}
-            onValueChange={handleRiverChange}
-            showColors={adminMode}
-          />
-        </div>
-        <div className="col-span-5 sm:col-span-6">
-          <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
-        </div>
+        {/* Updated: Show proper time range selectors for lakes */}
+        {activeRiver?.isLake ? (
+          <>
+            <div className="col-span-7 sm:col-span-6">
+              <RiverSelect
+                rivers={riversWithIds || []}
+                value={activeRiverId}
+                onValueChange={handleRiverChange}
+                showColors={adminMode}
+              />
+            </div>
+            <div className="col-span-5 sm:col-span-6">
+              {/* Show functional time range selector for lakes */}
+              <TimeRangeSelect
+                value={timeRange}
+                onValueChange={handleTimeRangeChange}
+                isLake={true}
+                lakeName={activeRiver.name}
+              />
+            </div>
+          </>
+        ) : (
+          // For rivers, show normal dropdown with 24h default
+          <>
+            <div className="col-span-7 sm:col-span-6">
+              <RiverSelect
+                rivers={riversWithIds || []}
+                value={activeRiverId}
+                onValueChange={handleRiverChange}
+                showColors={adminMode}
+              />
+            </div>
+            <div className="col-span-5 sm:col-span-6">
+              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Display the active river data */}
@@ -261,15 +328,25 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
             />
           </div>
 
-          {/* Mobile layout: Only Flow card above the chart */}
+          {/* Mobile layout: Show temperature first for lakes, flow first for rivers */}
           <div className="md:hidden">
-            <FlowCard
-              river={activeRiver}
-              isActive={activeDataType === "flow"}
-              onClick={() => handleDataTypeChange("flow")}
-              timeRange={timeRange}
-              showColors={adminMode}
-            />
+            {activeRiver?.isLake ? (
+              <TemperatureCard
+                river={activeRiver}
+                isActive={activeDataType === "temperature"}
+                onClick={() => handleDataTypeChange("temperature")}
+                isMobile={true}
+                timeRange={timeRange}
+              />
+            ) : (
+              <FlowCard
+                river={activeRiver}
+                isActive={activeDataType === "flow"}
+                onClick={() => handleDataTypeChange("flow")}
+                timeRange={timeRange}
+                showColors={adminMode}
+              />
+            )}
           </div>
 
           {/* Chart area (always visible) */}
@@ -282,30 +359,54 @@ export function RiverDataDisplay({ data }: RiverDataDisplayProps) {
           />
 
           {/* Webcam image (if available) */}
-          {activeRiver.webcamUrl && (
+          {activeRiver?.webcamUrl && (
             <WebcamCard
               webcamUrl={activeRiver.webcamUrl}
+              webcamClickUrl={activeRiver.webcamClickUrl}
               riverName={activeRiver.name}
               location={activeRiver.location}
             />
           )}
 
-          {/* Mobile layout: Level and Temperature cards below the chart */}
+          {/* Mobile layout: Show remaining cards below chart based on water body type */}
           <div className="md:hidden grid grid-cols-2 gap-4">
-            <LevelCard
-              river={activeRiver}
-              isActive={activeDataType === "level"}
-              onClick={() => handleDataTypeChange("level")}
-              isMobile={true}
-              timeRange={timeRange}
-            />
-            <TemperatureCard
-              river={activeRiver}
-              isActive={activeDataType === "temperature"}
-              onClick={() => handleDataTypeChange("temperature")}
-              isMobile={true}
-              timeRange={timeRange}
-            />
+            {activeRiver?.isLake ? (
+              // For lakes: Show Level and Flow below (Temperature is already above)
+              <>
+                <LevelCard
+                  river={activeRiver}
+                  isActive={activeDataType === "level"}
+                  onClick={() => handleDataTypeChange("level")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+                <FlowCard
+                  river={activeRiver}
+                  isActive={activeDataType === "flow"}
+                  onClick={() => handleDataTypeChange("flow")}
+                  timeRange={timeRange}
+                  showColors={adminMode}
+                />
+              </>
+            ) : (
+              // For rivers: Show Level and Temperature below (Flow is already above)
+              <>
+                <LevelCard
+                  river={activeRiver}
+                  isActive={activeDataType === "level"}
+                  onClick={() => handleDataTypeChange("level")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+                <TemperatureCard
+                  river={activeRiver}
+                  isActive={activeDataType === "temperature"}
+                  onClick={() => handleDataTypeChange("temperature")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

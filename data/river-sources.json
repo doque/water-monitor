@@ -64,7 +64,19 @@
     },
     {
       "name": "Schliersee",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelleZweiMonate",
+      "isLake": true
+    },
+    {
+      "name": "Tegernsee",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/gmund_tegernsee-18201303/tabelleZweiMonate",
+      "isLake": true
+    },
+    {
+      "name": "Spitzingsee",
+      "temperatureUrl": "https://wassertemperatur.site/seen/water-temp-in-spitzingsee",
+      "webcamUrl": "https://www.foto-webcam.org/webcam/spitzingsee/current/1920",
+      "webcamClickUrl": "https://www.foto-webcam.org/webcam/spitzingsee/",
       "isLake": true
     }
   ]

@@ -5,7 +5,7 @@ import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -18,7 +18,7 @@ interface RiverChartProps {
 }
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label, dataType }) => {
+const CustomTooltip = ({ active, payload, label, dataType, isLake }) => {
   if (active && payload && payload.length) {
     // Get the appropriate unit based on data type
     let unit = ""
@@ -39,17 +39,22 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
         break
     }
 
-    // Format the date from the fullDate property (which is in format "DD.MM.YYYY HH:MM")
+    // Format the date from the fullDate property
     const fullDate = payload[0].payload.fullDate || ""
     let formattedDate = ""
 
     if (fullDate) {
       const dateParts = fullDate.split(" ")
-      if (dateParts.length >= 2) {
-        // Extract DD.MM. from the date part
+      if (isLake || dateParts.length === 1) {
+        // For lakes (daily data), show only the date without time
+        formattedDate = dateParts[0]
+      } else if (dateParts.length >= 2) {
+        // For rivers (hourly data), show date and time
         const dateComponent = dateParts[0].split(".").slice(0, 2).join(".")
         const timeComponent = dateParts[1].substring(0, 5) // Get HH:MM
         formattedDate = `${dateComponent} ${timeComponent}`
+      } else {
+        formattedDate = dateParts[0]
       }
     }
 
@@ -105,6 +110,20 @@ const formatYAxisTick = (value) => {
   return Math.round(value).toString()
 }
 
+// Get unit label for Y-axis based on data type
+const getYAxisUnit = (dataType: DataType): string => {
+  switch (dataType) {
+    case "level":
+      return "cm"
+    case "temperature":
+      return "°C"
+    case "flow":
+      return "m³/s"
+    default:
+      return ""
+  }
+}
+
 export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
@@ -118,74 +137,79 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [river, dataType, timeRange])
 
-  // Check for dark mode on mount and when theme changes - with proper cleanup
-  useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDarkMode(
-        typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches,
-      )
-    }
+  // Check if this is a lake for special handling
+  const isLake = river?.isLake
+  const isSpitzingsee = river?.name === "Spitzingsee"
+  const isSchliersee = river?.name === "Schliersee"
+  const isTegernsee = river?.name === "Tegernsee"
 
-    checkDarkMode()
-
-    if (typeof window !== "undefined") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-      mediaQuery.addEventListener("change", checkDarkMode)
-
-      return () => {
-        mediaQuery.removeEventListener("change", checkDarkMode)
+  // Helper function to get data points for time range - updated for lakes
+  const getDataPointsForTimeRange = useCallback(
+    (timeRange: TimeRangeOption): number => {
+      // For lakes, calculate based on time range
+      if (isLake) {
+        const lakeDataPoints = {
+          "1w": 7, // 1 week = 7 days
+          "2w": 14, // 2 weeks = 14 days
+          "1m": 30, // 1 month = 30 days
+          "2m": 60, // 2 months = 60 days
+          "6m": 180, // 6 months = 180 days (Spitzingsee only)
+        }
+        return lakeDataPoints[timeRange] || 30 // Default to 30 days
       }
-    }
-  }, [])
 
-  // Helper function to get data points for time range - memoized
-  const getDataPointsForTimeRange = useCallback((timeRange: TimeRangeOption): number => {
-    const dataPoints = {
-      "1h": 4,
-      "2h": 8,
-      "6h": 24,
-      "12h": 48,
-      "24h": 96,
-      "48h": 192,
-      "1w": 672,
-    }
-    return dataPoints[timeRange]
-  }, [])
+      // For rivers, use original logic
+      const riverDataPoints = {
+        "1h": 4,
+        "2h": 8,
+        "6h": 24,
+        "12h": 48,
+        "24h": 96,
+        "48h": 192,
+        "1w": 672,
+      }
+      return riverDataPoints[timeRange] || 96
+    },
+    [isLake],
+  )
 
-  // Calculate Y-axis domain based on data range - with stable dependencies
+  // Calculate Y-axis domain with baseline at 0
   const yAxisDomain = useMemo(() => {
     let data = []
 
-    // Get the appropriate data array based on data type and time range
-    if (dataType === "level") {
-      data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
-    } else if (dataType === "temperature") {
-      data = river.history.temperatures.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.temperature)
-    } else if (dataType === "flow") {
-      data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+    if (isLake) {
+      // For lakes, use filtered data based on time range
+      if (dataType === "temperature") {
+        const maxDataPoints = getDataPointsForTimeRange(timeRange)
+        data = river.history.temperatures.slice(0, maxDataPoints).map((point) => point.temperature)
+      }
+    } else {
+      // Get the appropriate data array based on data type and time range for rivers
+      if (dataType === "level") {
+        data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
+      } else if (dataType === "temperature") {
+        data = river.history.temperatures
+          .slice(0, getDataPointsForTimeRange(timeRange))
+          .map((point) => point.temperature)
+      } else if (dataType === "flow") {
+        data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+      }
     }
 
-    if (data.length === 0) return ["auto", "auto"]
+    if (data.length === 0) return [0, "auto"]
 
     const min = Math.min(...data)
     const max = Math.max(...data)
 
-    // If the range is very small, expand it to make changes more visible
-    if (max - min < 5) {
-      // For very small ranges, create a more visible scale
-      const padding = Math.max(5, min * 0.05) // At least 5 units or 5% of the min value
-      const newMin = Math.max(0, Math.floor(min - padding))
-      const newMax = Math.ceil(max + padding)
-      return [newMin, newMax]
-    }
+    // Always baseline to 0 for the minimum
+    const baselineMin = 0
 
-    // For normal ranges, add some padding
-    const padding = (max - min) * 0.1 // 10% padding
-    const newMin = Math.max(0, Math.floor(min - padding))
+    // Add padding to the maximum
+    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
     const newMax = Math.ceil(max + padding)
 
-    return [newMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange])
+    return [baselineMin, newMax]
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isLake])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
@@ -203,50 +227,80 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return 7
   }, [yAxisDomain])
 
-  // Prepare chart data for the given time range - memoized function
-  const prepareChartData = useCallback((rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
-    let filteredData = [...rawData]
-    const isLongTimeRange = timeRange === "1w"
+  // Prepare chart data for the given time range - updated for new lake time ranges
+  const prepareChartData = useCallback(
+    (rawData: any[], timeRange: TimeRangeOption, mapper: (point: any) => any) => {
+      let filteredData = [...rawData]
 
-    // Filter based on selected time range
-    const dataPoints = {
-      "1h": 4, // 1 hour × 4 data points per hour (15-minute intervals)
-      "2h": 8, // 2 hours × 4 data points per hour
-      "6h": 24, // 6 hours × 4 data points per hour
-      "12h": 48, // 12 hours × 4 data points per hour
-      "24h": 96, // 24 hours × 4 data points per hour
-      "48h": 192, // 48 hours × 4 data points per hour
-      "1w": 672, // 7 days × 24 hours × 4 data points per hour
-    }
+      if (isLake) {
+        // For lakes, filter based on the selected time range
+        const maxDataPoints = getDataPointsForTimeRange(timeRange)
 
-    filteredData = filteredData.slice(0, dataPoints[timeRange])
+        // Take the most recent data points (first X elements since data is sorted newest first)
+        filteredData = filteredData.slice(0, maxDataPoints)
 
-    // For longer time ranges: reduce data points to improve display
-    if (timeRange === "1w" && filteredData.length > 100) {
-      const step = Math.ceil(filteredData.length / 100)
-      filteredData = filteredData.filter((_, index) => index % step === 0)
-    }
+        // Reverse to show oldest to newest chronologically in chart
+        return filteredData.reverse().map((point) => {
+          // For lakes, format dates as day labels (no hours)
+          const dateParts = point.date.split(" ")
+          const datePart = dateParts[0] // Get DD.MM.YYYY or DD.MM
 
-    // Reverse to show oldest to newest
-    return filteredData.reverse().map((point) => {
-      // For longer time ranges (> 48h) we show date and time
-      const dateParts = point.date.split(" ")
-      const timePart = dateParts[1].substring(0, 5) // Extract HH:MM
-      const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
+          // Extract just DD.MM for display
+          const dayMonth = datePart.includes(".") ? datePart.split(".").slice(0, 2).join(".") : datePart
 
-      // For longer time ranges we keep date and time separate for the custom tick component
-      const label = isLongTimeRange
-        ? `${datePart} ${timePart}` // Keep date and time separate for custom tick
-        : timePart // Only "HH:MM" for shorter time ranges
-
-      return {
-        ...mapper(point),
-        time: timePart,
-        label: label,
-        fullDate: point.date, // Full date for tooltip
+          return {
+            ...mapper(point),
+            time: dayMonth, // Use day.month format for lakes
+            label: dayMonth, // Same for both short and long display
+            fullDate: point.date, // Full date for tooltip
+          }
+        })
       }
-    })
-  }, [])
+
+      // Original logic for rivers
+      const isLongTimeRange = timeRange === "1w"
+
+      // Filter based on selected time range
+      const dataPoints = {
+        "1h": 4, // 1 hour × 4 data points per hour (15-minute intervals)
+        "2h": 8, // 2 hours × 4 data points per hour
+        "6h": 24, // 6 hours × 4 data points per hour
+        "12h": 48, // 12 hours × 4 data points per hour
+        "24h": 96, // 24 hours × 4 data points per hour
+        "48h": 192, // 48 hours × 4 data points per hour
+        "1w": 672, // 7 days × 24 hours × 4 data points per hour
+      }
+
+      filteredData = filteredData.slice(0, dataPoints[timeRange])
+
+      // For longer time ranges: reduce data points to improve display
+      if (timeRange === "1w" && filteredData.length > 100) {
+        const step = Math.ceil(filteredData.length / 100)
+        filteredData = filteredData.filter((_, index) => index % step === 0)
+      }
+
+      // Reverse to show oldest to newest
+      return filteredData.reverse().map((point) => {
+        // For longer time ranges (> 48h) we show date and time
+        const dateParts = point.date.split(" ")
+        const timePart = dateParts[1].substring(0, 5) // Extract HH:MM
+        const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
+
+        // For longer time ranges we keep date and time separate for the custom tick component
+        const label = isLongTimeRange
+          ? `${datePart} ${timePart}` // Keep date and time separate for custom tick
+          : timePart // Only "HH:MM" for shorter time ranges
+
+        return {
+          ...mapper(point),
+          time: timePart,
+          label: label,
+          fullDate: point.date, // Full date for tooltip
+        }
+      })
+    },
+    [isLake, getDataPointsForTimeRange],
+  )
 
   // Prepare chart data based on data type - with stable dependencies
   const chartData = useMemo(() => {
@@ -278,8 +332,28 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return data
   }, [river.history, dataType, timeRange, prepareChartData])
 
-  // Calculate the interval for the X-axis based on time range and device type
+  // Calculate the interval for the X-axis based on time range and device type - updated for new lake time ranges
   const xAxisInterval = useMemo(() => {
+    if (isLake) {
+      const dataLength = chartData.length
+
+      // Adjust intervals based on time range for lakes
+      if (timeRange === "6m") {
+        // 6 months: show fewer labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 12))
+      } else if (timeRange === "2m") {
+        // 2 months: moderate number of labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 8)) : Math.max(1, Math.floor(dataLength / 10))
+      } else if (timeRange === "1m") {
+        // 1 month: more labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 8))
+      } else {
+        // 1-2 weeks: show most labels
+        return isMobile ? Math.max(1, Math.floor(dataLength / 4)) : Math.max(1, Math.floor(dataLength / 6))
+      }
+    }
+
+    // Original logic for rivers
     const isLongTimeRange = timeRange === "1w"
     const dataLength = chartData.length
 
@@ -322,34 +396,59 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             : Math.floor(dataLength / 10)
       }
     }
-  }, [timeRange, chartData.length, isMobile])
+  }, [timeRange, chartData.length, isMobile, isLake])
 
-  // Get chart configuration - with stable dependencies
+  // Get chart configuration - enhanced with situation-based colors for Bayern.de lakes
   const chartConfig = useMemo(() => {
     let stroke, fill
 
     if (isAdminMode) {
-      // Admin mode: Use flow-based alert level colors
-      const alertLevel: AlertLevel = river.alertLevel || "normal"
+      // Special handling for Schliersee and Tegernsee in admin mode
+      if ((isSchliersee || isTegernsee) && dataType === "temperature") {
+        // Get the most recent temperature data point to check situation
+        const latestTempData = river.history.temperatures[0]
+        const situation = latestTempData?.situation?.toLowerCase() || ""
 
-      switch (alertLevel) {
-        case "alert":
+        if (situation.includes("neuer höchstwert")) {
+          // Red for "neuer Höchstwert" (new maximum value)
           stroke = "#dc2626" // Red-600
-          fill = isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#fee2e2" // Red-100 for light mode
-          break
-        case "warning":
+          fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300
+        } else if (situation.includes("hoch")) {
+          // Yellow/Amber for "hoch" (high)
           stroke = "#d97706" // Amber-600
-          fill = isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#fef3c7" // Amber-100 for light mode
-          break
-        case "normal":
-        default:
-          stroke = "#16a34a" // Green-600
-          fill = isDarkMode ? "rgba(22, 163, 74, 0.2)" : "#dcfce7" // Green-100 for light mode
+          fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300
+        } else {
+          // Normal blue color for other situations
+          stroke = "#2563eb" // Blue-600
+          fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
+        }
+      } else if (isSpitzingsee) {
+        // Spitzingsee always uses blue color, even in admin mode
+        stroke = "#2563eb" // Blue-600
+        fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
+      } else {
+        // Admin mode for rivers: Use flow-based alert level colors
+        const alertLevel: AlertLevel = river.alertLevel || "normal"
+
+        switch (alertLevel) {
+          case "alert":
+            stroke = "#dc2626" // Red-600
+            fill = isDarkMode ? "rgba(220, 38, 38, 0.4)" : "#fca5a5" // Red-300
+            break
+          case "warning":
+            stroke = "#d97706" // Amber-600
+            fill = isDarkMode ? "rgba(217, 119, 6, 0.4)" : "#fcd34d" // Amber-300
+            break
+          case "normal":
+          default:
+            stroke = "#2563eb" // Blue-600
+            fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
+        }
       }
     } else {
-      // Standard mode: Always use blue
+      // Standard mode: Always use blue with lighter colorful fill (100-level)
       stroke = "#2563eb" // Blue-600
-      fill = isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#dbeafe" // Blue-100 for light mode
+      fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
     }
 
     return {
@@ -357,44 +456,39 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       fill,
       dataKey: "value",
     }
-  }, [river.alertLevel, isDarkMode, isAdminMode])
+  }, [
+    river.alertLevel,
+    river.history.temperatures,
+    isDarkMode,
+    isAdminMode,
+    isSchliersee,
+    isTegernsee,
+    isSpitzingsee,
+    dataType,
+  ])
 
   const isLongTimeRange = timeRange === "1w"
 
-  if (chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-2 p-3 sm:p-6">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-            {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 flex items-center justify-center h-[300px]">
-          <div className="text-muted-foreground">Keine Daten für den ausgewählten Typ verfügbar</div>
-        </CardContent>
-      </Card>
-    )
-  }
-
+  // Render the actual chart for all data including lakes
   return (
     <Card>
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+          {/* Show trend indicator for both rivers and lakes */}
           {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange} />}
+                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
                 interval={xAxisInterval}
-                height={isLongTimeRange ? 50 : 30} // Increased height for line breaks
+                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
               />
               <YAxis
@@ -408,7 +502,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               />
               {!isMobile && (
                 <Tooltip
-                  content={(props) => <CustomTooltip {...props} dataType={dataType} />}
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
                   cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
                   wrapperStyle={{ zIndex: 100 }}
                 />
