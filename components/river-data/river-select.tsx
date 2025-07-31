@@ -90,7 +90,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
             {selectedEmoji && <span className="mr-1">{selectedEmoji}</span>}
             <span className="truncate">{selectedRiver?.name || "Gewässer auswählen"}</span>
           </div>
-          {selectedValue && <span className="ml-1 text-sm text-muted-foreground shrink-0">{selectedValue}</span>}
+          {selectedValue && <span className="ml-2 text-sm text-muted-foreground shrink-0">{selectedValue}</span>}
         </div>
       </SelectTrigger>
 
@@ -102,15 +102,15 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
           return (
             <SelectItem key={riverId} value={riverId} className="p-0">
-              {/* Using exact same flex structure as trigger */}
-              <div className="flex items-center w-full pl-6 pr-2 py-1.5 min-h-[36px]">
+              {/* Increased padding and margin for better number positioning */}
+              <div className="flex items-center w-full pl-6 pr-4 py-1.5 min-h-[36px]">
                 <div className="flex items-center flex-1 min-w-0">
                   {emoji && <span className="mr-1">{emoji}</span>}
                   <span className="truncate">
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
                 </div>
-                {currentValue && <span className="ml-1 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
+                {currentValue && <span className="ml-3 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
               </div>
             </SelectItem>
           )
