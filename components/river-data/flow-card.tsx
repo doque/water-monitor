@@ -50,7 +50,8 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
       onClick={() => !isLake && onClick()}
     >
       <CardHeader className="pb-2 p-3 sm:p-6">
-        <div className="flex justify-between items-center">
+        {/* Updated layout for better tablet view - trend indicator on separate line on tablet */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2">
           <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
           <div className="flex items-center gap-2">
             {alertEmoji && <span>{alertEmoji}</span>}
