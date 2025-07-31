@@ -349,6 +349,13 @@ async function fetchWaterTemperature(url: string): Promise<{
         situation: situation || undefined, // Only include situation if it exists
       }
 
+      // Add fake situation values for testing chart colors
+      if (url.includes("schliersee")) {
+        dataPoint.situation = "hoch"
+      } else if (url.includes("tegernsee")) {
+        dataPoint.situation = "neuer Höchstwert"
+      }
+
       history.push(dataPoint)
 
       // Set current data point (first row)
