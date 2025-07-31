@@ -72,6 +72,11 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
   // Current values (newest data point)
   const current = data[0]
 
+  // Add null/undefined checks for current data point
+  if (!current) {
+    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+  }
+
   // Determine how many data points back we need to go for the selected time range
   // Each data point is in 15-minute intervals
   const idealDataPointsBack = {
@@ -110,14 +115,31 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
   // Get the comparison value
   const compareValue = data[actualTargetIndex]
 
-  // Calculate the absolute change
+  // Add null/undefined checks for comparison data point
+  if (!compareValue) {
+    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+  }
+
+  // Calculate the absolute change with proper null checks
   let absoluteChange = 0
 
   if (dataType === "level") {
+    // Check if both values have the level property and are numbers
+    if (typeof current.level !== "number" || typeof compareValue.level !== "number") {
+      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+    }
     absoluteChange = current.level - compareValue.level
   } else if (dataType === "temperature") {
+    // Check if both values have the temperature property and are numbers
+    if (typeof current.temperature !== "number" || typeof compareValue.temperature !== "number") {
+      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+    }
     absoluteChange = current.temperature - compareValue.temperature
   } else if (dataType === "flow") {
+    // Check if both values have the flow property and are numbers
+    if (typeof current.flow !== "number" || typeof compareValue.flow !== "number") {
+      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+    }
     absoluteChange = current.flow - compareValue.flow
   }
 
