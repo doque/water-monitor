@@ -48,6 +48,16 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
     }
   }
 
+  // Get current flow or temperature value for display
+  const getCurrentValue = (river: RiverData): string => {
+    if (river.isLake && river.current.temperature) {
+      return `${river.current.temperature.temperature.toFixed(1)}°C`
+    } else if (!river.isLake && river.current.flow) {
+      return `${river.current.flow.flow.toFixed(2)}m³/s`
+    }
+    return ""
+  }
+
   // Generate a unique ID for each river - simplified and more robust
   const getRiverId = (river: RiverData): string => {
     if (!river) return "unknown-river"
@@ -75,6 +85,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
   // Find the selected river to display its name
   const selectedRiver = rivers.find((river) => getRiverId(river) === value)
   const emoji = selectedRiver ? getRiverStatusEmoji(selectedRiver) : ""
+  const currentValue = selectedRiver ? getCurrentValue(selectedRiver) : ""
 
   return (
     <Select value={value} onValueChange={onValueChange}>
@@ -87,7 +98,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
         }}
       >
         <div
-          className="flex items-center w-full"
+          className="flex items-center w-full justify-between"
           style={{
             textOverflow: "unset",
             overflow: "visible",
@@ -97,33 +108,41 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
             hyphens: "none",
           }}
         >
-          {emoji && <span className="mr-1">{emoji}</span>}
-          <span
-            style={{
-              textOverflow: "unset",
-              overflow: "visible",
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-              wordBreak: "keep-all",
-              hyphens: "none",
-            }}
-          >
-            {selectedRiver?.name || "Gewässer auswählen"}
-          </span>
+          <div className="flex items-center">
+            {emoji && <span className="mr-1">{emoji}</span>}
+            <span
+              style={{
+                textOverflow: "unset",
+                overflow: "visible",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                wordBreak: "keep-all",
+                hyphens: "none",
+              }}
+            >
+              {selectedRiver?.name || "Gewässer auswählen"}
+            </span>
+          </div>
+          {currentValue && <span className="ml-1 text-sm text-muted-foreground">{currentValue}</span>}
         </div>
       </SelectTrigger>
       <SelectContent>
         {rivers.map((river) => {
           const emoji = getRiverStatusEmoji(river)
           const riverId = getRiverId(river)
+          const currentValue = getCurrentValue(river)
+
           return (
             <SelectItem key={riverId} value={riverId}>
-              <span className="flex items-center">
-                {emoji && <span className="mr-1">{emoji}</span>}
-                <span>
-                  {river.name} {river.location ? `(${river.location})` : ""}
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center">
+                  {emoji && <span className="mr-1">{emoji}</span>}
+                  <span>
+                    {river.name} {river.location ? `(${river.location})` : ""}
+                  </span>
                 </span>
-              </span>
+                {currentValue && <span className="ml-2 text-sm text-muted-foreground">{currentValue}</span>}
+              </div>
             </SelectItem>
           )
         })}
