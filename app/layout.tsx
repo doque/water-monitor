@@ -31,8 +31,11 @@ export const metadata: Metadata = {
         width: 512,
         height: 512,
         alt: "BFV Miesbach-Tegernsee Logo",
+        type: "image/png",
       },
     ],
+    siteName: "BFV Miesbach-Tegernsee Monitor",
+    url: "https://monitor.bfv-mbteg.de",
   },
   twitter: {
     card: "summary",
