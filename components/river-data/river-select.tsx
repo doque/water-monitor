@@ -89,41 +89,13 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger
-        className="px-2 h-10"
-        style={{
-          textOverflow: "unset",
-          overflow: "visible",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <div
-          className="flex items-center w-full justify-between"
-          style={{
-            textOverflow: "unset",
-            overflow: "visible",
-            whiteSpace: "nowrap",
-            textDecoration: "none",
-            wordBreak: "keep-all",
-            hyphens: "none",
-          }}
-        >
-          <div className="flex items-center">
+      <SelectTrigger className="px-2 h-10">
+        <div className="flex items-center w-full justify-between">
+          <div className="flex items-center truncate">
             {emoji && <span className="mr-1">{emoji}</span>}
-            <span
-              style={{
-                textOverflow: "unset",
-                overflow: "visible",
-                whiteSpace: "nowrap",
-                textDecoration: "none",
-                wordBreak: "keep-all",
-                hyphens: "none",
-              }}
-            >
-              {selectedRiver?.name || "Gewässer auswählen"}
-            </span>
+            <span className="truncate">{selectedRiver?.name || "Gewässer auswählen"}</span>
           </div>
-          {currentValue && <span className="ml-1 text-sm text-muted-foreground">{currentValue}</span>}
+          {currentValue && <span className="ml-1 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
         </div>
       </SelectTrigger>
       <SelectContent>
@@ -133,17 +105,15 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
           const currentValue = getCurrentValue(river)
 
           return (
-            <SelectItem key={riverId} value={riverId}>
-              {/* Use relative positioning container to enable absolute positioning of value */}
-              <div className="relative flex items-center w-full pr-16">
-                <div className="flex items-center">
+            <SelectItem key={riverId} value={riverId} className="p-0">
+              <div className="flex items-center justify-between w-full py-1.5 pr-2">
+                <div className="flex items-center truncate">
                   {emoji && <span className="mr-1">{emoji}</span>}
-                  <span>
+                  <span className="truncate">
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
                 </div>
-                {/* Absolutely position the value to the right */}
-                {currentValue && <span className="absolute right-0 text-sm text-muted-foreground">{currentValue}</span>}
+                {currentValue && <span className="ml-2 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
               </div>
             </SelectItem>
           )
