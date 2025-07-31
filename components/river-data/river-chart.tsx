@@ -10,11 +10,13 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 export type DataType = "level" | "temperature" | "flow"
 
 interface RiverChartProps {
-  river: RiverData
+  river?: RiverData
   dataType: DataType
   timeRange: TimeRangeOption
-  isMobile: boolean
+  isMobile?: boolean
   isAdminMode?: boolean
+  // Add isMounted prop to control initial animation
+  isMounted?: boolean
 }
 
 // Add proper TypeScript interfaces for tooltip and tick components
@@ -133,6 +135,21 @@ const formatYAxisTick = (value) => {
   return Math.round(value).toString()
 }
 
+// Format X-axis tick for better readability
+const formatXAxisTick = (value) => {
+  return value
+}
+
+// Format tooltip time for better readability
+const formatTooltipTime = (label) => {
+  return label
+}
+
+// Format tooltip value for better readability
+const formatTooltipValue = (value) => {
+  return value.toString()
+}
+
 // Get unit label for Y-axis based on data type
 const getYAxisUnit = (dataType: DataType): string => {
   switch (dataType) {
@@ -184,7 +201,14 @@ const createPlaceholderData = (dataType: DataType) => {
   return data
 }
 
-export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
+export function RiverChart({
+  river,
+  dataType,
+  timeRange,
+  isMobile = false,
+  isAdminMode = false,
+  isMounted = true,
+}: RiverChartProps) {
   // All hooks must be called at the top level, before any conditional returns
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [chartHeight, setChartHeight] = useState(300)
@@ -609,67 +633,64 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   // Render the chart with guaranteed rendering
   return (
-    <Card>
-      <CardHeader className="pb-2 p-3 sm:p-6">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          Entwicklung
           {/* Show trend indicator for both rivers and lakes */}
           {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
-        </div>
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-1 sm:p-3">
-        <div className="h-[300px] w-full" ref={chartContainerRef}>
+      <CardContent className="p-0">
+        <div className="h-[300px] sm:h-[400px] w-full p-4" ref={chartContainerRef}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 20, right: 10, left: 0, bottom: 5 }}
-              width={chartWidth > 0 ? chartWidth : undefined}
-              height={chartHeight > 0 ? chartHeight : undefined}
-            >
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chartConfig.stroke} stopOpacity={0.8} />
-                  <stop offset="95%" stopColor={chartConfig.stroke} stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
+            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis
-                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
+                dataKey="time"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12 }}
+                tickFormatter={formatXAxisTick}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
-                stroke="currentColor"
-                allowDataOverflow={false}
               />
               <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12 }}
+                tickFormatter={formatYAxisTick}
                 domain={yAxisDomain}
                 tickCount={optimalTickCount}
-                tickFormatter={formatYAxisTick}
-                tick={{ fontSize: 10 }}
-                width={30}
-                stroke="currentColor"
-                allowDecimals={false}
-                allowDataOverflow={false}
               />
-              {!isMobile && (
-                <Tooltip
-                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
-                  cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
-                  wrapperStyle={{ zIndex: 100 }}
-                />
-              )}
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {formatTooltipTime(label)}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {formatTooltipValue(payload[0].value as number)}
+                        </p>
+                      </div>
+                    )
+                  }
+                  return null
+                }}
+              />
               <Area
                 type="monotone"
-                dataKey={chartConfig.dataKey}
+                dataKey="value"
                 stroke={chartConfig.stroke}
                 fill={chartConfig.fill}
                 fillOpacity={1}
                 strokeWidth={2}
                 activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
                 dot={false}
-                // Re-enabled smooth animations for chart transitions
-                isAnimationActive={true}
-                animationDuration={800}
+                // Disable animation on initial load to prevent hydration issues
+                isAnimationActive={isMounted}
+                animationDuration={isMounted ? 300 : 0}
                 animationEasing="ease-in-out"
               />
             </AreaChart>

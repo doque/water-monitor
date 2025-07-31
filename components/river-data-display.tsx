@@ -22,13 +22,16 @@ export function RiverDataDisplay(): JSX.Element {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Client-side admin mode state
+  // Client-side admin mode state - start with false to prevent hydration mismatch
   const [adminMode, setAdminMode] = useState(false)
+  // Track if component has mounted to prevent hydration issues
+  const [isMounted, setIsMounted] = useState(false)
 
   // Core state - these are the single source of truth
   const [activeRiverId, setActiveRiverId] = useState<string>("")
   const [activeDataType, setActiveDataType] = useState<DataType>("flow")
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
+  // Start with false (server-safe default) instead of undefined
   const [isMobile, setIsMobile] = useState(false)
 
   // Refs to prevent infinite loops and track initialization
@@ -37,15 +40,18 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Check admin mode on mount and listen for changes
   useEffect(() => {
+    setIsMounted(true)
     setAdminMode(isAdminMode())
 
     const handleAdminModeChange = (event: CustomEvent) => {
       setAdminMode(event.detail.adminMode)
     }
 
-    window.addEventListener("adminModeChanged", handleAdminModeChange as EventListener)
-    return () => {
-      window.removeEventListener("adminModeChanged", handleAdminModeChange as EventListener)
+    if (typeof window !== "undefined") {
+      window.addEventListener("adminModeChanged", handleAdminModeChange as EventListener)
+      return () => {
+        window.removeEventListener("adminModeChanged", handleAdminModeChange as EventListener)
+      }
     }
   }, [])
 
@@ -170,8 +176,10 @@ export function RiverDataDisplay(): JSX.Element {
     }, 0)
   }, [activeRiverId, activeDataType, timeRange, router])
 
-  // Detect if we're on mobile
+  // Detect if we're on mobile - defer until after mount to prevent hydration mismatch
   useEffect(() => {
+    if (!isMounted) return
+
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -179,7 +187,7 @@ export function RiverDataDisplay(): JSX.Element {
     checkIfMobile()
     window.addEventListener("resize", checkIfMobile)
     return () => window.removeEventListener("resize", checkIfMobile)
-  }, [])
+  }, [isMounted])
 
   // Stable handlers that immediately update state (and thus URL)
   const handleRiverChange = useCallback(
@@ -341,6 +349,7 @@ export function RiverDataDisplay(): JSX.Element {
             timeRange={timeRange}
             isMobile={isMobile}
             isAdminMode={adminMode}
+            isMounted={isMounted}
           />
 
           {activeRiver?.webcamUrl && (
