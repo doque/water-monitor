@@ -441,7 +441,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-          {isLake && chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
+          {/* Show trend indicator for both rivers and lakes */}
+          {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">
