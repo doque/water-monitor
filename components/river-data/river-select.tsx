@@ -135,12 +135,12 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
           return (
             <SelectItem key={riverId} value={riverId}>
               <div className="flex items-center justify-between w-full">
-                <span className="flex items-center">
+                <div className="flex items-center">
                   {emoji && <span className="mr-1">{emoji}</span>}
                   <span>
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
-                </span>
+                </div>
                 {currentValue && <span className="ml-2 text-sm text-muted-foreground">{currentValue}</span>}
               </div>
             </SelectItem>
