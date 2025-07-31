@@ -51,9 +51,9 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
   // Get current flow or temperature value for display
   const getCurrentValue = (river: RiverData): string => {
     if (river.isLake && river.current.temperature) {
-      return `${river.current.temperature.temperature.toFixed(1)}°C`
+      return `${river.current.temperature.temperature.toFixed(1)} °C`
     } else if (!river.isLake && river.current.flow) {
-      return `${river.current.flow.flow.toFixed(2)}m³/s`
+      return `${river.current.flow.flow.toFixed(2)} m³/s`
     }
     return ""
   }
