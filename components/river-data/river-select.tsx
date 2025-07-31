@@ -85,10 +85,10 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className="px-2 h-10">
         {/* Trigger content with working flex layout */}
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center">
+        <div className="flex items-center w-full">
+          <div className="flex items-center flex-1 min-w-0">
             {selectedEmoji && <span className="mr-1">{selectedEmoji}</span>}
-            <span>{selectedRiver?.name || "Gewässer auswählen"}</span>
+            <span className="truncate">{selectedRiver?.name || "Gewässer auswählen"}</span>
           </div>
           {selectedValue && <span className="ml-1 text-sm text-muted-foreground shrink-0">{selectedValue}</span>}
         </div>
@@ -102,15 +102,21 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
           return (
             <SelectItem key={riverId} value={riverId} className="p-0">
-              {/* Custom content with guaranteed flex positioning */}
-              <div className="flex items-center justify-between w-full px-2 py-1.5 min-h-[36px]">
-                <div className="flex items-center min-w-0 flex-1">
-                  {emoji && <span className="mr-1 shrink-0">{emoji}</span>}
-                  <span className="truncate">
-                    {river.name} {river.location ? `(${river.location})` : ""}
-                  </span>
+              {/* Using absolute positioning for guaranteed right alignment */}
+              <div className="relative w-full px-2 py-1.5 min-h-[36px]">
+                <div className="pr-16">
+                  <div className="flex items-center">
+                    {emoji && <span className="mr-1">{emoji}</span>}
+                    <span className="truncate">
+                      {river.name} {river.location ? `(${river.location})` : ""}
+                    </span>
+                  </div>
                 </div>
-                {currentValue && <span className="ml-2 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
+                {currentValue && (
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                    <span className="text-sm text-muted-foreground">{currentValue}</span>
+                  </div>
+                )}
               </div>
             </SelectItem>
           )
