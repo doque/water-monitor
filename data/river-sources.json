@@ -75,6 +75,8 @@
     {
       "name": "Spitzingsee",
       "temperatureUrl": "https://wassertemperatur.site/seen/water-temp-in-spitzingsee",
+      "webcamUrl": "https://www.foto-webcam.org/webcam/spitzingsee/current/1920",
+      "webcamClickUrl": "https://www.foto-webcam.org/webcam/spitzingsee/",
       "isLake": true
     }
   ]

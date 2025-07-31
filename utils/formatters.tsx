@@ -283,7 +283,7 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
       break
   }
 
-  // Time range text for display - updated to handle lake-specific time ranges
+  // Time range text for display - updated to use days instead of months
   const getTimeRangeText = (timeSpan: TimeRangeOption) => {
     switch (timeSpan) {
       case "1h":
@@ -299,15 +299,15 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
       case "48h":
         return "48h"
       case "1w":
-        return "1w"
+        return "7d" // Changed from "1w" to "7d"
       case "2w":
-        return "2w"
+        return "14d" // Changed from "2w" to "14d"
       case "1m":
-        return "1m"
+        return "30d" // Changed from "1m" to "30d"
       case "2m":
-        return "2m"
+        return "60d" // Changed from "2m" to "60d"
       case "6m":
-        return "6m"
+        return "180d" // Changed from "6m" to "180d"
       default:
         return timeSpan
     }
