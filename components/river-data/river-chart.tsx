@@ -669,7 +669,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 dot={false}
                 // Smoother, longer animation for better visual experience
                 isAnimationActive={true}
-                animationDuration={1500}
+                animationDuration={1200}
                 animationEasing="ease-out"
               />
             </AreaChart>
