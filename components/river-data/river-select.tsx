@@ -134,14 +134,16 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
           return (
             <SelectItem key={riverId} value={riverId}>
-              <div className="flex items-center justify-between w-full">
+              {/* Use relative positioning container to enable absolute positioning of value */}
+              <div className="relative flex items-center w-full pr-16">
                 <div className="flex items-center">
                   {emoji && <span className="mr-1">{emoji}</span>}
                   <span>
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
                 </div>
-                {currentValue && <span className="ml-2 text-sm text-muted-foreground">{currentValue}</span>}
+                {/* Absolutely position the value to the right */}
+                {currentValue && <span className="absolute right-0 text-sm text-muted-foreground">{currentValue}</span>}
               </div>
             </SelectItem>
           )
