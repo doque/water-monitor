@@ -110,7 +110,9 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
                 </div>
-                {currentValue && <span className="ml-3 text-sm text-muted-foreground shrink-0">{currentValue}</span>}
+                {currentValue && (
+                  <span className="ml-3 text-sm text-muted-foreground shrink-0 pr--10">{currentValue}</span>
+                )}
               </div>
             </SelectItem>
           )
