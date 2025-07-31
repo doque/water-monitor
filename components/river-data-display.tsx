@@ -23,7 +23,8 @@ export function RiverDataDisplay(): JSX.Element {
   const { data, isLoading, error, refetch } = useRiverData()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
+  // Remove the URL update timeout ref since we're making updates instant
+  // const urlUpdateTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Add ref to track previous river for auto-selection logic
   const previousRiverRef = useRef<any>(null)
@@ -120,44 +121,30 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }, [activeRiver])
 
-  // Debounced URL update to prevent infinite loops
+  // Immediate URL update - removed debouncing for instant updates
   const updateURL = useCallback(
     (riverId: string, dataType: DataType, timeRangeValue: TimeRangeOption) => {
-      // Clear any existing timeout
-      if (urlUpdateTimeoutRef.current) {
-        clearTimeout(urlUpdateTimeoutRef.current)
+      const params = new URLSearchParams()
+      params.set("id", riverId)
+      params.set("pane", dataType)
+      params.set("interval", timeRangeValue)
+
+      const newURL = `?${params.toString()}`
+      const currentURL = `?${searchParams.toString()}`
+
+      // Update URL immediately when selections change
+      if (newURL !== currentURL) {
+        router.replace(newURL, { scroll: false })
       }
-
-      // Debounce URL updates to prevent rapid changes
-      urlUpdateTimeoutRef.current = setTimeout(() => {
-        const params = new URLSearchParams()
-        params.set("id", riverId)
-        params.set("pane", dataType)
-        params.set("interval", timeRangeValue)
-
-        const newURL = `?${params.toString()}`
-        const currentURL = `?${searchParams.toString()}`
-
-        if (newURL !== currentURL) {
-          router.replace(newURL, { scroll: false })
-        }
-      }, 300) // Increased debounce time to 300ms
     },
     [router, searchParams],
   )
 
-  // Update URL when state changes - with better guards to prevent loops
+  // Update URL when state changes - now happens instantly
   useEffect(() => {
     // Only update URL if we have valid values
     if (activeRiverId && activeDataType && timeRange) {
       updateURL(activeRiverId, activeDataType, timeRange)
-    }
-
-    // Cleanup timeout on unmount
-    return () => {
-      if (urlUpdateTimeoutRef.current) {
-        clearTimeout(urlUpdateTimeoutRef.current)
-      }
     }
   }, [activeRiverId, activeDataType, timeRange, updateURL])
 
