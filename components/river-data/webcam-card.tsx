@@ -29,7 +29,8 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
         className="pb-2 p-3 sm:p-6 flex flex-row justify-between items-center cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <CardTitle className="text-base sm:text-lg">Webcam {location}</CardTitle>
+        {/* Remove location from title since it shows "bei undefined" for Spitzingsee */}
+        <CardTitle className="text-base sm:text-lg">Webcam</CardTitle>
         <div className="flex items-center gap-1">
           <span>📷</span>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -44,7 +45,6 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
               target="_blank"
               rel="noopener noreferrer"
               className="block relative rounded-md overflow-hidden"
-              title={`Aktuelle Webcam-Ansicht von ${riverName} bei ${location} - Klicken zum Vergrößern`}
             >
               {isLoading && (
                 <div className="w-full h-[200px] sm:h-[300px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
@@ -59,10 +59,10 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
               )}
 
               <div className={`${isLoading ? "hidden" : "block"}`}>
+                {/* Remove alt and title attributes to avoid "bei undefined" text */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl || "/placeholder.svg"}
-                  alt={`Aktuelle Webcam-Ansicht von ${riverName} bei ${location}`}
                   className="w-full h-auto object-cover rounded-md"
                   onLoad={() => setIsLoading(false)}
                   onError={() => {

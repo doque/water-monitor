@@ -328,15 +328,25 @@ export function RiverDataDisplay(): JSX.Element {
             />
           </div>
 
-          {/* Mobile layout: Only Flow card above the chart */}
+          {/* Mobile layout: Show temperature first for lakes, flow first for rivers */}
           <div className="md:hidden">
-            <FlowCard
-              river={activeRiver}
-              isActive={activeDataType === "flow"}
-              onClick={() => handleDataTypeChange("flow")}
-              timeRange={timeRange}
-              showColors={adminMode}
-            />
+            {activeRiver?.isLake ? (
+              <TemperatureCard
+                river={activeRiver}
+                isActive={activeDataType === "temperature"}
+                onClick={() => handleDataTypeChange("temperature")}
+                isMobile={true}
+                timeRange={timeRange}
+              />
+            ) : (
+              <FlowCard
+                river={activeRiver}
+                isActive={activeDataType === "flow"}
+                onClick={() => handleDataTypeChange("flow")}
+                timeRange={timeRange}
+                showColors={adminMode}
+              />
+            )}
           </div>
 
           {/* Chart area (always visible) */}
@@ -358,22 +368,45 @@ export function RiverDataDisplay(): JSX.Element {
             />
           )}
 
-          {/* Mobile layout: Level and Temperature cards below the chart */}
+          {/* Mobile layout: Show remaining cards below chart based on water body type */}
           <div className="md:hidden grid grid-cols-2 gap-4">
-            <LevelCard
-              river={activeRiver}
-              isActive={activeDataType === "level"}
-              onClick={() => handleDataTypeChange("level")}
-              isMobile={true}
-              timeRange={timeRange}
-            />
-            <TemperatureCard
-              river={activeRiver}
-              isActive={activeDataType === "temperature"}
-              onClick={() => handleDataTypeChange("temperature")}
-              isMobile={true}
-              timeRange={timeRange}
-            />
+            {activeRiver?.isLake ? (
+              // For lakes: Show Level and Flow below (Temperature is already above)
+              <>
+                <LevelCard
+                  river={activeRiver}
+                  isActive={activeDataType === "level"}
+                  onClick={() => handleDataTypeChange("level")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+                <FlowCard
+                  river={activeRiver}
+                  isActive={activeDataType === "flow"}
+                  onClick={() => handleDataTypeChange("flow")}
+                  timeRange={timeRange}
+                  showColors={adminMode}
+                />
+              </>
+            ) : (
+              // For rivers: Show Level and Temperature below (Flow is already above)
+              <>
+                <LevelCard
+                  river={activeRiver}
+                  isActive={activeDataType === "level"}
+                  onClick={() => handleDataTypeChange("level")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+                <TemperatureCard
+                  river={activeRiver}
+                  isActive={activeDataType === "temperature"}
+                  onClick={() => handleDataTypeChange("temperature")}
+                  isMobile={true}
+                  timeRange={timeRange}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>
