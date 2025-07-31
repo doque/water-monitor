@@ -18,7 +18,7 @@ interface RiverChartProps {
 }
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label, dataType }) => {
+const CustomTooltip = ({ active, payload, label, dataType, isLake }) => {
   if (active && payload && payload.length) {
     // Get the appropriate unit based on data type
     let unit = ""
@@ -39,19 +39,21 @@ const CustomTooltip = ({ active, payload, label, dataType }) => {
         break
     }
 
-    // Format the date from the fullDate property (which is in format "DD.MM.YYYY HH:MM")
+    // Format the date from the fullDate property
     const fullDate = payload[0].payload.fullDate || ""
     let formattedDate = ""
 
     if (fullDate) {
       const dateParts = fullDate.split(" ")
-      if (dateParts.length >= 2) {
-        // Extract DD.MM. from the date part
+      if (isLake || dateParts.length === 1) {
+        // For lakes (daily data), show only the date without time
+        formattedDate = dateParts[0]
+      } else if (dateParts.length >= 2) {
+        // For rivers (hourly data), show date and time
         const dateComponent = dateParts[0].split(".").slice(0, 2).join(".")
         const timeComponent = dateParts[1].substring(0, 5) // Get HH:MM
         formattedDate = `${dateComponent} ${timeComponent}`
       } else {
-        // For Spitzingsee with only date part
         formattedDate = dateParts[0]
       }
     }
@@ -108,6 +110,20 @@ const formatYAxisTick = (value) => {
   return Math.round(value).toString()
 }
 
+// Get unit label for Y-axis based on data type
+const getYAxisUnit = (dataType: DataType): string => {
+  switch (dataType) {
+    case "level":
+      return "cm"
+    case "temperature":
+      return "°C"
+    case "flow":
+      return "m³/s"
+    default:
+      return ""
+  }
+}
+
 export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
@@ -157,7 +173,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     [isLake],
   )
 
-  // Calculate Y-axis domain based on data range - updated for new time ranges
+  // Calculate Y-axis domain with baseline at 0
   const yAxisDomain = useMemo(() => {
     let data = []
 
@@ -180,26 +196,19 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
     }
 
-    if (data.length === 0) return ["auto", "auto"]
+    if (data.length === 0) return [0, "auto"]
 
     const min = Math.min(...data)
     const max = Math.max(...data)
 
-    // If the range is very small, expand it to make changes more visible
-    if (max - min < 5) {
-      // For very small ranges, create a more visible scale
-      const padding = Math.max(5, min * 0.05) // At least 5 units or 5% of the min value
-      const newMin = Math.max(0, Math.floor(min - padding))
-      const newMax = Math.ceil(max + padding)
-      return [newMin, newMax]
-    }
+    // Always baseline to 0 for the minimum
+    const baselineMin = 0
 
-    // For normal ranges, add some padding
-    const padding = (max - min) * 0.1 // 10% padding
-    const newMin = Math.max(0, Math.floor(min - padding))
+    // Add padding to the maximum
+    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
     const newMax = Math.ceil(max + padding)
 
-    return [newMin, newMax]
+    return [baselineMin, newMax]
   }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isLake])
 
   // Calculate the optimal number of ticks for the Y-axis
@@ -426,13 +435,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   const isLongTimeRange = timeRange === "1w"
 
+  const yAxisUnit = getYAxisUnit(dataType)
+
   if (chartData.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-2 p-3 sm:p-6">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-            {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
+            {isLake && chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
           </div>
         </CardHeader>
         <CardContent className="p-3 flex items-center justify-center h-[300px]">
@@ -448,13 +459,13 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-          {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
+          {isLake && chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
                 dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
@@ -471,10 +482,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 width={30}
                 stroke="currentColor"
                 allowDecimals={false}
+                label={{
+                  value: yAxisUnit,
+                  angle: 0,
+                  position: "top",
+                  offset: 10,
+                  style: { textAnchor: "middle", fontSize: "12px", fontWeight: "bold" },
+                }}
               />
               {!isMobile && (
                 <Tooltip
-                  content={(props) => <CustomTooltip {...props} dataType={dataType} />}
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
                   cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
                   wrapperStyle={{ zIndex: 100 }}
                 />
