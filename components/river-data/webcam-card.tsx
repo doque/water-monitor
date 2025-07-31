@@ -8,7 +8,6 @@ interface WebcamCardProps {
   webcamUrl: string
   riverName: string
   location: string
-  // Add optional webcamClickUrl prop for separate click target
   webcamClickUrl?: string
 }
 
@@ -20,8 +19,18 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
 
   // Generate a unique URL with a timestamp to prevent caching
   const imageUrl = `${webcamUrl}?t=${timestamp}`
-  // Use webcamClickUrl if provided, otherwise fall back to webcamUrl
-  const clickUrl = webcamClickUrl || webcamUrl
+
+  // ABSOLUTELY ENSURE the click URL is correct - use webcamClickUrl if provided, otherwise webcamUrl
+  const linkTarget = webcamClickUrl ? webcamClickUrl : webcamUrl
+
+  // Debug logging to verify URLs (remove in production)
+  console.log("Webcam URLs:", {
+    riverName,
+    webcamUrl,
+    webcamClickUrl,
+    linkTarget,
+    imageUrl,
+  })
 
   return (
     <Card>
@@ -29,7 +38,6 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
         className="pb-2 p-3 sm:p-6 flex flex-row justify-between items-center cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {/* Remove location from title since it shows "bei undefined" for Spitzingsee */}
         <CardTitle className="text-base sm:text-lg">Webcam</CardTitle>
         <div className="flex items-center gap-1">
           <span>📷</span>
@@ -40,8 +48,9 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
       {isExpanded && (
         <CardContent className="p-0 overflow-hidden">
           <div className="p-3 sm:p-6 pt-0">
+            {/* ABSOLUTELY GUARANTEE the href uses the correct URL */}
             <a
-              href={clickUrl}
+              href={linkTarget}
               target="_blank"
               rel="noopener noreferrer"
               className="block relative rounded-md overflow-hidden"
@@ -59,7 +68,6 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
               )}
 
               <div className={`${isLoading ? "hidden" : "block"}`}>
-                {/* Remove alt and title attributes to avoid "bei undefined" text */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl || "/placeholder.svg"}
