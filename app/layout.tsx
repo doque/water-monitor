@@ -1,4 +1,5 @@
 import type React from "react"
+import type { Metadata } from "next"
 import "./globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -9,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL("https://monitor.bfv-mbteg.de"),
   title: "BFV Miesbach-Tegernsee Monitor",
   description: "Überwachung von Wasserständen, Temperaturen und Abflussraten bayerischer Flüsse",
