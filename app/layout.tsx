@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 export const metadata = {
+  metadataBase: new URL("https://monitor.bfv-mbteg.de"),
   title: "BFV Miesbach-Tegernsee Monitor",
   description: "Überwachung von Wasserständen, Temperaturen und Abflussraten bayerischer Flüsse",
   icons: {
@@ -23,14 +24,22 @@ export const metadata = {
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
     locale: "de_DE",
     type: "website",
+    images: [
+      {
+        url: "/images/mbteg-logo.png",
+        width: 512,
+        height: 512,
+        alt: "BFV Miesbach-Tegernsee Logo",
+      },
+    ],
   },
   twitter: {
     card: "summary",
     title: "BFV Miesbach-Tegernsee Gewässer-Monitor",
     description:
       "Echtzeit-Überwachung von Wasserständen, Temperaturen und Abflussraten der Flüsse im Landkreis Miesbach-Tegernsee",
+    images: ["/images/mbteg-logo.png"],
   },
-  metadataBase: new URL("https://whatsapp-water-alerts.vercel.app"),
   generator: "v0.dev",
 }
 
