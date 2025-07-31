@@ -25,9 +25,9 @@ export const metadata = {
     type: "website",
     images: [
       {
-        url: "/images/mbteg-logo.png",
-        width: 512,
-        height: 512,
+        url: "/images/mbteg-logo-256.png",
+        width: 256,
+        height: 208,
         alt: "BFV Miesbach-Tegernsee Logo",
       },
     ],
