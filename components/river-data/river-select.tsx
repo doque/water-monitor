@@ -12,9 +12,29 @@ interface RiverSelectProps {
 }
 
 export function RiverSelect({ rivers, value, onValueChange, showColors = false }: RiverSelectProps) {
-  // Get emoji based on alert level
+  // Get emoji based on alert level for rivers or situation for lakes
   const getRiverStatusEmoji = (river: RiverData): string => {
-    if (!showColors || !river.current.flow) return "" // No emoji in normal mode
+    if (!showColors) return "" // No emoji in normal mode
+
+    // For lakes, use situation-based colors (except Spitzingsee which stays blue)
+    if (river.isLake) {
+      if (river.name === "Spitzingsee") {
+        return "🔵" // Always blue for Spitzingsee
+      }
+
+      // For Schliersee and Tegernsee, use situation from current temperature data
+      const situation = river.current.temperature?.situation?.toLowerCase()
+      if (situation === "neuer höchstwert") {
+        return "🔴" // Red for new high value
+      } else if (situation === "hoch") {
+        return "🟡" // Yellow for high
+      } else {
+        return "🟢" // Green for normal/other
+      }
+    }
+
+    // For rivers, use existing flow-based alert level
+    if (!river.current.flow) return "" // No emoji if no flow data
 
     const alertLevel = river.alertLevel || "normal"
 

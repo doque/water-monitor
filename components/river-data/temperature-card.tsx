@@ -44,8 +44,14 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
         {river.current.temperature ? (
-          <div className="text-4xl font-bold">
-            {river.current.temperature.temperature.toFixed(1)} <span className="font-bold">°C</span>
+          <div>
+            <div className="text-4xl font-bold">
+              {river.current.temperature.temperature.toFixed(1)} <span className="font-bold">°C</span>
+            </div>
+            {/* Show situation text for Schliersee and Tegernsee only */}
+            {(river.name === "Schliersee" || river.name === "Tegernsee") && river.current.temperature.situation && (
+              <div className="text-sm text-muted-foreground mt-1">({river.current.temperature.situation})</div>
+            )}
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">Keine Temperaturdaten verfügbar</div>
