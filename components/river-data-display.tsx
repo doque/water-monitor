@@ -129,9 +129,8 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
-  // Improved initialization effect - handles URL parameters more robustly
+  // Single initialization effect - runs once when data is loaded
   useEffect(() => {
-    // Only initialize once when we have data and haven't initialized yet
     if (!isLoading && riversWithIds && riversWithIds.length > 0 && !isInitializedRef.current) {
       // Read URL parameters
       const urlRiverId = searchParams.get("id") || ""
@@ -141,38 +140,15 @@ export function RiverDataDisplay(): JSX.Element {
       // Validate and get final values
       const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, null)
 
-      // Set state immediately with validated values
+      // Set state once with validated values
       setActiveRiverId(validated.riverId)
       setActiveDataType(validated.dataType)
       setTimeRange(validated.timeRange)
 
       // Mark as initialized
       isInitializedRef.current = true
-
-      console.log("Initialized with URL params:", {
-        original: { urlRiverId, urlDataType, urlTimeRange },
-        validated,
-      })
     }
   }, [isLoading, riversWithIds, searchParams])
-
-  // Fallback initialization - if no URL params, set defaults when data loads
-  useEffect(() => {
-    if (!isLoading && riversWithIds && riversWithIds.length > 0 && !activeRiverId && isInitializedRef.current) {
-      const firstRiver = riversWithIds[0]
-      const defaults = getDefaultsForRiver(firstRiver)
-
-      setActiveRiverId(getRiverOrLakeId(firstRiver))
-      setActiveDataType(defaults.dataType)
-      setTimeRange(defaults.timeRange)
-
-      console.log("Set fallback defaults:", {
-        riverId: getRiverOrLakeId(firstRiver),
-        dataType: defaults.dataType,
-        timeRange: defaults.timeRange,
-      })
-    }
-  }, [isLoading, riversWithIds, activeRiverId])
 
   // URL update effect - only updates URL when state changes and component is initialized
   useEffect(() => {
@@ -271,8 +247,8 @@ export function RiverDataDisplay(): JSX.Element {
     )
   }
 
-  // Show skeleton while initializing or if no active river selected yet
-  if (!isInitializedRef.current || !activeRiverId) {
+  // Only render the main UI if we have a valid activeRiverId
+  if (!activeRiverId && validRiverIds.length > 0) {
     return <RiverDataSkeleton />
   }
 
