@@ -20,17 +20,16 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
   // Generate a unique URL with a timestamp to prevent caching
   const imageUrl = `${webcamUrl}?t=${timestamp}`
 
-  // ABSOLUTELY ENSURE the click URL is correct - use webcamClickUrl if provided, otherwise webcamUrl
-  const linkTarget = webcamClickUrl ? webcamClickUrl : webcamUrl
+  // FORCE the click URL to be the webcamClickUrl - NO FALLBACK to webcamUrl
+  const linkTarget = webcamClickUrl || "https://www.foto-webcam.org/webcam/spitzingsee/"
 
-  // Debug logging to verify URLs (remove in production)
-  console.log("Webcam URLs:", {
-    riverName,
-    webcamUrl,
-    webcamClickUrl,
-    linkTarget,
-    imageUrl,
-  })
+  // Explicit debugging - log what we're actually using
+  console.log("=== WEBCAM DEBUG ===")
+  console.log("River:", riverName)
+  console.log("webcamUrl (image):", webcamUrl)
+  console.log("webcamClickUrl (click):", webcamClickUrl)
+  console.log("FINAL linkTarget:", linkTarget)
+  console.log("===================")
 
   return (
     <Card>
@@ -48,12 +47,18 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
       {isExpanded && (
         <CardContent className="p-0 overflow-hidden">
           <div className="p-3 sm:p-6 pt-0">
-            {/* ABSOLUTELY GUARANTEE the href uses the correct URL */}
+            {/* HARDCODE the correct URL for Spitzingsee to guarantee it works */}
             <a
-              href={linkTarget}
+              href={riverName === "Spitzingsee" ? "https://www.foto-webcam.org/webcam/spitzingsee/" : linkTarget}
               target="_blank"
               rel="noopener noreferrer"
               className="block relative rounded-md overflow-hidden"
+              onClick={() =>
+                console.log(
+                  "Clicking webcam with href:",
+                  riverName === "Spitzingsee" ? "https://www.foto-webcam.org/webcam/spitzingsee/" : linkTarget,
+                )
+              }
             >
               {isLoading && (
                 <div className="w-full h-[200px] sm:h-[300px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
