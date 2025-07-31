@@ -17,8 +17,31 @@ interface RiverChartProps {
   isAdminMode?: boolean
 }
 
-// Custom tooltip component
-const CustomTooltip = ({ active, payload, label, dataType, isLake }) => {
+// Add proper TypeScript interfaces for tooltip and tick components
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    value: number
+    payload: {
+      fullDate?: string
+    }
+  }>
+  label?: string
+  dataType: DataType
+  isLake?: boolean
+}
+
+interface CustomXAxisTickProps {
+  x?: number
+  y?: number
+  payload?: {
+    value: string
+  }
+  isLongTimeRange?: boolean
+}
+
+// Custom tooltip component with proper typing
+const CustomTooltip = ({ active, payload, label, dataType, isLake }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     // Get the appropriate unit based on data type
     let unit = ""
@@ -27,15 +50,15 @@ const CustomTooltip = ({ active, payload, label, dataType, isLake }) => {
     switch (dataType) {
       case "level":
         unit = "cm"
-        valueFormatted = payload[0].value
+        valueFormatted = payload[0].value.toString()
         break
       case "temperature":
         unit = "°C"
-        valueFormatted = Number.parseFloat(payload[0].value).toFixed(1)
+        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(1)
         break
       case "flow":
         unit = "m³/s"
-        valueFormatted = Number.parseFloat(payload[0].value).toFixed(2)
+        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(2)
         break
     }
 
@@ -71,9 +94,9 @@ const CustomTooltip = ({ active, payload, label, dataType, isLake }) => {
   return null
 }
 
-// Custom tick component for X-axis to handle line breaks
-const CustomXAxisTick = (props) => {
-  const { x, y, payload, isLongTimeRange } = props
+// Custom tick component for X-axis with proper typing
+const CustomXAxisTick = ({ x, y, payload, isLongTimeRange }: CustomXAxisTickProps) => {
+  if (!payload?.value) return null
 
   if (isLongTimeRange) {
     // For long time ranges, split the label into date and time
@@ -125,17 +148,8 @@ const getYAxisUnit = (dataType: DataType): string => {
 }
 
 export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
+  // All hooks must be called at the top level, before any conditional returns
   const [isDarkMode, setIsDarkMode] = useState(false)
-
-  // Memoize the trend display for the chart header
-  const chartTrendDisplay = useMemo(() => {
-    try {
-      return formatTrendForTimeRange(river, dataType, timeRange)
-    } catch (error) {
-      console.error("Error calculating chart trend:", error)
-      return null
-    }
-  }, [river, dataType, timeRange])
 
   // Check if this is a lake for special handling
   const isLake = river?.isLake
@@ -172,60 +186,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     },
     [isLake],
   )
-
-  // Calculate Y-axis domain with baseline at 0
-  const yAxisDomain = useMemo(() => {
-    let data = []
-
-    if (isLake) {
-      // For lakes, use filtered data based on time range
-      if (dataType === "temperature") {
-        const maxDataPoints = getDataPointsForTimeRange(timeRange)
-        data = river.history.temperatures.slice(0, maxDataPoints).map((point) => point.temperature)
-      }
-    } else {
-      // Get the appropriate data array based on data type and time range for rivers
-      if (dataType === "level") {
-        data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
-      } else if (dataType === "temperature") {
-        data = river.history.temperatures
-          .slice(0, getDataPointsForTimeRange(timeRange))
-          .map((point) => point.temperature)
-      } else if (dataType === "flow") {
-        data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
-      }
-    }
-
-    if (data.length === 0) return [0, "auto"]
-
-    const min = Math.min(...data)
-    const max = Math.max(...data)
-
-    // Always baseline to 0 for the minimum
-    const baselineMin = 0
-
-    // Add padding to the maximum
-    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
-    const newMax = Math.ceil(max + padding)
-
-    return [baselineMin, newMax]
-  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isLake])
-
-  // Calculate the optimal number of ticks for the Y-axis
-  const optimalTickCount = useMemo(() => {
-    if (yAxisDomain[0] === "auto" || yAxisDomain[1] === "auto") return 5
-
-    const min = yAxisDomain[0] as number
-    const max = yAxisDomain[1] as number
-    const range = max - min
-
-    // For small ranges, use fewer ticks to avoid duplicates
-    if (range <= 10) return 5
-    if (range <= 20) return 6
-
-    // For larger ranges, use more ticks
-    return 7
-  }, [yAxisDomain])
 
   // Prepare chart data for the given time range - updated for new lake time ranges
   const prepareChartData = useCallback(
@@ -302,25 +262,89 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     [isLake, getDataPointsForTimeRange],
   )
 
+  // Memoize the trend display for the chart header
+  const chartTrendDisplay = useMemo(() => {
+    try {
+      return formatTrendForTimeRange(river, dataType, timeRange)
+    } catch (error) {
+      console.error("Error calculating chart trend:", error)
+      return null
+    }
+  }, [river, dataType, timeRange])
+
+  // Calculate Y-axis domain with baseline at 0 - with proper null checks
+  const yAxisDomain = useMemo(() => {
+    let data: number[] = []
+
+    if (isLake) {
+      // For lakes, use filtered data based on time range
+      if (dataType === "temperature" && river.history.temperatures?.length > 0) {
+        const maxDataPoints = getDataPointsForTimeRange(timeRange)
+        data = river.history.temperatures.slice(0, maxDataPoints).map((point) => point.temperature)
+      }
+    } else {
+      // Get the appropriate data array based on data type and time range for rivers
+      if (dataType === "level" && river.history.levels?.length > 0) {
+        data = river.history.levels.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.level)
+      } else if (dataType === "temperature" && river.history.temperatures?.length > 0) {
+        data = river.history.temperatures
+          .slice(0, getDataPointsForTimeRange(timeRange))
+          .map((point) => point.temperature)
+      } else if (dataType === "flow" && river.history.flows?.length > 0) {
+        data = river.history.flows.slice(0, getDataPointsForTimeRange(timeRange)).map((point) => point.flow)
+      }
+    }
+
+    if (data.length === 0) return [0, "auto"]
+
+    const min = Math.min(...data)
+    const max = Math.max(...data)
+
+    // Always baseline to 0 for the minimum
+    const baselineMin = 0
+
+    // Add padding to the maximum
+    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
+    const newMax = Math.ceil(max + padding)
+
+    return [baselineMin, newMax]
+  }, [river.history, dataType, timeRange, getDataPointsForTimeRange, isLake])
+
+  // Calculate the optimal number of ticks for the Y-axis
+  const optimalTickCount = useMemo(() => {
+    if (yAxisDomain[0] === "auto" || yAxisDomain[1] === "auto") return 5
+
+    const min = yAxisDomain[0] as number
+    const max = yAxisDomain[1] as number
+    const range = max - min
+
+    // For small ranges, use fewer ticks to avoid duplicates
+    if (range <= 10) return 5
+    if (range <= 20) return 6
+
+    // For larger ranges, use more ticks
+    return 7
+  }, [yAxisDomain])
+
   // Prepare chart data based on data type - with stable dependencies
   const chartData = useMemo(() => {
     let data: any[] = []
 
-    if (dataType === "level" && river.history.levels.length > 0) {
+    if (dataType === "level" && river.history.levels?.length > 0) {
       data = prepareChartData(river.history.levels, timeRange, (point) => ({
         ...point,
         value: point.level,
         unit: "cm",
         type: "Level",
       }))
-    } else if (dataType === "temperature" && river.history.temperatures.length > 0) {
+    } else if (dataType === "temperature" && river.history.temperatures?.length > 0) {
       data = prepareChartData(river.history.temperatures, timeRange, (point) => ({
         ...point,
         value: point.temperature,
         unit: "°C",
         type: "Temperature",
       }))
-    } else if (dataType === "flow" && river.history.flows.length > 0) {
+    } else if (dataType === "flow" && river.history.flows?.length > 0) {
       data = prepareChartData(river.history.flows, timeRange, (point) => ({
         ...point,
         value: point.flow,
@@ -405,8 +429,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     if (isAdminMode) {
       // Special handling for Schliersee and Tegernsee in admin mode
       if ((isSchliersee || isTegernsee) && dataType === "temperature") {
-        // Get the most recent temperature data point to check situation
-        const latestTempData = river.history.temperatures[0]
+        // Get the most recent temperature data point to check situation - with null check
+        const latestTempData = river.history.temperatures?.[0]
         const situation = latestTempData?.situation?.toLowerCase() || ""
 
         if (situation.includes("neuer höchstwert")) {
@@ -466,6 +490,26 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     isSpitzingsee,
     dataType,
   ])
+
+  // Add null checks for river data to prevent crashes - moved after all hooks
+  const noDataAvailable = useMemo(() => {
+    return !river || !river.history
+  }, [river])
+
+  if (noDataAvailable) {
+    return (
+      <Card>
+        <CardHeader className="pb-2 p-3 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+        </CardHeader>
+        <CardContent className="p-1 sm:p-3">
+          <div className="h-[300px] w-full flex items-center justify-center">
+            <p className="text-gray-500">Keine Daten verfügbar</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const isLongTimeRange = timeRange === "1w"
 
