@@ -50,12 +50,10 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
   // Get current flow or temperature value for display
   const getCurrentValue = (river: RiverData): string => {
-    if (!showColors) return ""
-
     if (river.isLake && river.current.temperature) {
-      return `${river.current.temperature.temperature.toFixed(1)} °C`
+      return `${river.current.temperature.temperature.toFixed(1)}°C`
     } else if (!river.isLake && river.current.flow) {
-      return `${river.current.flow.flow.toFixed(2)} m³/s`
+      return `${river.current.flow.flow.toFixed(2)}m³/s`
     }
     return ""
   }
@@ -136,14 +134,14 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
 
           return (
             <SelectItem key={riverId} value={riverId}>
-              <div className="flex items-center justify-between w-full">
-                <span className="flex items-center">
+              <div className="flex items-center w-full justify-between">
+                <div className="flex items-center">
                   {emoji && <span className="mr-1">{emoji}</span>}
                   <span>
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>
-                </span>
-                {currentValue && <span className="ml-2 text-sm text-muted-foreground">{currentValue}</span>}
+                </div>
+                {currentValue && <span className="ml-1 text-sm text-muted-foreground">{currentValue}</span>}
               </div>
             </SelectItem>
           )
