@@ -37,8 +37,14 @@ function getDataSource(url: string): string {
 }
 
 export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
+  // Collect unique sources to display after the data sources
+  const uniqueSources = new Set<string>()
+  if (river.current.flow) uniqueSources.add(getDataSource(river.urls.flow))
+  if (river.current.level) uniqueSources.add(getDataSource(river.urls.level))
+  if (river.current.temperature) uniqueSources.add(getDataSource(river.urls.temperature))
+
   return (
-    <div className="text-xs text-muted-foreground text-center space-y-1">
+    <div className="text-xs text-muted-foreground text-center">
       <div className="space-x-2">
         <span>Datenquellen:</span>
         {river.current.flow && (
@@ -73,14 +79,13 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
             Temperatur ({safeExtractTime(river.current.temperature.date, river.isLake)})
           </a>
         )}
-      </div>
-      <div className="space-x-2">
-        <span>Quelle:</span>
-        {river.current.flow && <span>{getDataSource(river.urls.flow)}</span>}
-        {river.current.flow && (river.current.level || river.current.temperature) && <span>|</span>}
-        {river.current.level && <span>{getDataSource(river.urls.level)}</span>}
-        {river.current.level && river.current.temperature && <span>|</span>}
-        {river.current.temperature && <span>{getDataSource(river.urls.temperature)}</span>}
+        {/* Add source attribution inline after data sources */}
+        {uniqueSources.size > 0 && (
+          <>
+            <span> - </span>
+            <span>{Array.from(uniqueSources).join(", ")}</span>
+          </>
+        )}
       </div>
     </div>
   )
