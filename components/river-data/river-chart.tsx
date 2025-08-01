@@ -706,7 +706,7 @@ export function RiverChart({
                   dot={false}
                   activeDot={{ r: 4, fill: chartConfig.stroke }}
                   isAnimationActive={!isInitialRender || showChart}
-                  animationDuration={isInitialRender ? 800 : 500}
+                  animationDuration={isInitialRender ? 1500 : 800}
                 />
               </AreaChart>
             </ResponsiveContainer>
