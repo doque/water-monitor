@@ -218,6 +218,7 @@ export function RiverChart({
 
   const [chartData, setChartData] = useState([])
   const [showChart, setShowChart] = useState(false)
+  const [isInitialRender, setIsInitialRender] = useState(true)
 
   // Check if this is a lake for special handling
   const isLake = river?.isLake || false
@@ -272,12 +273,19 @@ export function RiverChart({
       // Small delay to ensure DOM is ready, but much shorter
       const timer = setTimeout(() => {
         setShowChart(true)
+        setTimeout(() => setIsInitialRender(false), 100)
       }, 50)
       return () => clearTimeout(timer)
     } else {
       setShowChart(false)
     }
   }, [isMounted, river])
+
+  useEffect(() => {
+    if (river) {
+      setIsInitialRender(false) // Allow animations for data changes
+    }
+  }, [river, dataType, timeRange])
 
   // Helper function to get data points for time range - updated for lakes
   const getDataPointsForTimeRange = useCallback(
@@ -697,7 +705,8 @@ export function RiverChart({
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4, fill: chartConfig.stroke }}
-                  isAnimationActive={false}
+                  isAnimationActive={!isInitialRender || showChart}
+                  animationDuration={isInitialRender ? 800 : 500}
                 />
               </AreaChart>
             </ResponsiveContainer>
