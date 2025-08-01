@@ -568,20 +568,24 @@ function parseSpitzingseeJavaScriptData(html: string, url: string): WaterTempera
     // Try alternative pattern in case the format is slightly different
     const altMatch = html.match(/\[[-\d]+,[\d.]+\](?:\s*,\s*\[[-\d]+,[\d.]+\])*/g)
     if (altMatch) {
-      console.log(`Found alternative JS data pattern for Spitzingsee: ${altMatch[0].substring(0, 100)}...`)
+      console.log(
+        `Found alternative JS data pattern for ${url.includes("soinsee") ? "Soinsee" : "Spitzingsee"}: ${altMatch[0].substring(0, 100)}...`,
+      )
       const dataString = altMatch.join(",")
-      return parseJavaScriptDataString(dataString)
+      return parseJavaScriptDataString(dataString, url)
     }
 
-    console.warn(`No JavaScript temperature data found for Spitzingsee URL: ${url}`)
+    console.warn(
+      `No JavaScript temperature data found for ${url.includes("soinsee") ? "Soinsee" : "Spitzingsee"} URL: ${url}`,
+    )
     return []
   }
 
-  return parseJavaScriptDataString(dataMatch[1])
+  return parseJavaScriptDataString(dataMatch[1], url)
 }
 
 // Parse the JavaScript data string into data points
-function parseJavaScriptDataString(dataString: string): WaterTemperatureDataPoint[] {
+function parseJavaScriptDataString(dataString: string, url?: string): WaterTemperatureDataPoint[] {
   const dataPoints: WaterTemperatureDataPoint[] = []
 
   // Extract individual data points [day, temperature]
@@ -592,7 +596,15 @@ function parseJavaScriptDataString(dataString: string): WaterTemperatureDataPoin
     return []
   }
 
-  console.log(`Found ${pointMatches.length} JS data points for Spitzingsee`)
+  const sourceName = url?.includes("soinsee") ? "Soinsee" : url?.includes("spitzingsee") ? "Spitzingsee" : "Lake"
+  console.log(`Found ${pointMatches.length} JS data points for ${sourceName}`)
+
+  // Filter to ensure we get at least 6 months of data for both lakes
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const sixMonthsAgoDayOfYear = Math.floor(
+    (sixMonthsAgo.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24),
+  )
 
   pointMatches.forEach((match) => {
     const pointMatch = match.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/)
@@ -600,19 +612,22 @@ function parseJavaScriptDataString(dataString: string): WaterTemperatureDataPoin
       const dayOfYear = Number.parseInt(pointMatch[1], 10)
       const temperature = Number.parseFloat(pointMatch[2])
 
-      // Convert day of year to actual date
-      const date = new Date(currentYear, 0, 1)
-      date.setDate(date.getDate() + dayOfYear)
+      // Include data points from the last 6 months for both Spitzingsee and Soinsee
+      if (dayOfYear >= sixMonthsAgoDayOfYear || dayOfYear < 0) {
+        // Convert day of year to actual date
+        const date = new Date(currentYear, 0, 1)
+        date.setDate(date.getDate() + dayOfYear)
 
-      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+        const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
 
-      const dataPoint: WaterTemperatureDataPoint = {
-        date: dateString,
-        temperature,
-        timestamp: date,
+        const dataPoint: WaterTemperatureDataPoint = {
+          date: dateString,
+          temperature,
+          timestamp: date,
+        }
+
+        dataPoints.push(dataPoint)
       }
-
-      dataPoints.push(dataPoint)
     }
   })
 
@@ -627,18 +642,23 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   // Look for the table with header "Tabelle der Wassertemperaturwerte nach Tagen"
   const tableHeader = $('h3:contains("Tabelle der Wassertemperaturwerte nach Tagen")')
   if (tableHeader.length === 0) {
-    console.warn(`No temperature table found for Spitzingsee URL: ${url}`)
+    const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
+    console.warn(`No temperature table found for ${sourceName} URL: ${url}`)
     return []
   }
 
   // Find the table after this header
   const table = tableHeader.next(".table-container").find("table")
   if (table.length === 0) {
-    console.warn(`No table found after temperature header for Spitzingsee URL: ${url}`)
+    const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
+    console.warn(`No table found after temperature header for ${sourceName} URL: ${url}`)
     return []
   }
 
   let tableRowCount = 0
+  // Set 6-month cutoff date for both lakes
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
   // Parse table rows
   table.find("tbody tr").each((index, element) => {
@@ -703,19 +723,24 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
     if (month === undefined) return
 
     const date = new Date(currentYear, month, day, 12, 0) // Set to noon for consistency
-    const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} 12:00`
 
-    const dataPoint: WaterTemperatureDataPoint = {
-      date: dateString,
-      temperature,
-      timestamp: date,
+    // Only include data from the last 6 months for both lakes
+    if (date >= sixMonthsAgo) {
+      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} 12:00`
+
+      const dataPoint: WaterTemperatureDataPoint = {
+        date: dateString,
+        temperature,
+        timestamp: date,
+      }
+
+      dataPoints.push(dataPoint)
+      tableRowCount++
     }
-
-    dataPoints.push(dataPoint)
-    tableRowCount++
   })
 
-  console.log(`Found ${tableRowCount} table data points for Spitzingsee`)
+  const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
+  console.log(`Found ${tableRowCount} table data points for ${sourceName}`)
   return dataPoints
 }
 
