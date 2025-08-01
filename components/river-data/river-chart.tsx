@@ -6,18 +6,15 @@ import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { Skeleton } from "@/components/ui/skeleton"
 
 export type DataType = "level" | "temperature" | "flow"
 
 interface RiverChartProps {
-  river?: RiverData
+  river: RiverData
   dataType: DataType
   timeRange: TimeRangeOption
-  isMobile?: boolean
+  isMobile: boolean
   isAdminMode?: boolean
-  // Add isMounted prop to control initial animation
-  isMounted?: boolean
 }
 
 // Add proper TypeScript interfaces for tooltip and tick components
@@ -136,30 +133,15 @@ const formatYAxisTick = (value) => {
   return Math.round(value).toString()
 }
 
-// Format X-axis tick for better readability
-const formatXAxisTick = (value) => {
-  return value
-}
-
-// Format tooltip time for better readability
-const formatTooltipTime = (label) => {
-  return label
-}
-
-// Format tooltip value for better readability
-const formatTooltipValue = (value) => {
-  return value.toString()
-}
-
 // Get unit label for Y-axis based on data type
 const getYAxisUnit = (dataType: DataType): string => {
   switch (dataType) {
-    case "flow":
-      return "m³/s"
     case "level":
       return "cm"
     case "temperature":
       return "°C"
+    case "flow":
+      return "m³/s"
     default:
       return ""
   }
@@ -202,27 +184,18 @@ const createPlaceholderData = (dataType: DataType) => {
   return data
 }
 
-export function RiverChart({
-  river,
-  dataType,
-  timeRange,
-  isMobile = false,
-  isAdminMode = false,
-  isMounted = false,
-}: RiverChartProps) {
+export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
   // All hooks must be called at the top level, before any conditional returns
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [chartHeight, setChartHeight] = useState(300)
   const [chartWidth, setChartWidth] = useState(0)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
-  const [chartData, setChartData] = useState([])
-  const [showChart, setShowChart] = useState(false)
-  const [isInitialRender, setIsInitialRender] = useState(true)
-
   // Check if this is a lake for special handling
   const isLake = river?.isLake || false
   const isSpitzingsee = river?.name === "Spitzingsee"
+  const isSchliersee = river?.name === "Schliersee"
+  const isTegernsee = river?.name === "Tegernsee"
 
   // Effect to detect dark mode
   useEffect(() => {
@@ -267,25 +240,6 @@ export function RiverChart({
       }
     }
   }, [])
-
-  useEffect(() => {
-    if (isMounted && river) {
-      // Small delay to ensure DOM is ready, but much shorter
-      const timer = setTimeout(() => {
-        setShowChart(true)
-        setTimeout(() => setIsInitialRender(false), 100)
-      }, 50)
-      return () => clearTimeout(timer)
-    } else {
-      setShowChart(false)
-    }
-  }, [isMounted, river])
-
-  useEffect(() => {
-    if (river) {
-      setIsInitialRender(false) // Allow animations for data changes
-    }
-  }, [river, dataType, timeRange])
 
   // Helper function to get data points for time range - updated for lakes
   const getDataPointsForTimeRange = useCallback(
@@ -453,16 +407,8 @@ export function RiverChart({
     // Always baseline to 0 for the minimum
     const baselineMin = 0
 
-    // Use relative padding based on max value instead of flat 5
-    let padding: number
-    if (max < 10) {
-      padding = 2
-    } else if (max <= 30) {
-      padding = Math.max(2, max * 0.15) // 15% for values 10-30
-    } else {
-      padding = Math.max(5, max * 0.1) // 10% for larger values, minimum 5
-    }
-
+    // Add padding to the maximum
+    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
     const newMax = Math.ceil(max + padding)
 
     return [baselineMin, newMax]
@@ -485,7 +431,7 @@ export function RiverChart({
   }, [yAxisDomain])
 
   // Prepare chart data based on data type - with stable dependencies
-  const tData = useMemo(() => {
+  const chartData = useMemo(() => {
     // Safety check for river data
     if (!river || !river.history) {
       return createPlaceholderData(dataType)
@@ -523,10 +469,6 @@ export function RiverChart({
 
     return data
   }, [river, dataType, timeRange, prepareChartData])
-
-  useEffect(() => {
-    setChartData(tData)
-  }, [tData])
 
   // Calculate the interval for the X-axis based on time range and device type - updated for new lake time ranges
   const xAxisInterval = useMemo(() => {
@@ -599,8 +541,8 @@ export function RiverChart({
     let stroke, fill
 
     if (isAdminMode) {
-      // Special handling for Spitzingsee in admin mode
-      if (isSpitzingsee && dataType === "temperature") {
+      // Special handling for Schliersee and Tegernsee in admin mode
+      if ((isSchliersee || isTegernsee) && dataType === "temperature") {
         // Get the most recent temperature data point to check situation - with null check
         const latestTempData = river?.history?.temperatures?.[0]
         const situation = latestTempData?.situation?.toLowerCase() || ""
@@ -618,6 +560,10 @@ export function RiverChart({
           stroke = "#2563eb" // Blue-600
           fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
         }
+      } else if (isSpitzingsee) {
+        // Spitzingsee always uses blue color, even in admin mode
+        stroke = "#2563eb" // Blue-600
+        fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
       } else {
         // Admin mode for rivers: Use flow-based alert level colors
         const alertLevel: AlertLevel = river?.alertLevel || "normal"
@@ -648,83 +594,88 @@ export function RiverChart({
       fill,
       dataKey: "value",
     }
-  }, [river?.alertLevel, river?.history?.temperatures, isDarkMode, isAdminMode, isSpitzingsee, dataType])
+  }, [
+    river?.alertLevel,
+    river?.history?.temperatures,
+    isDarkMode,
+    isAdminMode,
+    isSchliersee,
+    isTegernsee,
+    isSpitzingsee,
+    dataType,
+  ])
 
   const isLongTimeRange = timeRange === "1w"
-
-  // Create chart placeholder that matches exact dimensions
-  const ChartPlaceholder = () => (
-    <div className="h-[300px] sm:h-[400px] w-full p-4">
-      <div className="h-full w-full flex items-center justify-center">
-        <Skeleton className="h-full w-full rounded-md" />
-      </div>
-    </div>
-  )
 
   // Render the chart with guaranteed rendering
   return (
     <Card>
       <CardHeader className="pb-2 p-3 sm:p-6">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          Entwicklung
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
           {/* Show trend indicator for both rivers and lakes */}
           {chartTrendDisplay && <span className="text-sm font-normal">{chartTrendDisplay}</span>}
-        </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="p-0">
-        {!showChart ? (
-          <ChartPlaceholder />
-        ) : (
-          <div className="h-[300px] sm:h-[400px] w-full p-4" ref={chartContainerRef}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis
-                  dataKey="time"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                  interval={xAxisInterval}
+      <CardContent className="p-1 sm:p-3">
+        <div className="h-[300px] w-full" ref={chartContainerRef}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={chartData}
+              margin={{ top: 20, right: 10, left: 0, bottom: 5 }}
+              width={chartWidth > 0 ? chartWidth : undefined}
+              height={chartHeight > 0 ? chartHeight : undefined}
+            >
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={chartConfig.stroke} stopOpacity={0.8} />
+                  <stop offset="95%" stopColor={chartConfig.stroke} stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
+              <XAxis
+                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
+                interval={xAxisInterval}
+                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
+                stroke="currentColor"
+                allowDataOverflow={false}
+              />
+              <YAxis
+                domain={yAxisDomain}
+                tickCount={optimalTickCount}
+                tickFormatter={formatYAxisTick}
+                tick={{ fontSize: 10 }}
+                width={30}
+                stroke="currentColor"
+                allowDecimals={false}
+                allowDataOverflow={false}
+              />
+              {!isMobile && (
+                <Tooltip
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
+                  cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                  wrapperStyle={{ zIndex: 100 }}
                 />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                  domain={yAxisDomain}
-                  tickFormatter={(value) => {
-                    // Don't show unit for value 0
-                    if (value === 0) {
-                      return "0"
-                    }
-                    if (dataType === "temperature") {
-                      return `${value}°C`
-                    } else if (dataType === "level") {
-                      return `${value} cm`
-                    } else {
-                      return `${value} m³/s`
-                    }
-                  }}
-                />
-                <Tooltip content={<CustomTooltip dataType={dataType} isLake={isLake} />} />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                  isAnimationActive={!isInitialRender || showChart}
-                  animationDuration={isInitialRender ? 1500 : 800}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+              )}
+              <Area
+                type="monotone"
+                dataKey={chartConfig.dataKey}
+                stroke={chartConfig.stroke}
+                fill={chartConfig.fill}
+                fillOpacity={1}
+                strokeWidth={2}
+                activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
+                dot={false}
+                // Re-enabled smooth animations for chart transitions
+                isAnimationActive={true}
+                animationDuration={800}
+                animationEasing="ease-in-out"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   )
 }
-
-export default RiverChart

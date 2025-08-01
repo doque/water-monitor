@@ -7,15 +7,11 @@ import { isAdminMode, toggleAdminMode } from "@/utils/admin-mode"
 
 export function AdminModeHeader() {
   const [clickCount, setClickCount] = useState(0)
-  // Start with false to prevent hydration mismatch, will be updated after mount
   const [adminMode, setAdminMode] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
-  // Track if component has mounted to prevent hydration issues
-  const [isMounted, setIsMounted] = useState(false)
 
   // Check admin mode on mount
   useEffect(() => {
-    setIsMounted(true)
     setAdminMode(isAdminMode())
   }, [])
 
@@ -44,9 +40,7 @@ export function AdminModeHeader() {
       setTimeout(() => setIsAnimating(false), 1000)
 
       // Dispatch custom event to notify other components
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("adminModeChanged", { detail: { adminMode: newAdminMode } }))
-      }
+      window.dispatchEvent(new CustomEvent("adminModeChanged", { detail: { adminMode: newAdminMode } }))
     }
   }
 
@@ -66,24 +60,16 @@ export function AdminModeHeader() {
           className="object-contain"
           priority
         />
-        {/* Use suppressHydrationWarning for admin indicator that only appears client-side */}
-        <div suppressHydrationWarning>
-          {isMounted && adminMode && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-          )}
-        </div>
+        {adminMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />}
       </div>
       <div>
         <CardTitle className="text-blue-800 dark:text-blue-300 text-sm sm:text-xl">
           BFV Miesbach-Tegernsee Monitor
-          {/* Use suppressHydrationWarning for admin badge that only appears client-side */}
-          <span suppressHydrationWarning>
-            {isMounted && adminMode && (
-              <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
-                Admin
-              </span>
-            )}
-          </span>
+          {adminMode && (
+            <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+              Admin
+            </span>
+          )}
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm">Wasserstände, Temperaturen und Abflussraten</CardDescription>
       </div>
