@@ -654,7 +654,7 @@ export function RiverChart({
 
   // Create chart placeholder that matches exact dimensions
   const ChartPlaceholder = () => (
-    <div className="h-[300px] sm:h-[400px] w-full p-4">
+    <div className="h-[300px] sm:h-[400px] w-full px-2 py-4 sm:p-4">
       <div className="h-full w-full flex items-center justify-center">
         <Skeleton className="h-full w-full rounded-md" />
       </div>
@@ -675,7 +675,7 @@ export function RiverChart({
         {!showChart ? (
           <ChartPlaceholder />
         ) : (
-          <div className="h-[300px] sm:h-[400px] w-full p-4" ref={chartContainerRef}>
+          <div className="h-[300px] sm:h-[400px] w-full px-2 py-4 sm:p-4" ref={chartContainerRef}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />

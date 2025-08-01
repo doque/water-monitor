@@ -78,6 +78,11 @@
       "webcamUrl": "https://www.foto-webcam.org/webcam/spitzingsee/current/1920",
       "webcamClickUrl": "https://www.foto-webcam.org/webcam/spitzingsee/",
       "isLake": true
+    },
+    {
+      "name": "Soinsee",
+      "temperatureUrl": "https://wassertemperatur.site/seen/water-temp-in-soinsee",
+      "isLake": true
     }
   ]
 }
