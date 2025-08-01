@@ -1,6 +1,6 @@
 "use client"
 
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Line } from "recharts"
 import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -215,11 +215,11 @@ export function RiverChart({
   const [chartWidth, setChartWidth] = useState(0)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
+  const [shouldAnimate, setShouldAnimate] = useState(false)
+
   // Check if this is a lake for special handling
   const isLake = river?.isLake || false
   const isSpitzingsee = river?.name === "Spitzingsee"
-  const isSchliersee = river?.name === "Schliersee"
-  const isTegernsee = river?.name === "Tegernsee"
 
   // Effect to detect dark mode
   useEffect(() => {
@@ -264,6 +264,16 @@ export function RiverChart({
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (isMounted) {
+      // Delay animation enable to ensure chart renders first
+      const timer = setTimeout(() => {
+        setShouldAnimate(true)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [isMounted])
 
   // Helper function to get data points for time range - updated for lakes
   const getDataPointsForTimeRange = useCallback(
@@ -565,8 +575,8 @@ export function RiverChart({
     let stroke, fill
 
     if (isAdminMode) {
-      // Special handling for Schliersee and Tegernsee in admin mode
-      if ((isSchliersee || isTegernsee) && dataType === "temperature") {
+      // Special handling for Spitzingsee in admin mode
+      if (isSpitzingsee && dataType === "temperature") {
         // Get the most recent temperature data point to check situation - with null check
         const latestTempData = river?.history?.temperatures?.[0]
         const situation = latestTempData?.situation?.toLowerCase() || ""
@@ -584,10 +594,6 @@ export function RiverChart({
           stroke = "#2563eb" // Blue-600
           fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
         }
-      } else if (isSpitzingsee) {
-        // Spitzingsee always uses blue color, even in admin mode
-        stroke = "#2563eb" // Blue-600
-        fill = isDarkMode ? "rgba(37, 99, 235, 0.3)" : "#dbeafe" // Blue-100
       } else {
         // Admin mode for rivers: Use flow-based alert level colors
         const alertLevel: AlertLevel = river?.alertLevel || "normal"
@@ -618,16 +624,7 @@ export function RiverChart({
       fill,
       dataKey: "value",
     }
-  }, [
-    river?.alertLevel,
-    river?.history?.temperatures,
-    isDarkMode,
-    isAdminMode,
-    isSchliersee,
-    isTegernsee,
-    isSpitzingsee,
-    dataType,
-  ])
+  }, [river?.alertLevel, river?.history?.temperatures, isDarkMode, isAdminMode, isSpitzingsee, dataType])
 
   const isLongTimeRange = timeRange === "1w"
 
@@ -679,6 +676,17 @@ export function RiverChart({
                   return null
                 }}
               />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={chartConfig.stroke}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
+                isAnimationActive={shouldAnimate}
+                animationDuration={shouldAnimate ? 800 : 0}
+                animationEasing="ease-out"
+              />
               <Area
                 type="monotone"
                 dataKey="value"
@@ -688,10 +696,9 @@ export function RiverChart({
                 strokeWidth={2}
                 activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
                 dot={false}
-                // Disable animation on initial load to prevent hydration issues
-                isAnimationActive={isMounted}
-                animationDuration={isMounted ? 300 : 0}
-                animationEasing="ease-in-out"
+                isAnimationActive={shouldAnimate}
+                animationDuration={shouldAnimate ? 800 : 0}
+                animationEasing="ease-out"
               />
             </AreaChart>
           </ResponsiveContainer>
