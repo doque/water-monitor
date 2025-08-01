@@ -213,7 +213,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     })
 
     observer.observe(document.documentElement, { attributes: true })
-    return () => observer.disconnect()
+    // Added proper cleanup to prevent memory leaks
+    return () => {
+      observer.disconnect()
+    }
   }, [])
 
   // Effect to measure container dimensions
@@ -232,12 +235,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
     // Set up resize observer
     const resizeObserver = new ResizeObserver(updateDimensions)
-    resizeObserver.observe(chartContainerRef.current)
+    const currentRef = chartContainerRef.current
+    resizeObserver.observe(currentRef)
 
+    // Improved cleanup to prevent observer errors during unmount
     return () => {
-      if (chartContainerRef.current) {
-        resizeObserver.unobserve(chartContainerRef.current)
+      if (currentRef) {
+        resizeObserver.unobserve(currentRef)
       }
+      resizeObserver.disconnect()
     }
   }, [])
 

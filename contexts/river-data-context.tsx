@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import type { RiversData } from "@/utils/water-data"
 
 interface RiverDataContextType {
@@ -21,9 +21,16 @@ export function RiverDataProvider({ children, initialData }: RiverDataProviderPr
   const [data, setData] = useState<RiversData | null>(initialData || null)
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const fetchData = async () => {
     try {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      abortControllerRef.current = new AbortController()
+
       setIsLoading(true)
       setError(null)
 
@@ -34,6 +41,7 @@ export function RiverDataProvider({ children, initialData }: RiverDataProviderPr
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
         },
+        signal: abortControllerRef.current.signal,
       })
 
       if (!response.ok) {
@@ -43,6 +51,9 @@ export function RiverDataProvider({ children, initialData }: RiverDataProviderPr
       const riversData = await response.json()
       setData(riversData)
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
       console.error("Error fetching river data:", err)
       setError(err instanceof Error ? err.message : "Unknown error occurred")
     } finally {
@@ -58,6 +69,12 @@ export function RiverDataProvider({ children, initialData }: RiverDataProviderPr
   useEffect(() => {
     if (!initialData) {
       fetchData()
+    }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [initialData])
 

@@ -33,7 +33,6 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Refs to prevent infinite loops and track initialization
   const isInitializedRef = useRef(false)
-  const urlUpdateInProgressRef = useRef(false)
 
   // Check admin mode on mount and listen for changes
   useEffect(() => {
@@ -152,10 +151,8 @@ export function RiverDataDisplay(): JSX.Element {
 
   // URL update effect - only updates URL when state changes and component is initialized
   useEffect(() => {
-    if (!isInitializedRef.current || urlUpdateInProgressRef.current) return
+    if (!isInitializedRef.current) return
     if (!activeRiverId || !activeDataType || !timeRange) return
-
-    urlUpdateInProgressRef.current = true
 
     const params = new URLSearchParams()
     params.set("id", activeRiverId)
@@ -163,11 +160,6 @@ export function RiverDataDisplay(): JSX.Element {
     params.set("interval", timeRange)
 
     router.replace(`?${params.toString()}`, { scroll: false })
-
-    // Reset flag after URL update
-    setTimeout(() => {
-      urlUpdateInProgressRef.current = false
-    }, 0)
   }, [activeRiverId, activeDataType, timeRange, router])
 
   // Detect if we're on mobile
