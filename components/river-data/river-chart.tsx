@@ -686,6 +686,10 @@ export function RiverChart({
                   className="text-muted-foreground"
                   domain={yAxisDomain}
                   tickFormatter={(value) => {
+                    // Don't show unit for value 0
+                    if (value === 0) {
+                      return "0"
+                    }
                     if (dataType === "temperature") {
                       return `${value}°C`
                     } else if (dataType === "level") {
@@ -699,12 +703,10 @@ export function RiverChart({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke={chartConfig.stroke}
-                  fill={chartConfig.fill}
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
                   fillOpacity={0.2}
                   strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: chartConfig.stroke }}
                   isAnimationActive={!isInitialRender || showChart}
                   animationDuration={isInitialRender ? 1500 : 800}
                 />
@@ -716,3 +718,5 @@ export function RiverChart({
     </Card>
   )
 }
+
+export default RiverChart
