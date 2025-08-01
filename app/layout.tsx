@@ -48,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="de" suppressHydrationWarning>
+    <html lang="de">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />

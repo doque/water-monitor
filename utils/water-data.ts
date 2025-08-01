@@ -539,12 +539,43 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
 
     const html = await response.text()
 
+    // Parse current temperature from curinfo div first
+    const currentTemp = parseSpitzingseeCurinfo(html)
+
     // Parse data from both JavaScript arrays and HTML table
     const jsData = parseSpitzingseeJavaScriptData(html, url)
     const tableData = parseSpitzingseeTableData(html, url)
 
     // Merge the data without duplicates
     const mergedData = mergeSpitzingseeData(jsData, tableData)
+
+    // Override current date's datapoint with curinfo temperature if available
+    if (currentTemp !== null && mergedData.length > 0) {
+      const today = new Date()
+      const todayString = `${today.getDate().toString().padStart(2, "0")}.${(today.getMonth() + 1).toString().padStart(2, "0")}.${today.getFullYear()}`
+
+      // Find and update today's datapoint or create a new one
+      const todayIndex = mergedData.findIndex((point) => point.date.startsWith(todayString))
+
+      const currentDataPoint: WaterTemperatureDataPoint = {
+        date: `${todayString} ${today.getHours().toString().padStart(2, "0")}:${today.getMinutes().toString().padStart(2, "0")}`,
+        temperature: currentTemp,
+        timestamp: new Date(today),
+      }
+
+      if (todayIndex >= 0) {
+        // Replace existing today's datapoint
+        mergedData[todayIndex] = currentDataPoint
+      } else {
+        // Add new current datapoint at the beginning
+        mergedData.unshift(currentDataPoint)
+      }
+
+      // Re-sort to ensure most recent first
+      mergedData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+      console.log(`Updated current Spitzingsee temperature to ${currentTemp}°C from curinfo div`)
+    }
 
     return processSpitzingseeDataPoints(mergedData, url)
   } catch (error) {
@@ -554,6 +585,43 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
       history: [],
       changeStatus: "stable",
     }
+  }
+}
+
+// New function to parse current temperature from curinfo div
+function parseSpitzingseeCurinfo(html: string): number | null {
+  try {
+    const $ = cheerio.load(html)
+    const curinfoDiv = $("#curinfo")
+
+    if (curinfoDiv.length === 0) {
+      console.warn("No curinfo div found for Spitzingsee")
+      return null
+    }
+
+    const curinfoText = curinfoDiv.text()
+    console.log(`Curinfo text: ${curinfoText}`)
+
+    // Extract temperature from "Der aktuelle Wert beträgt 14.4 Grad"
+    const tempMatch = curinfoText.match(/Der aktuelle Wert beträgt\s+(\d+[.,]\d*)\s+Grad/i)
+
+    if (!tempMatch) {
+      console.warn(`Could not extract temperature from curinfo: ${curinfoText}`)
+      return null
+    }
+
+    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
+
+    if (isNaN(temperature)) {
+      console.warn(`Invalid temperature value: ${tempMatch[1]}`)
+      return null
+    }
+
+    console.log(`Extracted current temperature from curinfo: ${temperature}°C`)
+    return temperature
+  } catch (error) {
+    console.error("Error parsing curinfo div:", error)
+    return null
   }
 }
 

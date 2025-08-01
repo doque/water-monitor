@@ -22,20 +22,14 @@ export function RiverDataDisplay(): JSX.Element {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Client-side admin mode state - start with false to prevent hydration mismatch
+  // Client-side admin mode state
   const [adminMode, setAdminMode] = useState(false)
-  // Track if component has mounted to prevent hydration issues
-  const [isMounted, setIsMounted] = useState(false)
 
   // Core state - these are the single source of truth
   const [activeRiverId, setActiveRiverId] = useState<string>("")
   const [activeDataType, setActiveDataType] = useState<DataType>("flow")
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
-  // Start with false (server-safe default) instead of undefined
   const [isMobile, setIsMobile] = useState(false)
-
-  // State to track when all data is ready for chart rendering
-  const [chartReady, setChartReady] = useState(false)
 
   // Refs to prevent infinite loops and track initialization
   const isInitializedRef = useRef(false)
@@ -43,18 +37,15 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Check admin mode on mount and listen for changes
   useEffect(() => {
-    setIsMounted(true)
     setAdminMode(isAdminMode())
 
     const handleAdminModeChange = (event: CustomEvent) => {
       setAdminMode(event.detail.adminMode)
     }
 
-    if (typeof window !== "undefined") {
-      window.addEventListener("adminModeChanged", handleAdminModeChange as EventListener)
-      return () => {
-        window.removeEventListener("adminModeChanged", handleAdminModeChange as EventListener)
-      }
+    window.addEventListener("adminModeChanged", handleAdminModeChange as EventListener)
+    return () => {
+      window.removeEventListener("adminModeChanged", handleAdminModeChange as EventListener)
     }
   }, [])
 
@@ -179,10 +170,8 @@ export function RiverDataDisplay(): JSX.Element {
     }, 0)
   }, [activeRiverId, activeDataType, timeRange, router])
 
-  // Detect if we're on mobile - defer until after mount to prevent hydration mismatch
+  // Detect if we're on mobile
   useEffect(() => {
-    if (!isMounted) return
-
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -190,20 +179,7 @@ export function RiverDataDisplay(): JSX.Element {
     checkIfMobile()
     window.addEventListener("resize", checkIfMobile)
     return () => window.removeEventListener("resize", checkIfMobile)
-  }, [isMounted])
-
-  // Effect to determine when chart should be ready (after all other components)
-  useEffect(() => {
-    if (isMounted && activeRiver && activeRiverId && !isLoading) {
-      // Delay chart rendering to ensure it's the last element
-      const timer = setTimeout(() => {
-        setChartReady(true)
-      }, 100)
-      return () => clearTimeout(timer)
-    } else {
-      setChartReady(false)
-    }
-  }, [isMounted, activeRiver, activeRiverId, isLoading])
+  }, [])
 
   // Stable handlers that immediately update state (and thus URL)
   const handleRiverChange = useCallback(
@@ -365,7 +341,6 @@ export function RiverDataDisplay(): JSX.Element {
             timeRange={timeRange}
             isMobile={isMobile}
             isAdminMode={adminMode}
-            isMounted={chartReady}
           />
 
           {activeRiver?.webcamUrl && (
