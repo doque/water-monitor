@@ -670,7 +670,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 type="monotone"
                 dataKey={chartConfig.dataKey}
                 stroke={chartConfig.stroke}
-                fill={chartConfig.fill}
+                // Use gradient fill instead of solid color to prevent white-ish appearance on first render
+                fill="url(#colorValue)"
                 fillOpacity={1}
                 strokeWidth={2}
                 activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
