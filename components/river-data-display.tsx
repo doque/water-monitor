@@ -34,6 +34,9 @@ export function RiverDataDisplay(): JSX.Element {
   // Start with false (server-safe default) instead of undefined
   const [isMobile, setIsMobile] = useState(false)
 
+  // State to track when all data is ready for chart rendering
+  const [chartReady, setChartReady] = useState(false)
+
   // Refs to prevent infinite loops and track initialization
   const isInitializedRef = useRef(false)
   const urlUpdateInProgressRef = useRef(false)
@@ -188,6 +191,19 @@ export function RiverDataDisplay(): JSX.Element {
     window.addEventListener("resize", checkIfMobile)
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [isMounted])
+
+  // Effect to determine when chart should be ready (after all other components)
+  useEffect(() => {
+    if (isMounted && activeRiver && activeRiverId && !isLoading) {
+      // Delay chart rendering to ensure it's the last element
+      const timer = setTimeout(() => {
+        setChartReady(true)
+      }, 100)
+      return () => clearTimeout(timer)
+    } else {
+      setChartReady(false)
+    }
+  }, [isMounted, activeRiver, activeRiverId, isLoading])
 
   // Stable handlers that immediately update state (and thus URL)
   const handleRiverChange = useCallback(
@@ -349,7 +365,7 @@ export function RiverDataDisplay(): JSX.Element {
             timeRange={timeRange}
             isMobile={isMobile}
             isAdminMode={adminMode}
-            isMounted={isMounted}
+            isMounted={chartReady}
           />
 
           {activeRiver?.webcamUrl && (
