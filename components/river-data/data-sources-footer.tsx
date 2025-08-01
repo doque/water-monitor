@@ -25,42 +25,63 @@ function safeExtractTime(dateString: string, isLake?: boolean): string {
   }
 }
 
+function getDataSource(url: string): string {
+  if (url.includes("hnd.bayern.de")) {
+    return "Hochwasserdienst Bayern"
+  } else if (url.includes("nid.bayern.de")) {
+    return "Niedrigwasserdienst Bayern"
+  } else if (url.includes("wassertemperatur.site")) {
+    return "wassertemperatur.site"
+  }
+  return "Unbekannte Quelle"
+}
+
 export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
   return (
-    <div className="text-xs text-muted-foreground text-center space-x-2">
-      <span>Datenquellen:</span>
-      {river.current.flow && (
-        <a
-          href={river.urls.flow}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Abfluss ({safeExtractTime(river.current.flow.date)})
-        </a>
-      )}
-      {river.current.flow && river.current.level && <span>|</span>}
-      {river.current.level && (
-        <a
-          href={river.urls.level}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Pegel ({safeExtractTime(river.current.level.date)})
-        </a>
-      )}
-      {river.current.level && river.current.temperature && <span>|</span>}
-      {river.current.temperature && (
-        <a
-          href={river.urls.temperature}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Temperatur ({safeExtractTime(river.current.temperature.date, river.isLake)})
-        </a>
-      )}
+    <div className="text-xs text-muted-foreground text-center space-y-1">
+      <div className="space-x-2">
+        <span>Datenquellen:</span>
+        {river.current.flow && (
+          <a
+            href={river.urls.flow}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+          >
+            Abfluss ({safeExtractTime(river.current.flow.date)})
+          </a>
+        )}
+        {river.current.flow && river.current.level && <span>|</span>}
+        {river.current.level && (
+          <a
+            href={river.urls.level}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+          >
+            Pegel ({safeExtractTime(river.current.level.date)})
+          </a>
+        )}
+        {river.current.level && river.current.temperature && <span>|</span>}
+        {river.current.temperature && (
+          <a
+            href={river.urls.temperature}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+          >
+            Temperatur ({safeExtractTime(river.current.temperature.date, river.isLake)})
+          </a>
+        )}
+      </div>
+      <div className="space-x-2">
+        <span>Quelle:</span>
+        {river.current.flow && <span>{getDataSource(river.urls.flow)}</span>}
+        {river.current.flow && (river.current.level || river.current.temperature) && <span>|</span>}
+        {river.current.level && <span>{getDataSource(river.urls.level)}</span>}
+        {river.current.level && river.current.temperature && <span>|</span>}
+        {river.current.temperature && <span>{getDataSource(river.urls.temperature)}</span>}
+      </div>
     </div>
   )
 }
