@@ -407,8 +407,16 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     // Always baseline to 0 for the minimum
     const baselineMin = 0
 
-    // Add padding to the maximum
-    const padding = Math.max(5, (max - min) * 0.1) // At least 5 units or 10% of range
+    // Use relative padding based on max value instead of flat 5
+    let padding: number
+    if (max < 10) {
+      padding = 2
+    } else if (max <= 30) {
+      padding = Math.max(2, max * 0.15) // 15% for values 10-30
+    } else {
+      padding = Math.max(5, max * 0.1) // 10% for larger values, minimum 5
+    }
+
     const newMax = Math.ceil(max + padding)
 
     return [baselineMin, newMax]
