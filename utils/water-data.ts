@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio"
 import riverSources from "@/data/river-sources.json"
 
-const currentYear = 2025 // Declare the currentYear variable
+const currentYear = new Date().getFullYear() // Declare the currentYear variable dynamically
 
 export interface WaterLevelDataPoint {
   date: string
@@ -585,26 +585,18 @@ function parseSpitzingseeJavaScriptData(html: string, url: string): WaterTempera
 }
 
 // Parse the JavaScript data string into data points
-function parseJavaScriptDataString(dataString: string, url?: string): WaterTemperatureDataPoint[] {
+function parseJavaScriptDataString(dataString: string, url: string): WaterTemperatureDataPoint[] {
   const dataPoints: WaterTemperatureDataPoint[] = []
+  const currentYear = new Date().getFullYear()
+  const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
 
-  // Extract individual data points [day, temperature]
-  const pointMatches = dataString.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/g)
-
-  if (!pointMatches) {
-    console.warn(`Could not parse JS data points: ${dataString.substring(0, 200)}...`)
-    return []
-  }
-
-  const sourceName = url?.includes("soinsee") ? "Soinsee" : url?.includes("spitzingsee") ? "Spitzingsee" : "Lake"
+  // Extract all data points
+  const pointMatches = dataString.match(/\[[-\d]+,[\d.]+\]/g) || []
   console.log(`Found ${pointMatches.length} JS data points for ${sourceName}`)
 
-  // Filter to ensure we get at least 6 months of data for both lakes
+  // Set consistent 6-month cutoff for both lakes
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-  const sixMonthsAgoDayOfYear = Math.floor(
-    (sixMonthsAgo.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24),
-  )
 
   pointMatches.forEach((match) => {
     const pointMatch = match.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/)
@@ -612,12 +604,12 @@ function parseJavaScriptDataString(dataString: string, url?: string): WaterTempe
       const dayOfYear = Number.parseInt(pointMatch[1], 10)
       const temperature = Number.parseFloat(pointMatch[2])
 
-      // Include data points from the last 6 months for both Spitzingsee and Soinsee
-      if (dayOfYear >= sixMonthsAgoDayOfYear || dayOfYear < 0) {
-        // Convert day of year to actual date
-        const date = new Date(currentYear, 0, 1)
-        date.setDate(date.getDate() + dayOfYear)
+      // Convert day of year to actual date
+      const date = new Date(currentYear, 0, 1)
+      date.setDate(date.getDate() + dayOfYear)
 
+      // Only include data from the last 6 months for both lakes
+      if (date >= sixMonthsAgo) {
         const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
 
         const dataPoint: WaterTemperatureDataPoint = {
@@ -631,6 +623,7 @@ function parseJavaScriptDataString(dataString: string, url?: string): WaterTempe
     }
   })
 
+  console.log(`Filtered to ${dataPoints.length} data points within 6 months for ${sourceName}`)
   return dataPoints
 }
 
@@ -638,25 +631,18 @@ function parseJavaScriptDataString(dataString: string, url?: string): WaterTempe
 function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureDataPoint[] {
   const dataPoints: WaterTemperatureDataPoint[] = []
   const $ = cheerio.load(html)
+  const currentYear = new Date().getFullYear()
+  const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
 
-  // Look for the table with header "Tabelle der Wassertemperaturwerte nach Tagen"
-  const tableHeader = $('h3:contains("Tabelle der Wassertemperaturwerte nach Tagen")')
-  if (tableHeader.length === 0) {
-    const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
-    console.warn(`No temperature table found for ${sourceName} URL: ${url}`)
-    return []
-  }
-
-  // Find the table after this header
-  const table = tableHeader.next(".table-container").find("table")
+  // Find the table with temperature data
+  const table = $('table:contains("Tabelle der Wassertemperaturwerte nach Tagen")')
   if (table.length === 0) {
-    const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
-    console.warn(`No table found after temperature header for ${sourceName} URL: ${url}`)
+    console.warn(`No temperature table found for ${sourceName}`)
     return []
   }
 
   let tableRowCount = 0
-  // Set 6-month cutoff date for both lakes
+  // Set consistent 6-month cutoff date for both lakes
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
@@ -739,8 +725,7 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
     }
   })
 
-  const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
-  console.log(`Found ${tableRowCount} table data points for ${sourceName}`)
+  console.log(`Parsed ${tableRowCount} table data points within 6 months for ${sourceName}`)
   return dataPoints
 }
 
@@ -795,7 +780,8 @@ function processSpitzingseeDataPoints(
   changeStatus: ChangeStatus
 } {
   if (dataPoints.length === 0) {
-    console.warn(`No temperature data found for Spitzingsee`)
+    const sourceName = url.includes("soinsee") ? "Soinsee" : "Spitzingsee"
+    console.warn(`No temperature data found for ${sourceName}`)
     return {
       current: null,
       history: [],
@@ -803,11 +789,17 @@ function processSpitzingseeDataPoints(
     }
   }
 
-  // Data is already sorted descending by timestamp (most recent first)
-  const current = dataPoints[0] // Most recent data point
+  // Apply final 6-month filter to ensure consistent data range
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-  // Keep all data for history (already sorted descending - most recent first)
-  const history = dataPoints
+  const filteredDataPoints = dataPoints.filter((point) => point.timestamp >= sixMonthsAgo)
+
+  // Sort by timestamp descending (most recent first)
+  filteredDataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+  const current = filteredDataPoints[0] // Most recent data point
+  const history = filteredDataPoints // All filtered data points
 
   // Find previous day data (approximately 24 hours ago)
   let previousDay: WaterTemperatureDataPoint = null
@@ -816,7 +808,7 @@ function processSpitzingseeDataPoints(
 
   if (current) {
     // Find the closest data point to 24 hours ago
-    previousDay = dataPoints.find((point) => {
+    previousDay = filteredDataPoints.find((point) => {
       const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
       return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
     })
@@ -829,7 +821,7 @@ function processSpitzingseeDataPoints(
   }
 
   console.log(
-    `Successfully processed ${history.length} Spitzingsee temperature data points, current: ${current?.temperature}°C on ${current?.date}`,
+    `Successfully processed ${history.length} ${url.includes("soinsee") ? "Soinsee" : "Spitzingsee"} temperature data points (6-month range), current: ${current?.temperature}°C on ${current?.date}`,
   )
 
   return {
