@@ -695,7 +695,7 @@ export function RiverChart({
                     }
                   }}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip dataType={dataType} isLake={isLake} />} />
                 <Area
                   type="monotone"
                   dataKey="value"
