@@ -636,8 +636,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             >
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  {/* reverted opacity back to original values */}
-                  <stop offset="5%" stopColor={chartConfig.stroke} stopOpacity={0.8} />
+                  {/* setting uniform 0.2 opacity across entire chart fill */}
+                  <stop offset="5%" stopColor={chartConfig.stroke} stopOpacity={0.2} />
                   <stop offset="95%" stopColor={chartConfig.stroke} stopOpacity={0.2} />
                 </linearGradient>
               </defs>
