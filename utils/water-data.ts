@@ -308,33 +308,10 @@ async function fetchWaterTemperature(url: string): Promise<{
 
       const dateText = cells.eq(0).text().trim()
 
-      // Handle third column by ignoring it - find temperature in second column
+      // Simplified temperature parsing - always use second column, ignore third column
       let tempText = ""
-      const centerCell = $row.find("td.center")
-      if (centerCell.length > 0) {
-        // For center-aligned cells, take the first one that contains temperature data
-        centerCell.each((i, cell) => {
-          const cellText = $(cell).text().trim()
-          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-            tempText = cellText
-          }
-        })
-      } else {
-        // Look for temperature pattern in any cell, but prefer second column
-        if (cells.length >= 2) {
-          const secondCellText = cells.eq(1).text().trim()
-          if (secondCellText.match(/\d+[.,]\d*\s*°?C?/)) {
-            tempText = secondCellText
-          } else {
-            // Fallback: search all cells for temperature pattern
-            cells.each((i, cell) => {
-              const cellText = $(cell).text().trim()
-              if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-                tempText = cellText
-              }
-            })
-          }
-        }
+      if (cells.length >= 2) {
+        tempText = cells.eq(1).text().trim()
       }
 
       // Extract Situation column (third column) but handle cases where it might not exist
@@ -726,35 +703,10 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   table.find("tbody tr").each((index, element) => {
     const dateText = $(element).find("td").eq(0).text().trim()
 
-    // Find temperature cell - try center-aligned first, then pattern matching
+    // Simplified temperature parsing for Spitzingsee - always use second column
     let tempText = ""
-    const centerCell = $(element).find("td.center")
-    if (centerCell.length > 0) {
-      // For center-aligned cells, take the first one that contains temperature data
-      centerCell.each((i, cell) => {
-        const cellText = $(cell).text().trim()
-        if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-          tempText = cellText
-        }
-      })
-    } else {
-      // Look for temperature pattern in any cell, but prefer second column
-      if ($(element).find("td").length >= 2) {
-        const secondCellText = $(element).find("td").eq(1).text().trim()
-        if (secondCellText.match(/\d+[.,]\d*\s*°?C?/)) {
-          tempText = secondCellText
-        } else {
-          // Fallback: search all cells for temperature pattern
-          $(element)
-            .find("td")
-            .each((i, cell) => {
-              const cellText = $(cell).text().trim()
-              if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-                tempText = cellText
-              }
-            })
-        }
-      }
+    if ($(element).find("td").length >= 2) {
+      tempText = $(element).find("td").eq(1).text().trim()
     }
 
     if (index < 5) {
