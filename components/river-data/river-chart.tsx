@@ -118,7 +118,7 @@ const CustomXAxisTick = ({ x, y, payload, isLongTimeRange }: CustomXAxisTickProp
     }
   }
 
-  // For short time ranges or fallback
+  // Always show x-axis labels for all ranges, including temperature short ranges
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
