@@ -256,7 +256,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         return lakeDataPoints[timeRange] || 30 // Default to 30 days
       }
 
-      // For rivers, use original logic
+      // Added support for new river time ranges (2w, 1m, 2m, 6m)
+      // For rivers, use 15-minute interval calculations
       const riverDataPoints = {
         "1h": 4,
         "2h": 8,
@@ -265,6 +266,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         "24h": 96,
         "48h": 192,
         "1w": 672,
+        "2w": 1344, // 14 days × 24 hours × 4 (15-min intervals)
+        "1m": 2880, // 30 days × 24 hours × 4
+        "2m": 5760, // 60 days × 24 hours × 4
+        "6m": 17280, // 180 days × 24 hours × 4
       }
       return riverDataPoints[timeRange] || 96
     },
@@ -318,12 +323,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         "24h": 96, // 24 hours × 4 data points per hour
         "48h": 192, // 48 hours × 4 data points per hour
         "1w": 672, // 7 days × 24 hours × 4 data points per hour
+        "2w": 1344, // 14 days × 24 hours × 4 data points per hour
+        "1m": 2880, // 30 days × 24 hours × 4 data points per hour
+        "2m": 5760, // 60 days × 24 hours × 4 data points per hour
+        "6m": 17280, // 180 days × 24 hours × 4 data points per hour
       }
 
       filteredData = filteredData.slice(0, dataPoints[timeRange])
 
+      // Extended data reduction logic for longer time ranges
       // For longer time ranges: reduce data points to improve display
-      if (timeRange === "1w" && filteredData.length > 100) {
+      if ((timeRange === "1w" || timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m") && filteredData.length > 100) {
         const step = Math.ceil(filteredData.length / 100)
         filteredData = filteredData.filter((_, index) => index % step === 0)
       }

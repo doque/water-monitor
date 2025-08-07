@@ -13,7 +13,7 @@ interface TimeRangeSelectProps {
   lakeName?: string
 }
 
-// River time range options (original)
+// Extended river time range options to include longer periods up to 6 months
 export const riverTimeRangeOptions = [
   { value: "1h", label: "1 Stunde" },
   { value: "2h", label: "2 Stunden" },
@@ -22,9 +22,13 @@ export const riverTimeRangeOptions = [
   { value: "24h", label: "24 Stunden" },
   { value: "48h", label: "48 Stunden" },
   { value: "1w", label: "1 Woche" },
+  { value: "2w", label: "2 Wochen" },
+  { value: "1m", label: "1 Monat" },
+  { value: "2m", label: "2 Monate" },
+  { value: "6m", label: "6 Monate" },
 ] as const
 
-// Lake time range options (new)
+// Lake time range options (unchanged)
 export const lakeTimeRangeOptions = [
   { value: "1w", label: "1 Woche" },
   { value: "2w", label: "2 Wochen" },
