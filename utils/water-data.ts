@@ -306,26 +306,9 @@ async function fetchWaterTemperature(url: string): Promise<{
 
       if (cells.length < 2) return // Skip rows with insufficient cells
 
+      // Only use first two cells for date and temperature parsing
       const dateText = cells.eq(0).text().trim()
-
-      // Find temperature cell - try center-aligned first, then pattern matching
-      let tempText = ""
-      const centerCell = $row.find("td.center")
-      if (centerCell.length > 0) {
-        tempText = centerCell.first().text().trim()
-      } else {
-        // Look for cell containing temperature pattern
-        cells.each((i, cell) => {
-          const cellText = $(cell).text().trim()
-          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-            tempText = cellText
-          }
-        })
-        // Fallback to second cell
-        if (!tempText && cells.length >= 2) {
-          tempText = cells.eq(1).text().trim()
-        }
-      }
+      const tempText = cells.eq(1).text().trim()
 
       // Extract Situation column (third column) for Schliersee and Tegernsee
       let situation = ""

@@ -333,7 +333,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
 
       // Original logic for rivers
-      const isLongTimeRange = timeRange === "1w"
+      const isLongTimeRange = timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
 
       // Filter based on selected time range
       const dataPoints = {
@@ -354,7 +354,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
       // Extended data reduction logic for longer time ranges
       // For longer time ranges: reduce data points to improve display
-      if ((timeRange === "1w" || timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m") && filteredData.length > 100) {
+      if ((timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m") && filteredData.length > 100) {
         const step = Math.ceil(filteredData.length / 100)
         filteredData = filteredData.filter((_, index) => index % step === 0)
       }
@@ -532,7 +532,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
 
     // Original logic for rivers
-    const isLongTimeRange = timeRange === "1w"
+    const isLongTimeRange = timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
     const dataLength = chartData.length
 
     if (isMobile) {
@@ -645,7 +645,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     dataType,
   ])
 
-  const isLongTimeRange = timeRange === "1w" || timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
+  const isLongTimeRange = timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
 
   // Render the chart with guaranteed rendering
   return (
