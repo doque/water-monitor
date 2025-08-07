@@ -685,6 +685,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
                 allowDataOverflow={false}
+                tickLine={true}
+                axisLine={true}
               />
               <YAxis
                 domain={yAxisDomain}

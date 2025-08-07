@@ -308,7 +308,7 @@ async function fetchWaterTemperature(url: string): Promise<{
 
       const dateText = cells.eq(0).text().trim()
 
-      // Simplified temperature parsing - always use second column, ignore third column
+      // Simplified temperature parsing - always use second column (index 1)
       let tempText = ""
       if (cells.length >= 2) {
         tempText = cells.eq(1).text().trim()
@@ -703,7 +703,7 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   table.find("tbody tr").each((index, element) => {
     const dateText = $(element).find("td").eq(0).text().trim()
 
-    // Simplified temperature parsing for Spitzingsee - always use second column
+    // Simplified temperature parsing - always use second column for Spitzingsee
     let tempText = ""
     if ($(element).find("td").length >= 2) {
       tempText = $(element).find("td").eq(1).text().trim()
