@@ -11,6 +11,7 @@ interface TimeRangeSelectProps {
   // New prop to determine if this is for a lake
   isLake?: boolean
   lakeName?: string
+  selectedDataType?: "flow" | "level" | "temperature"
 }
 
 // Extended river time range options to include longer periods up to 6 months
@@ -26,6 +27,19 @@ export const riverTimeRangeOptions = [
   { value: "1m", label: "1 Monat" },
   { value: "2m", label: "2 Monate" },
   { value: "6m", label: "6 Monate" },
+] as const
+
+export const riverTemperatureTimeRangeOptions = [
+  { value: "1h", label: "1 Stunde" },
+  { value: "2h", label: "2 Stunden" },
+  { value: "6h", label: "6 Stunden" },
+  { value: "12h", label: "12 Stunden" },
+  { value: "24h", label: "24 Stunden" },
+  { value: "48h", label: "48 Stunden" },
+  { value: "1w", label: "1 Woche" },
+  { value: "2w", label: "2 Wochen" },
+  { value: "1m", label: "1 Monat" },
+  { value: "2m", label: "2 Monate" },
 ] as const
 
 // Lake time range options (unchanged)
@@ -48,13 +62,14 @@ export const otherLakeTimeRangeOptions = [
   { value: "2m", label: "2 Monate" },
 ] as const
 
-export function TimeRangeSelect({ value, onValueChange, isLake, lakeName }: TimeRangeSelectProps) {
-  // Determine which options to use based on water body type
+export function TimeRangeSelect({ value, onValueChange, isLake, lakeName, selectedDataType }: TimeRangeSelectProps) {
   const options = isLake
     ? lakeName === "Spitzingsee"
       ? spitzingseeTimeRangeOptions
       : otherLakeTimeRangeOptions
-    : riverTimeRangeOptions
+    : selectedDataType === "temperature"
+      ? riverTemperatureTimeRangeOptions
+      : riverTimeRangeOptions
 
   // Find the selected option to display its label
   const selectedOption = options.find((option) => option.value === value)

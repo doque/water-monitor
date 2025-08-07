@@ -308,20 +308,29 @@ async function fetchWaterTemperature(url: string): Promise<{
 
       const dateText = cells.eq(0).text().trim()
 
-      // Simplified temperature parsing - always use second column (index 1)
+      // Find temperature cell - try center-aligned first, then pattern matching
       let tempText = ""
-      if (cells.length >= 2) {
-        tempText = cells.eq(1).text().trim()
+      const centerCell = $row.find("td.center")
+      if (centerCell.length > 0) {
+        tempText = centerCell.first().text().trim()
+      } else {
+        // Look for cell containing temperature pattern
+        cells.each((i, cell) => {
+          const cellText = $(cell).text().trim()
+          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
+            tempText = cellText
+          }
+        })
+        // Fallback to second cell
+        if (!tempText && cells.length >= 2) {
+          tempText = cells.eq(1).text().trim()
+        }
       }
 
-      // Extract Situation column (third column) but handle cases where it might not exist
+      // Extract Situation column (third column) for Schliersee and Tegernsee
       let situation = ""
       if (cells.length >= 3) {
-        const thirdCellText = cells.eq(2).text().trim()
-        // Only use third column as situation if it doesn't contain temperature data
-        if (!thirdCellText.match(/\d+[.,]\d*\s*°?C?/)) {
-          situation = thirdCellText
-        }
+        situation = cells.eq(2).text().trim()
       }
 
       // Extract temperature value
@@ -703,10 +712,25 @@ function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureD
   table.find("tbody tr").each((index, element) => {
     const dateText = $(element).find("td").eq(0).text().trim()
 
-    // Simplified temperature parsing - always use second column for Spitzingsee
+    // Find temperature cell - try center-aligned first, then pattern matching
     let tempText = ""
-    if ($(element).find("td").length >= 2) {
-      tempText = $(element).find("td").eq(1).text().trim()
+    const centerCell = $(element).find("td.center")
+    if (centerCell.length > 0) {
+      tempText = centerCell.first().text().trim()
+    } else {
+      // Look for cell containing temperature pattern
+      $(element)
+        .find("td")
+        .each((i, cell) => {
+          const cellText = $(cell).text().trim()
+          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
+            tempText = cellText
+          }
+        })
+      // Fallback to second cell
+      if (!tempText && $(element).find("td").length >= 2) {
+        tempText = $(element).find("td").eq(1).text().trim()
+      }
     }
 
     if (index < 5) {

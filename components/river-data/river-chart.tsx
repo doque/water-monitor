@@ -99,26 +99,22 @@ const CustomXAxisTick = ({ x, y, payload, isLongTimeRange }: CustomXAxisTickProp
   if (!payload?.value) return null
 
   if (isLongTimeRange) {
-    // For long time ranges, split the label into date and time
+    // For ranges larger than 48h, only show date, not time
     const parts = payload.value.split(" ")
-    if (parts.length === 2) {
+    if (parts.length >= 1) {
       const date = parts[0]
-      const time = parts[1]
 
       return (
         <g transform={`translate(${x},${y})`}>
           <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
             {date}
           </text>
-          <text x={0} y={0} dy={30} textAnchor="middle" fill="currentColor" fontSize={10}>
-            {time}
-          </text>
         </g>
       )
     }
   }
 
-  // Always show x-axis labels for all ranges, including temperature short ranges
+  // For short time ranges or fallback
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={16} textAnchor="middle" fill="currentColor" fontSize={10}>
@@ -337,7 +333,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       }
 
       // Original logic for rivers
-      const isLongTimeRange = timeRange === "1w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
+      const isLongTimeRange = timeRange === "1w"
 
       // Filter based on selected time range
       const dataPoints = {
@@ -536,7 +532,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
 
     // Original logic for rivers
-    const isLongTimeRange = timeRange === "1w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
+    const isLongTimeRange = timeRange === "1w"
     const dataLength = chartData.length
 
     if (isMobile) {
@@ -649,7 +645,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     dataType,
   ])
 
-  const isLongTimeRange = timeRange === "1w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
+  const isLongTimeRange = timeRange === "1w" || timeRange === "2w" || timeRange === "1m" || timeRange === "2m" || timeRange === "6m"
 
   // Render the chart with guaranteed rendering
   return (
@@ -685,8 +681,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
                 stroke="currentColor"
                 allowDataOverflow={false}
-                tickLine={true}
-                axisLine={true}
               />
               <YAxis
                 domain={yAxisDomain}

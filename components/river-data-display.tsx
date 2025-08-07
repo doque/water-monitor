@@ -285,7 +285,11 @@ export function RiverDataDisplay(): JSX.Element {
               />
             </div>
             <div className="col-span-5 sm:col-span-6">
-              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+              <TimeRangeSelect 
+                value={timeRange} 
+                onValueChange={handleTimeRangeChange} 
+                selectedDataType={activeDataType}
+              />
             </div>
           </>
         )}
