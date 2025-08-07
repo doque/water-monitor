@@ -3,7 +3,7 @@
     {
       "name": "Mangfall",
       "location": "Schmerold",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&days=180&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&days=180&setdiskr=15",
       "flowThresholds": {
         "green": [2, 6],
@@ -16,7 +16,7 @@
       "location": "Stauden",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=abfluss&days=180&setdiskr=15",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelleZweiMonate",
       "webcamUrl": "https://webcams.hnd.bayern.de/ro/Stauden/webcam.jpg",
       "flowThresholds": {
         "green": [1, 4],
@@ -27,9 +27,9 @@
     {
       "name": "Weißach",
       "location": "Oberach",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=wasserstand&setdiskr=15",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=wasserstand&days=180&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=abfluss&days=180&setdiskr=15",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/bayern/oberach-18212004/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelleZweiMonate",
       "webcamUrl": "https://webcams.hnd.bayern.de/ro/Weissach-Oberach/webcam.jpg",
       "flowThresholds": {
         "green": [1, 2.5],
@@ -40,9 +40,9 @@
     {
       "name": "Schlierach",
       "location": "Miesbach",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=wasserstand&setdiskr=15",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=wasserstand&days=180&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=abfluss&days=180&setdiskr=15",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/miesbach-18226009/tabelle",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/miesbach-18226009/tabelleZweiMonate",
       "webcamUrl": "https://webcams.hnd.bayern.de/ro/Mb-Schlierach/webcam.jpg",
       "flowThresholds": {
         "green": [0.4, 1.5],
@@ -53,9 +53,9 @@
     {
       "name": "Söllbach",
       "location": "Bad Wiessee",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=wasserstand&setdiskr=15",
-      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=abfluss&setdiskr=15",
-      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/bad-wiessee-18218306/tabelle",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=wasserstand&days=180&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=abfluss&days=180setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/bad-wiessee-18218306/tabelleZweiMonate",
       "flowThresholds": {
         "green": [0.3, 0.8],
         "yellow": [0.8, 1],
