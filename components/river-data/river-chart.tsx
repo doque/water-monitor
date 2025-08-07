@@ -256,7 +256,6 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         return lakeDataPoints[timeRange] || 30 // Default to 30 days
       }
 
-      // Added support for new river time ranges (2w, 1m, 2m, 6m)
       // For rivers, use 15-minute interval calculations
       const riverDataPoints = {
         "1h": 4,
@@ -274,6 +273,32 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       return riverDataPoints[timeRange] || 96
     },
     [isLake],
+  )
+
+  // Add helper function to get temperature-specific data points for rivers (limited to 2 months)
+  const getTemperatureDataPointsForTimeRange = useCallback(
+    (timeRange: TimeRangeOption): number => {
+      if (isLake) {
+        return getDataPointsForTimeRange(timeRange)
+      }
+
+      // For rivers, temperature data is limited to 2 months maximum
+      const temperatureDataPoints = {
+        "1h": 4,
+        "2h": 8,
+        "6h": 24,
+        "12h": 48,
+        "24h": 96,
+        "48h": 192,
+        "1w": 672,
+        "2w": 1344, // 14 days × 24 hours × 4 (15-min intervals)
+        "1m": 2880, // 30 days × 24 hours × 4
+        "2m": 5760, // 60 days × 24 hours × 4 - maximum for temperature
+        "6m": 5760, // Limited to 2 months for temperature data
+      }
+      return temperatureDataPoints[timeRange] || 96
+    },
+    [isLake, getDataPointsForTimeRange],
   )
 
   // Prepare chart data for the given time range - updated for new lake time ranges
@@ -397,8 +422,9 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
           .map((point) => point.level)
           .filter((value) => typeof value === "number")
       } else if (dataType === "temperature" && river.history.temperatures?.length > 0) {
+        // Use temperature-specific data points limit for rivers
         data = river.history.temperatures
-          .slice(0, getDataPointsForTimeRange(timeRange))
+          .slice(0, getTemperatureDataPointsForTimeRange(timeRange))
           .map((point) => point.temperature)
           .filter((value) => typeof value === "number")
       } else if (dataType === "flow" && river.history.flows?.length > 0) {
@@ -430,7 +456,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [baselineMin, newMax]
-  }, [river, dataType, timeRange, getDataPointsForTimeRange, isLake])
+  }, [river, dataType, timeRange, getDataPointsForTimeRange, getTemperatureDataPointsForTimeRange, isLake])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {

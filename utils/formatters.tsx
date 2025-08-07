@@ -191,7 +191,25 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "1w": 672, // 1 week = 672 × 15-minute intervals (7 days × 24 hours × 4)
   }
 
-  const idealTargetIndex = idealDataPointsBack[timeRange]
+  // Add temperature-specific data points for rivers (limited to 2 months)
+  const temperatureDataPointsBack = {
+    "1h": 4,
+    "2h": 8,
+    "6h": 24,
+    "12h": 48,
+    "24h": 96,
+    "48h": 192,
+    "1w": 672,
+    "2w": 1344, // 14 days × 24 hours × 4
+    "1m": 2880, // 30 days × 24 hours × 4
+    "2m": 5760, // 60 days × 24 hours × 4 - maximum for temperature
+    "6m": 5760, // Limited to 2 months for temperature data
+  }
+
+  // Use temperature-specific limits for rivers when dataType is temperature
+  const idealTargetIndex = !isLake && dataType === "temperature" 
+    ? temperatureDataPointsBack[timeRange] 
+    : idealDataPointsBack[timeRange]
 
   // Minimum data requirements for reasonable extrapolation
   const minDataPointsForTimeRange = {
@@ -309,6 +327,10 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
       case "2m":
         return "60d" // Changed from "2m" to "60d"
       case "6m":
+        // For temperature data on rivers, show actual limit (60d) instead of 180d
+        if (!river?.isLake && dataType === "temperature") {
+          return "60d" // Temperature data limited to 2 months for rivers
+        }
         return "180d" // Changed from "6m" to "180d"
       default:
         return timeSpan
