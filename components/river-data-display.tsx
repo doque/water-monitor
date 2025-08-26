@@ -93,12 +93,57 @@ export function RiverDataDisplay(): JSX.Element {
     return `river-${name}-${location}`
   }
 
+  // Helper function to determine available data types for a river
+  const getAvailableDataTypes = useCallback((river: any): DataType[] => {
+    if (!river) return []
+
+    const available: DataType[] = []
+
+    // Check if flow data is available (not for lakes and must have current flow data)
+    if (!river.isLake && river.current?.flow) {
+      available.push("flow")
+    }
+
+    // Check if level data is available (not for lakes and must have current level data)
+    if (!river.isLake && river.current?.level) {
+      available.push("level")
+    }
+
+    // Check if temperature data is available (must have URL and current temperature data)
+    if (river.urls?.temperature && river.current?.temperature) {
+      available.push("temperature")
+    }
+
+    return available
+  }, [])
+
+  // Helper function to get the best fallback data type
+  const getBestDataType = useCallback(
+    (river: any, preferredType?: DataType): DataType => {
+      const available = getAvailableDataTypes(river)
+
+      // If preferred type is available, use it
+      if (preferredType && available.includes(preferredType)) {
+        return preferredType
+      }
+
+      // Fallback priority: flow -> level -> temperature
+      if (available.includes("flow")) return "flow"
+      if (available.includes("level")) return "level"
+      if (available.includes("temperature")) return "temperature"
+
+      // Default fallback (shouldn't happen if data is valid)
+      return river?.isLake ? "temperature" : "flow"
+    },
+    [getAvailableDataTypes],
+  )
+
   // Helper function to get default values based on river type
   function getDefaultsForRiver(river: any): { dataType: DataType; timeRange: TimeRangeOption } {
     if (river?.isLake) {
       return { dataType: "temperature", timeRange: "2w" }
     }
-    return { dataType: "flow", timeRange: "24h" }
+    return { dataType: getBestDataType(river, "flow"), timeRange: "24h" }
   }
 
   // Helper function to validate URL parameters
@@ -114,8 +159,11 @@ export function RiverDataDisplay(): JSX.Element {
     const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
     const defaults = getDefaultsForRiver(targetRiver)
 
-    // Validate data type
-    const validatedDataType = validDataTypes.includes(urlDataType) ? (urlDataType as DataType) : defaults.dataType
+    const availableDataTypes = getAvailableDataTypes(targetRiver)
+    const validatedDataType =
+      validDataTypes.includes(urlDataType) && availableDataTypes.includes(urlDataType as DataType)
+        ? (urlDataType as DataType)
+        : getBestDataType(targetRiver, urlDataType as DataType)
 
     // Validate time range
     const validatedTimeRange = validTimeRanges.includes(urlTimeRange)
@@ -192,7 +240,7 @@ export function RiverDataDisplay(): JSX.Element {
         setTimeRange(defaults.timeRange)
       }
     },
-    [riversWithIds],
+    [riversWithIds, getBestDataType],
   )
 
   const handleTimeRangeChange = useCallback((value: TimeRangeOption) => {
@@ -201,13 +249,18 @@ export function RiverDataDisplay(): JSX.Element {
 
   const handleDataTypeChange = useCallback(
     (dataType: DataType) => {
-      // Only allow changing to flow or level if not a lake
-      if (activeRiver && activeRiver.isLake && dataType !== "temperature") {
+      const availableDataTypes = getAvailableDataTypes(activeRiver)
+
+      if (!availableDataTypes.includes(dataType)) {
+        console.log(
+          `[v0] Data type ${dataType} not available for river ${activeRiver?.name}. Available: ${availableDataTypes.join(", ")}`,
+        )
         return
       }
+
       setActiveDataType(dataType)
     },
-    [activeRiver],
+    [activeRiver, getAvailableDataTypes],
   )
 
   // Handle loading state
@@ -366,6 +419,7 @@ export function RiverDataDisplay(): JSX.Element {
                   river={activeRiver}
                   isActive={activeDataType === "flow"}
                   onClick={() => handleDataTypeChange("flow")}
+                  isMobile={true}
                   timeRange={timeRange}
                   showColors={adminMode}
                 />
