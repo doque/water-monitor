@@ -615,6 +615,42 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
   const isLongTimeRange = timeRange === "1w"
 
+  const hasAnyDataForCurrentType = useMemo(() => {
+    if (!river || !river.history) return false
+
+    switch (dataType) {
+      case "flow":
+        return river.history.flows && river.history.flows.length > 0
+      case "level":
+        return river.history.levels && river.history.levels.length > 0
+      case "temperature":
+        return river.history.temperatures && river.history.temperatures.length > 0
+      default:
+        return false
+    }
+  }, [river, dataType])
+
+  if (!hasAnyDataForCurrentType) {
+    return (
+      <Card>
+        <CardHeader className="pb-2 p-3 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-6">
+          <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+            <div className="text-center">
+              <p className="text-sm">Keine Daten verfügbar</p>
+              <p className="text-xs mt-1">
+                Für {dataType === "flow" ? "Abfluss" : dataType === "level" ? "Wasserstand" : "Temperatur"} sind derzeit
+                keine Messwerte vorhanden.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Render the chart with guaranteed rendering
   return (
     <Card>

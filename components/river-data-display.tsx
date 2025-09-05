@@ -159,8 +159,25 @@ export function RiverDataDisplay(): JSX.Element {
     const defaults = getDefaultsForRiver(targetRiver)
 
     let validatedDataType: DataType = defaults.dataType
-    if (validDataTypes.includes(urlDataType) && hasDataForType(targetRiver, urlDataType as DataType)) {
-      validatedDataType = urlDataType as DataType
+    if (validDataTypes.includes(urlDataType)) {
+      const requestedDataType = urlDataType as DataType
+
+      // Check if requested data type has data
+      if (hasDataForType(targetRiver, requestedDataType)) {
+        validatedDataType = requestedDataType
+      } else {
+        // Smart fallback: try flow -> level -> temperature
+        if (hasDataForType(targetRiver, "flow")) {
+          validatedDataType = "flow"
+        } else if (hasDataForType(targetRiver, "level")) {
+          validatedDataType = "level"
+        } else if (hasDataForType(targetRiver, "temperature")) {
+          validatedDataType = "temperature"
+        } else {
+          // No data available for any type - use default but chart won't render
+          validatedDataType = defaults.dataType
+        }
+      }
     }
 
     // Validate time range
