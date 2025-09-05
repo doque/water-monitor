@@ -5,7 +5,7 @@ type DataType = "level" | "temperature" | "flow"
 
 // Format absolute change with appropriate emoji
 export function getChangeIndicator(absoluteChange: number, status: string, unit: string, compact = false) {
-  if (absoluteChange === undefined || absoluteChange === null) return "Keine Daten"
+  if (absoluteChange === undefined || absoluteChange === null) return "Keine Daten verfügbar"
 
   // Format the change: For values over 10 no decimal places, otherwise one
   const formattedChange =

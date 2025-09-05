@@ -54,7 +54,7 @@ export function WebcamCard({ webcamUrl, riverName, location, webcamClickUrl }: W
 
               {hasError && (
                 <div className="w-full h-[200px] sm:h-[300px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
-                  <div className="text-gray-500 dark:text-gray-400">Webcam-Bild nicht verfügbar</div>
+                  <div className="text-gray-500 dark:text-gray-400">Keine Daten verfügbar</div>
                 </div>
               )}
 

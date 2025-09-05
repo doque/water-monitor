@@ -5,7 +5,7 @@
  */
 export function createAsciiChart(history: Array<{ date: string; level: number }>, width = 24) {
   if (!history || history.length === 0) {
-    return "No data available for chart"
+    return "Keine Daten verfügbar"
   }
 
   // Limit to the specified width

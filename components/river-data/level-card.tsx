@@ -49,7 +49,7 @@ export function LevelCard({ river, isActive, onClick, isMobile = false, timeRang
             {river.current.level.level} <span className="font-bold">cm</span>
           </div>
         ) : (
-          <div className="text-muted-foreground text-sm">"Keine Daten verfügbar"</div>
+          <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>
         )}
       </CardContent>
     </Card>
