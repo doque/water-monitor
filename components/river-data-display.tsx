@@ -130,6 +130,7 @@ export function RiverDataDisplay(): JSX.Element {
       return { dataType: "temperature", timeRange: "2w" }
     }
 
+    // Smart fallback: flow -> level -> temperature
     let defaultDataType: DataType = "flow"
     if (hasDataForType(river, "flow")) {
       defaultDataType = "flow"
@@ -156,25 +157,14 @@ export function RiverDataDisplay(): JSX.Element {
     const defaults = getDefaultsForRiver(targetRiver)
 
     let validatedDataType: DataType = defaults.dataType
+
+    // If URL has a specific pane requested, check if it has data
     if (validDataTypes.includes(urlDataType)) {
       const requestedDataType = urlDataType as DataType
-
-      // Check if requested data type has data
       if (hasDataForType(targetRiver, requestedDataType)) {
         validatedDataType = requestedDataType
-      } else {
-        // Smart fallback: try flow -> level -> temperature
-        if (hasDataForType(targetRiver, "flow")) {
-          validatedDataType = "flow"
-        } else if (hasDataForType(targetRiver, "level")) {
-          validatedDataType = "level"
-        } else if (hasDataForType(targetRiver, "temperature")) {
-          validatedDataType = "temperature"
-        } else {
-          // No data available for any type - use default but chart won't render
-          validatedDataType = defaults.dataType
-        }
       }
+      // If requested pane has no data, fall back to defaults (which already implements smart fallback)
     }
 
     // Validate time range
@@ -197,15 +187,22 @@ export function RiverDataDisplay(): JSX.Element {
       const urlDataType = searchParams.get("pane") || ""
       const urlTimeRange = searchParams.get("interval") || ""
 
-      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === urlRiverId) || riversWithIds[0]
+      // If no URL params at all, use first river defaults
+      if (!urlRiverId && !urlDataType && !urlTimeRange) {
+        const firstRiver = riversWithIds[0]
+        const defaults = getDefaultsForRiver(firstRiver)
 
-      // Validate and get final values
-      const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, targetRiver)
+        setActiveRiverId(getRiverOrLakeId(firstRiver))
+        setActiveDataType(defaults.dataType)
+        setTimeRange(defaults.timeRange)
+      } else {
+        // Validate URL params and apply smart fallback
+        const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, null)
 
-      // Set state once with validated values
-      setActiveRiverId(validated.riverId)
-      setActiveDataType(validated.dataType)
-      setTimeRange(validated.timeRange)
+        setActiveRiverId(validated.riverId)
+        setActiveDataType(validated.dataType)
+        setTimeRange(validated.timeRange)
+      }
 
       // Mark as initialized
       isInitializedRef.current = true
@@ -248,13 +245,21 @@ export function RiverDataDisplay(): JSX.Element {
     (value: string) => {
       const newRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === value)
       if (newRiver) {
+        // Keep current timeRange, but get smart default for dataType
         const defaults = getDefaultsForRiver(newRiver)
+
         setActiveRiverId(value)
         setActiveDataType(defaults.dataType)
-        setTimeRange(defaults.timeRange)
+        // Keep existing timeRange unless it's incompatible with lake/river type
+        if (newRiver.isLake && timeRange !== "2w") {
+          setTimeRange("2w")
+        } else if (!newRiver.isLake && timeRange === "2w") {
+          setTimeRange("24h")
+        }
+        // Otherwise keep current timeRange
       }
     },
-    [riversWithIds],
+    [riversWithIds, timeRange],
   )
 
   const handleTimeRangeChange = useCallback((value: TimeRangeOption) => {
