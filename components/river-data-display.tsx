@@ -131,18 +131,6 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
-  // Helper function to get available data types for a river
-  function getAvailableDataTypes(river: any): DataType[] {
-    if (!river) return []
-
-    const available: DataType[] = []
-    if (hasActualDataForType(river, "flow")) available.push("flow")
-    if (hasActualDataForType(river, "level")) available.push("level")
-    if (hasActualDataForType(river, "temperature")) available.push("temperature")
-
-    return available
-  }
-
   function getDefaultsForRiver(river: any): { dataType: DataType; timeRange: TimeRangeOption } {
     console.log("[v0] Getting defaults for river:", river?.name)
 
@@ -165,48 +153,6 @@ export function RiverDataDisplay(): JSX.Element {
 
     console.log("[v0] Final default dataType:", defaultDataType)
     return { dataType: defaultDataType, timeRange: "24h" }
-  }
-
-  // Helper function to validate URL parameters
-  function validateUrlParams(urlRiverId: string, urlDataType: string, urlTimeRange: string, river: any) {
-    const validRiverIds = riversWithIds?.map((r) => getRiverOrLakeId(r)) || []
-    const validDataTypes = ["flow", "level", "temperature"]
-    const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
-
-    const validatedRiverId =
-      urlRiverId && validRiverIds.includes(urlRiverId)
-        ? urlRiverId
-        : urlRiverId
-          ? urlRiverId // Keep the URL ID even if not found yet (data might still be loading)
-          : validRiverIds[0] || ""
-
-    let validatedDataType: DataType
-    if (validDataTypes.includes(urlDataType)) {
-      // URL has a specific pane - preserve it during initialization
-      validatedDataType = urlDataType as DataType
-    } else {
-      // No pane specified in URL, use smart defaults
-      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
-      const defaults = getDefaultsForRiver(targetRiver)
-      validatedDataType = defaults.dataType
-    }
-
-    let validatedTimeRange: TimeRangeOption
-    if (validTimeRanges.includes(urlTimeRange)) {
-      // URL has a specific time range - preserve it during initialization
-      validatedTimeRange = urlTimeRange as TimeRangeOption
-    } else {
-      // No time range specified in URL, use smart defaults
-      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
-      const defaults = getDefaultsForRiver(targetRiver)
-      validatedTimeRange = defaults.timeRange
-    }
-
-    return {
-      riverId: validatedRiverId,
-      dataType: validatedDataType,
-      timeRange: validatedTimeRange,
-    }
   }
 
   // Helper function to get valid time ranges for water body type
@@ -234,6 +180,54 @@ export function RiverDataDisplay(): JSX.Element {
     return validRanges.includes(timeRange)
   }
 
+  // Helper function to validate URL parameters
+  function validateUrlParams(urlRiverId: string, urlDataType: string, urlTimeRange: string, river: any) {
+    const validRiverIds = riversWithIds?.map((r) => getRiverOrLakeId(r)) || []
+    const validDataTypes = ["flow", "level", "temperature"]
+    const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
+
+    const validatedRiverId =
+      urlRiverId && validRiverIds.includes(urlRiverId)
+        ? urlRiverId
+        : urlRiverId
+          ? urlRiverId // Keep the URL ID even if not found yet (data might still be loading)
+          : validRiverIds[0] || ""
+
+    let validatedDataType: DataType
+    if (validDataTypes.includes(urlDataType) && river) {
+      if (hasActualDataForType(river, urlDataType as DataType)) {
+        validatedDataType = urlDataType as DataType
+      } else {
+        // Requested pane has no data, use smart fallback
+        const defaults = getDefaultsForRiver(river)
+        validatedDataType = defaults.dataType
+      }
+    } else if (validDataTypes.includes(urlDataType)) {
+      // URL has a specific pane but no river context yet - preserve it
+      validatedDataType = urlDataType as DataType
+    } else {
+      // No pane specified in URL, use smart defaults
+      const defaults = getDefaultsForRiver(river)
+      validatedDataType = defaults.dataType
+    }
+
+    let validatedTimeRange: TimeRangeOption
+    if (validTimeRanges.includes(urlTimeRange)) {
+      // URL has a specific time range - preserve it during initialization
+      validatedTimeRange = urlTimeRange as TimeRangeOption
+    } else {
+      // No time range specified in URL, use smart defaults
+      const defaults = getDefaultsForRiver(river)
+      validatedTimeRange = defaults.timeRange
+    }
+
+    return {
+      riverId: validatedRiverId,
+      dataType: validatedDataType,
+      timeRange: validatedTimeRange,
+    }
+  }
+
   // Single initialization effect - runs once when data is loaded
   useEffect(() => {
     if (!isLoading && riversWithIds && riversWithIds.length > 0 && !isInitializedRef.current) {
@@ -251,8 +245,10 @@ export function RiverDataDisplay(): JSX.Element {
         setActiveDataType(defaults.dataType)
         setTimeRange(defaults.timeRange)
       } else {
-        // Validate URL params and apply smart fallback
-        const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, null)
+        const targetRiver = riversWithIds.find((r) => getRiverOrLakeId(r) === urlRiverId) || riversWithIds[0]
+
+        // Validate URL params with the correct river context
+        const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, targetRiver)
 
         setActiveRiverId(validated.riverId)
         setActiveDataType(validated.dataType)
@@ -295,35 +291,6 @@ export function RiverDataDisplay(): JSX.Element {
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
-  useEffect(() => {
-    if (!isInitializedRef.current || !activeRiver || !data) return
-
-    console.log("[v0] Checking data availability for", activeRiver.name, "dataType:", activeDataType)
-
-    // Check if current data type actually has data
-    if (!hasActualDataForType(activeRiver, activeDataType)) {
-      console.log("[v0] No data for current type", activeDataType, "attempting fallback")
-
-      // Try fallback in priority order: flow -> level -> temperature
-      const fallbackOrder: DataType[] = ["flow", "level", "temperature"]
-      let foundFallback = false
-
-      for (const fallbackType of fallbackOrder) {
-        if (hasActualDataForType(activeRiver, fallbackType)) {
-          console.log("[v0] Falling back to", fallbackType)
-          setActiveDataType(fallbackType)
-          foundFallback = true
-          break
-        }
-      }
-
-      if (!foundFallback) {
-        console.log("[v0] No data available for any type")
-      }
-    }
-  }, [activeRiver, activeDataType, data])
-
-  // Stable handlers that immediately update state (and thus URL)
   const handleRiverChange = useCallback(
     (value: string) => {
       const newRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === value)
