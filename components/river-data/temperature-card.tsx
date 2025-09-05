@@ -57,7 +57,7 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
             )}
           </div>
         ) : (
-          <div className="text-muted-foreground text-sm">Keine Temperaturdaten verfügbar</div>
+          <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>
         )}
       </CardContent>
     </Card>
