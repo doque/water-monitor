@@ -203,6 +203,31 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
+  // Helper function to get valid time ranges for water body type
+  function getValidTimeRanges(isLake: boolean, lakeName?: string): TimeRangeOption[] {
+    if (isLake) {
+      if (lakeName === "Spitzingsee") {
+        return ["1w", "2w", "1m", "2m", "6m"]
+      } else {
+        return ["1w", "2w", "1m", "2m"]
+      }
+    } else {
+      return ["1h", "2h", "6h", "12h", "24h", "48h", "1w"]
+    }
+  }
+
+  // Helper function to get largest available time range
+  function getLargestAvailableTimeRange(isLake: boolean, lakeName?: string): TimeRangeOption {
+    const validRanges = getValidTimeRanges(isLake, lakeName)
+    return validRanges[validRanges.length - 1]
+  }
+
+  // Helper function to check if time range is valid for water body
+  function isTimeRangeValidForWaterBody(timeRange: TimeRangeOption, isLake: boolean, lakeName?: string): boolean {
+    const validRanges = getValidTimeRanges(isLake, lakeName)
+    return validRanges.includes(timeRange)
+  }
+
   // Single initialization effect - runs once when data is loaded
   useEffect(() => {
     if (!isLoading && riversWithIds && riversWithIds.length > 0 && !isInitializedRef.current) {
@@ -297,18 +322,18 @@ export function RiverDataDisplay(): JSX.Element {
     (value: string) => {
       const newRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === value)
       if (newRiver) {
-        // Keep current timeRange, but get smart default for dataType
+        // Get smart default for dataType
         const defaults = getDefaultsForRiver(newRiver)
 
         setActiveRiverId(value)
         setActiveDataType(defaults.dataType)
-        // Keep existing timeRange unless it's incompatible with lake/river type
-        if (newRiver.isLake && timeRange !== "2w") {
-          setTimeRange("2w")
-        } else if (!newRiver.isLake && timeRange === "2w") {
-          setTimeRange("24h")
+
+        if (!isTimeRangeValidForWaterBody(timeRange, newRiver.isLake, newRiver.name)) {
+          // Current time range is not valid for new water body, use largest available
+          const largestAvailable = getLargestAvailableTimeRange(newRiver.isLake, newRiver.name)
+          setTimeRange(largestAvailable)
         }
-        // Otherwise keep current timeRange
+        // Otherwise keep current timeRange if it's valid
       }
     },
     [riversWithIds, timeRange],
