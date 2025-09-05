@@ -130,15 +130,12 @@ export function RiverDataDisplay(): JSX.Element {
       return { dataType: "temperature", timeRange: "2w" }
     }
 
-    const availableTypes = getAvailableDataTypes(river)
-
-    // Priority order: flow -> level -> temperature
     let defaultDataType: DataType = "flow"
-    if (availableTypes.includes("flow")) {
+    if (hasDataForType(river, "flow")) {
       defaultDataType = "flow"
-    } else if (availableTypes.includes("level")) {
+    } else if (hasDataForType(river, "level")) {
       defaultDataType = "level"
-    } else if (availableTypes.includes("temperature")) {
+    } else if (hasDataForType(river, "temperature")) {
       defaultDataType = "temperature"
     }
 
@@ -200,8 +197,10 @@ export function RiverDataDisplay(): JSX.Element {
       const urlDataType = searchParams.get("pane") || ""
       const urlTimeRange = searchParams.get("interval") || ""
 
+      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === urlRiverId) || riversWithIds[0]
+
       // Validate and get final values
-      const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, null)
+      const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, targetRiver)
 
       // Set state once with validated values
       setActiveRiverId(validated.riverId)
