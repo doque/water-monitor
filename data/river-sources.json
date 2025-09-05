@@ -1,6 +1,17 @@
 {
   "rivers": [
     {
+      "name": "Mangfall",
+      "location": "Schmerold",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&setdiskr=15",
+      "flowThresholds": {
+        "green": [2, 8],
+        "yellow": [8, 10],
+        "red": [[null, 2], [8, null]]
+      }
+    },
+    {
       "name": "Leitzach",
       "location": "Stauden",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=wasserstand&setdiskr=15",
@@ -49,17 +60,6 @@
         "green": [0.3, 1.5],
         "yellow": [1.5, 3],
         "red": [[null, 0.3], [3, null]]
-      }
-    },
-    {
-      "name": "Mangfall",
-      "location": "Schmerold",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
-      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&setdiskr=15",
-      "flowThresholds": {
-        "green": [2, 8],
-        "yellow": [8, 10],
-        "red": [[null, 2], [8, null]]
       }
     },
     {
