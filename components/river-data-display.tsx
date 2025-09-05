@@ -113,14 +113,22 @@ export function RiverDataDisplay(): JSX.Element {
   }
 
   function hasActualDataForType(river: any, dataType: DataType): boolean {
-    if (!river || !data) return false
+    if (!river || !river.history) return false
 
     // First check if URLs exist (basic availability)
     if (!hasDataForType(river, dataType)) return false
 
-    // TODO: Add logic to check if the API actually returns data for this type
-    // This would require checking the actual chart data response
-    return true
+    // Now check if actual data exists in the history
+    switch (dataType) {
+      case "flow":
+        return river.history.flows && river.history.flows.length > 0
+      case "level":
+        return river.history.levels && river.history.levels.length > 0
+      case "temperature":
+        return river.history.temperatures && river.history.temperatures.length > 0
+      default:
+        return false
+    }
   }
 
   // Helper function to get available data types for a river
@@ -142,7 +150,6 @@ export function RiverDataDisplay(): JSX.Element {
       return { dataType: "temperature", timeRange: "2w" }
     }
 
-    // Smart fallback: flow -> level -> temperature
     let defaultDataType: DataType = "flow"
 
     if (hasActualDataForType(river, "flow")) {
@@ -262,14 +269,26 @@ export function RiverDataDisplay(): JSX.Element {
 
     console.log("[v0] Checking data availability for", activeRiver.name, "dataType:", activeDataType)
 
-    // Check if current data type actually has data by looking at the chart component's data
-    // We need to trigger fallback if the selected pane has no actual data
-    const availableTypes = getAvailableDataTypes(activeRiver)
-    console.log("[v0] Available data types:", availableTypes)
+    // Check if current data type actually has data
+    if (!hasActualDataForType(activeRiver, activeDataType)) {
+      console.log("[v0] No data for current type", activeDataType, "attempting fallback")
 
-    if (availableTypes.length > 0 && !availableTypes.includes(activeDataType)) {
-      console.log("[v0] Current dataType", activeDataType, "not available, falling back to", availableTypes[0])
-      setActiveDataType(availableTypes[0])
+      // Try fallback in priority order: flow -> level -> temperature
+      const fallbackOrder: DataType[] = ["flow", "level", "temperature"]
+      let foundFallback = false
+
+      for (const fallbackType of fallbackOrder) {
+        if (hasActualDataForType(activeRiver, fallbackType)) {
+          console.log("[v0] Falling back to", fallbackType)
+          setActiveDataType(fallbackType)
+          foundFallback = true
+          break
+        }
+      }
+
+      if (!foundFallback) {
+        console.log("[v0] No data available for any type")
+      }
     }
   }, [activeRiver, activeDataType, data])
 
