@@ -65,9 +65,7 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
             {river.current.flow.flow.toFixed(2)} <span className="font-bold">m³/s</span>
           </div>
         ) : (
-          <div className="text-muted-foreground text-sm">
-            {river.isLake ? "Nicht verfügbar für Seen" : "Keine Daten verfügbar"}
-          </div>
+          <div className="text-muted-foreground text-sm">Keine Daten verfügbar</div>
         )}
       </CardContent>
     </Card>
