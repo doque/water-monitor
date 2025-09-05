@@ -192,20 +192,26 @@ export function RiverDataDisplay(): JSX.Element {
       }
     }
 
-    const defaults = getDefaultsForRiver(targetRiver)
+    let validatedDataType: DataType
 
-    let validatedDataType: DataType = defaults.dataType
-
-    // If URL has a specific pane requested, check if it has data
     if (validDataTypes.includes(urlDataType)) {
+      // URL has a specific pane requested - use it if valid, otherwise fallback
       const requestedDataType = urlDataType as DataType
       if (hasActualDataForType(targetRiver, requestedDataType)) {
         validatedDataType = requestedDataType
+      } else {
+        // Requested pane has no data, use smart fallback
+        const defaults = getDefaultsForRiver(targetRiver)
+        validatedDataType = defaults.dataType
       }
-      // If requested pane has no data, fall back to defaults (which already implements smart fallback)
+    } else {
+      // No pane specified in URL, use smart defaults
+      const defaults = getDefaultsForRiver(targetRiver)
+      validatedDataType = defaults.dataType
     }
 
-    // Validate time range
+    // Validate time range - use defaults only if URL doesn't specify one
+    const defaults = getDefaultsForRiver(targetRiver)
     const validatedTimeRange = validTimeRanges.includes(urlTimeRange)
       ? (urlTimeRange as TimeRangeOption)
       : defaults.timeRange
