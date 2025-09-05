@@ -324,10 +324,6 @@ export function RiverDataDisplay(): JSX.Element {
         return
       }
 
-      // Only allow changing to flow or level if not a lake
-      if (activeRiver && activeRiver.isLake && dataType !== "temperature") {
-        return
-      }
       setActiveDataType(dataType)
     },
     [activeRiver],

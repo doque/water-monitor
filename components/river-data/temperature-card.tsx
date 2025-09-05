@@ -28,10 +28,13 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
     }
   }, [river, timeRange])
 
+  const hasTemperatureData = river.history?.temperatures && river.history.temperatures.length > 0
+  const isDisabled = !hasTemperatureData
+
   return (
     <Card
-      className={`cursor-pointer transition-all ${isActive ? "bg-muted" : "hover:bg-muted/50"}`}
-      onClick={() => (river.urls.temperature ? onClick() : null)}
+      className={`transition-all ${isActive ? "bg-muted" : isDisabled ? "opacity-50" : "hover:bg-muted/50"} ${!isDisabled ? "cursor-pointer" : "cursor-not-allowed"}`}
+      onClick={() => !isDisabled && onClick()}
     >
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
@@ -43,7 +46,7 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
         {!isLake && isMobile && trendDisplay && <div className="text-sm font-normal mt-1">{trendDisplay}</div>}
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
-        {river.current.temperature ? (
+        {river.current.temperature && hasTemperatureData ? (
           <div>
             <div className="text-4xl font-bold">
               {river.current.temperature.temperature.toFixed(1)} <span className="font-bold">°C</span>

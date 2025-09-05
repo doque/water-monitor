@@ -41,13 +41,14 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
     }
   }, [river, timeRange])
 
-  // Check if this is a lake (only has temperature data)
-  const isLake = river.isLake === true
+  // Check if this is a lake (only has temperature data) and if flow data is available
+  const hasFlowData = river.history?.flows && river.history.flows.length > 0
+  const isDisabled = river.isLake === true || !hasFlowData
 
   return (
     <Card
-      className={`transition-all ${isActive ? "bg-muted" : isLake ? "opacity-50" : "hover:bg-muted/50"} ${!isLake ? "cursor-pointer" : "cursor-not-allowed"}`}
-      onClick={() => !isLake && onClick()}
+      className={`transition-all ${isActive ? "bg-muted" : isDisabled ? "opacity-50" : "hover:bg-muted/50"} ${!isDisabled ? "cursor-pointer" : "cursor-not-allowed"}`}
+      onClick={() => !isDisabled && onClick()}
     >
       <CardHeader className="pb-2 p-3 sm:p-6">
         <div className="flex justify-between items-center">
@@ -59,13 +60,13 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
         </div>
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
-        {river.current.flow ? (
+        {river.current.flow && hasFlowData ? (
           <div className="text-4xl font-bold">
             {river.current.flow.flow.toFixed(2)} <span className="font-bold">m³/s</span>
           </div>
         ) : (
           <div className="text-muted-foreground text-sm">
-            {isLake ? "Nicht verfügbar für Seen" : "Keine Daten verfügbar"}
+            {river.isLake ? "Nicht verfügbar für Seen" : "Keine Daten verfügbar"}
           </div>
         )}
       </CardContent>
