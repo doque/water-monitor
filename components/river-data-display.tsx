@@ -112,34 +112,51 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
+  function hasActualDataForType(river: any, dataType: DataType): boolean {
+    if (!river || !data) return false
+
+    // First check if URLs exist (basic availability)
+    if (!hasDataForType(river, dataType)) return false
+
+    // TODO: Add logic to check if the API actually returns data for this type
+    // This would require checking the actual chart data response
+    return true
+  }
+
   // Helper function to get available data types for a river
   function getAvailableDataTypes(river: any): DataType[] {
     if (!river) return []
 
     const available: DataType[] = []
-    if (hasDataForType(river, "flow")) available.push("flow")
-    if (hasDataForType(river, "level")) available.push("level")
-    if (hasDataForType(river, "temperature")) available.push("temperature")
+    if (hasActualDataForType(river, "flow")) available.push("flow")
+    if (hasActualDataForType(river, "level")) available.push("level")
+    if (hasActualDataForType(river, "temperature")) available.push("temperature")
 
     return available
   }
 
-  // Helper function to get default values based on river type and data availability
   function getDefaultsForRiver(river: any): { dataType: DataType; timeRange: TimeRangeOption } {
+    console.log("[v0] Getting defaults for river:", river?.name)
+
     if (river?.isLake) {
       return { dataType: "temperature", timeRange: "2w" }
     }
 
     // Smart fallback: flow -> level -> temperature
     let defaultDataType: DataType = "flow"
-    if (hasDataForType(river, "flow")) {
+
+    if (hasActualDataForType(river, "flow")) {
       defaultDataType = "flow"
-    } else if (hasDataForType(river, "level")) {
+      console.log("[v0] Using flow as default")
+    } else if (hasActualDataForType(river, "level")) {
       defaultDataType = "level"
-    } else if (hasDataForType(river, "temperature")) {
+      console.log("[v0] Falling back to level")
+    } else if (hasActualDataForType(river, "temperature")) {
       defaultDataType = "temperature"
+      console.log("[v0] Falling back to temperature")
     }
 
+    console.log("[v0] Final default dataType:", defaultDataType)
     return { dataType: defaultDataType, timeRange: "24h" }
   }
 
@@ -161,7 +178,7 @@ export function RiverDataDisplay(): JSX.Element {
     // If URL has a specific pane requested, check if it has data
     if (validDataTypes.includes(urlDataType)) {
       const requestedDataType = urlDataType as DataType
-      if (hasDataForType(targetRiver, requestedDataType)) {
+      if (hasActualDataForType(targetRiver, requestedDataType)) {
         validatedDataType = requestedDataType
       }
       // If requested pane has no data, fall back to defaults (which already implements smart fallback)
@@ -240,6 +257,22 @@ export function RiverDataDisplay(): JSX.Element {
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
+  useEffect(() => {
+    if (!isInitializedRef.current || !activeRiver || !data) return
+
+    console.log("[v0] Checking data availability for", activeRiver.name, "dataType:", activeDataType)
+
+    // Check if current data type actually has data by looking at the chart component's data
+    // We need to trigger fallback if the selected pane has no actual data
+    const availableTypes = getAvailableDataTypes(activeRiver)
+    console.log("[v0] Available data types:", availableTypes)
+
+    if (availableTypes.length > 0 && !availableTypes.includes(activeDataType)) {
+      console.log("[v0] Current dataType", activeDataType, "not available, falling back to", availableTypes[0])
+      setActiveDataType(availableTypes[0])
+    }
+  }, [activeRiver, activeDataType, data])
+
   // Stable handlers that immediately update state (and thus URL)
   const handleRiverChange = useCallback(
     (value: string) => {
@@ -268,7 +301,7 @@ export function RiverDataDisplay(): JSX.Element {
 
   const handleDataTypeChange = useCallback(
     (dataType: DataType) => {
-      if (!hasDataForType(activeRiver, dataType)) {
+      if (!hasActualDataForType(activeRiver, dataType)) {
         return
       }
 
