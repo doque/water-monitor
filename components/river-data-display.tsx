@@ -93,12 +93,56 @@ export function RiverDataDisplay(): JSX.Element {
     return `river-${name}-${location}`
   }
 
-  // Helper function to get default values based on river type
+  // Helper function to check if data is available for a specific data type
+  function hasDataForType(river: any, dataType: DataType): boolean {
+    if (!river) return false
+
+    switch (dataType) {
+      case "flow":
+        // Check if river has flow URL and is not a lake
+        return !river.isLake && !!river.urls?.flow
+      case "level":
+        // Check if river has level URL
+        return !!river.urls?.level
+      case "temperature":
+        // Check if river has temperature URL
+        return !!river.urls?.temperature
+      default:
+        return false
+    }
+  }
+
+  // Helper function to get available data types for a river
+  function getAvailableDataTypes(river: any): DataType[] {
+    if (!river) return []
+
+    const available: DataType[] = []
+    if (hasDataForType(river, "flow")) available.push("flow")
+    if (hasDataForType(river, "level")) available.push("level")
+    if (hasDataForType(river, "temperature")) available.push("temperature")
+
+    return available
+  }
+
+  // Helper function to get default values based on river type and data availability
   function getDefaultsForRiver(river: any): { dataType: DataType; timeRange: TimeRangeOption } {
     if (river?.isLake) {
       return { dataType: "temperature", timeRange: "2w" }
     }
-    return { dataType: "flow", timeRange: "24h" }
+
+    const availableTypes = getAvailableDataTypes(river)
+
+    // Priority order: flow -> level -> temperature
+    let defaultDataType: DataType = "flow"
+    if (availableTypes.includes("flow")) {
+      defaultDataType = "flow"
+    } else if (availableTypes.includes("level")) {
+      defaultDataType = "level"
+    } else if (availableTypes.includes("temperature")) {
+      defaultDataType = "temperature"
+    }
+
+    return { dataType: defaultDataType, timeRange: "24h" }
   }
 
   // Helper function to validate URL parameters
@@ -114,8 +158,10 @@ export function RiverDataDisplay(): JSX.Element {
     const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
     const defaults = getDefaultsForRiver(targetRiver)
 
-    // Validate data type
-    const validatedDataType = validDataTypes.includes(urlDataType) ? (urlDataType as DataType) : defaults.dataType
+    let validatedDataType: DataType = defaults.dataType
+    if (validDataTypes.includes(urlDataType) && hasDataForType(targetRiver, urlDataType as DataType)) {
+      validatedDataType = urlDataType as DataType
+    }
 
     // Validate time range
     const validatedTimeRange = validTimeRanges.includes(urlTimeRange)
@@ -201,6 +247,10 @@ export function RiverDataDisplay(): JSX.Element {
 
   const handleDataTypeChange = useCallback(
     (dataType: DataType) => {
+      if (!hasDataForType(activeRiver, dataType)) {
+        return
+      }
+
       // Only allow changing to flow or level if not a lake
       if (activeRiver && activeRiver.isLake && dataType !== "temperature") {
         return
@@ -366,6 +416,7 @@ export function RiverDataDisplay(): JSX.Element {
                   river={activeRiver}
                   isActive={activeDataType === "flow"}
                   onClick={() => handleDataTypeChange("flow")}
+                  isMobile={true}
                   timeRange={timeRange}
                   showColors={adminMode}
                 />

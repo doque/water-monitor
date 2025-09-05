@@ -427,6 +427,14 @@ async function fetchWaterFlow(url: string): Promise<{
     })
 
     if (!response.ok) {
+      if (response.status === 404) {
+        console.warn(`Flow data not available (404) for URL: ${url}. This river may not have flow data.`)
+        return {
+          current: null,
+          history: [],
+          changeStatus: "stable",
+        }
+      }
       throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
 
