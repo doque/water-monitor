@@ -173,11 +173,25 @@ export function RiverDataDisplay(): JSX.Element {
     const validDataTypes = ["flow", "level", "temperature"]
     const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
 
-    // Validate river ID
-    const validatedRiverId = validRiverIds.includes(urlRiverId) ? urlRiverId : validRiverIds[0] || ""
+    const validatedRiverId =
+      urlRiverId && validRiverIds.includes(urlRiverId)
+        ? urlRiverId
+        : urlRiverId
+          ? urlRiverId // Keep the URL ID even if not found yet (data might still be loading)
+          : validRiverIds[0] || ""
 
     // Find the river for this ID
     const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
+
+    if (!targetRiver && urlRiverId) {
+      // River not found but URL has specific ID - preserve URL params
+      return {
+        riverId: urlRiverId,
+        dataType: validDataTypes.includes(urlDataType) ? (urlDataType as DataType) : "level",
+        timeRange: validTimeRanges.includes(urlTimeRange) ? (urlTimeRange as TimeRangeOption) : "12h",
+      }
+    }
+
     const defaults = getDefaultsForRiver(targetRiver)
 
     let validatedDataType: DataType = defaults.dataType
