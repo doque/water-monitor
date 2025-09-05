@@ -180,41 +180,27 @@ export function RiverDataDisplay(): JSX.Element {
           ? urlRiverId // Keep the URL ID even if not found yet (data might still be loading)
           : validRiverIds[0] || ""
 
-    // Find the river for this ID
-    const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
-
-    if (!targetRiver && urlRiverId) {
-      // River not found but URL has specific ID - preserve URL params
-      return {
-        riverId: urlRiverId,
-        dataType: validDataTypes.includes(urlDataType) ? (urlDataType as DataType) : "level",
-        timeRange: validTimeRanges.includes(urlTimeRange) ? (urlTimeRange as TimeRangeOption) : "12h",
-      }
-    }
-
     let validatedDataType: DataType
-
     if (validDataTypes.includes(urlDataType)) {
-      // URL has a specific pane requested - use it if valid, otherwise fallback
-      const requestedDataType = urlDataType as DataType
-      if (hasActualDataForType(targetRiver, requestedDataType)) {
-        validatedDataType = requestedDataType
-      } else {
-        // Requested pane has no data, use smart fallback
-        const defaults = getDefaultsForRiver(targetRiver)
-        validatedDataType = defaults.dataType
-      }
+      // URL has a specific pane - preserve it during initialization
+      validatedDataType = urlDataType as DataType
     } else {
       // No pane specified in URL, use smart defaults
+      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
       const defaults = getDefaultsForRiver(targetRiver)
       validatedDataType = defaults.dataType
     }
 
-    // Validate time range - use defaults only if URL doesn't specify one
-    const defaults = getDefaultsForRiver(targetRiver)
-    const validatedTimeRange = validTimeRanges.includes(urlTimeRange)
-      ? (urlTimeRange as TimeRangeOption)
-      : defaults.timeRange
+    let validatedTimeRange: TimeRangeOption
+    if (validTimeRanges.includes(urlTimeRange)) {
+      // URL has a specific time range - preserve it during initialization
+      validatedTimeRange = urlTimeRange as TimeRangeOption
+    } else {
+      // No time range specified in URL, use smart defaults
+      const targetRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === validatedRiverId)
+      const defaults = getDefaultsForRiver(targetRiver)
+      validatedTimeRange = defaults.timeRange
+    }
 
     return {
       riverId: validatedRiverId,
