@@ -2,9 +2,9 @@
   "rivers": [
     {
       "name": "Mangfall",
-      "location": "Schmerold",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=wasserstand&setdiskr=15",
-      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-18202000/tabelle?methode=abfluss&setdiskr=15",
+      "location": "Valley",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=abfluss&setdiskr=15",
       "flowThresholds": {
         "green": [2, 8],
         "yellow": [8, 10],
