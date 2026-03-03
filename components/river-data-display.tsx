@@ -2,14 +2,21 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { RiverSelect } from "@/components/river-data/river-select"
-import { TimeRangeSelect, type TimeRangeOption } from "@/components/river-data/time-range-select"
+import {
+  TimeRangeSelect,
+  type TimeRangeOption,
+  filterTimeRangeOptions,
+  riverTimeRangeOptions,
+  spitzingseeTimeRangeOptions,
+  otherLakeTimeRangeOptions,
+} from "@/components/river-data/time-range-select"
 import { FlowCard } from "@/components/river-data/flow-card"
 import { LevelCard } from "@/components/river-data/level-card"
 import { TemperatureCard } from "@/components/river-data/temperature-card"
 import { RiverChart, type DataType } from "@/components/river-data/river-chart"
 import { WebcamCard } from "@/components/river-data/webcam-card"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
-import { extractRiverId } from "@/utils/water-data"
+import { extractRiverId, getHistorySpanDays } from "@/utils/water-data"
 import { isAdminMode } from "@/utils/admin-mode"
 import { useRiverData } from "@/contexts/river-data-context"
 import { RiverDataSkeleton } from "@/components/river-data-skeleton"
@@ -71,6 +78,39 @@ export function RiverDataDisplay(): JSX.Element {
   const activeRiver = useMemo(() => {
     return riversWithIds?.find((r) => getRiverOrLakeId(r) === activeRiverId) || riversWithIds?.[0]
   }, [riversWithIds, activeRiverId])
+
+  // Compute the span of the active history array in days
+  const spanDays = useMemo(() => {
+    if (!activeRiver) return 0
+    switch (activeDataType) {
+      case "temperature":
+        return getHistorySpanDays(activeRiver.history?.temperatures ?? [])
+      case "level":
+        return getHistorySpanDays(activeRiver.history?.levels ?? [])
+      case "flow":
+        return getHistorySpanDays(activeRiver.history?.flows ?? [])
+      default:
+        return 0
+    }
+  }, [activeRiver, activeDataType])
+
+  // Determine the base option set for the active water body
+  const baseTimeRangeOptions = useMemo(() => {
+    if (!activeRiver) return riverTimeRangeOptions
+    if (activeRiver.isLake) {
+      return activeRiver.name === "Spitzingsee" ? spitzingseeTimeRangeOptions : otherLakeTimeRangeOptions
+    }
+    return riverTimeRangeOptions
+  }, [activeRiver])
+
+  // Filter options based on available data span — lakes only; rivers always show full base set
+  const availableOptions = useMemo(() => {
+    if (isLoading || !activeRiver || !activeRiver.isLake) return undefined
+    return filterTimeRangeOptions(
+      baseTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
+      spanDays
+    )
+  }, [isLoading, activeRiver, baseTimeRangeOptions, spanDays])
 
   // Helper function to generate consistent IDs for both rivers and lakes
   function getRiverOrLakeId(river: any): string {
@@ -283,6 +323,21 @@ export function RiverDataDisplay(): JSX.Element {
     }, 0)
   }, [activeRiverId, activeDataType, timeRange, router])
 
+  // Guard: if selected timeRange is not in availableOptions, fall back to largest available
+  useEffect(() => {
+    if (!isInitializedRef.current) return
+    if (!availableOptions) return
+    const isValid = availableOptions.some(o => o.value === timeRange)
+    if (!isValid) {
+      const largest = availableOptions[availableOptions.length - 1].value
+      setTimeRange(largest)
+      router.replace(
+        `?${new URLSearchParams({ id: activeRiverId, pane: activeDataType, interval: largest }).toString()}`,
+        { scroll: false }
+      )
+    }
+  }, [availableOptions, timeRange, activeRiverId, activeDataType, router])
+
   // Detect if we're on mobile
   useEffect(() => {
     const checkIfMobile = () => {
@@ -391,6 +446,7 @@ export function RiverDataDisplay(): JSX.Element {
                 onValueChange={handleTimeRangeChange}
                 isLake={true}
                 lakeName={activeRiver.name}
+                filteredOptions={availableOptions}
               />
             </div>
           </>
@@ -405,7 +461,7 @@ export function RiverDataDisplay(): JSX.Element {
               />
             </div>
             <div className="col-span-5 sm:col-span-6">
-              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} />
+              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} filteredOptions={availableOptions} />
             </div>
           </>
         )}
