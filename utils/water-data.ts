@@ -1,8 +1,6 @@
 import * as cheerio from "cheerio"
 import riverSources from "@/data/river-sources.json"
 
-const currentYear = 2025 // Declare the currentYear variable
-
 export interface WaterLevelDataPoint {
   date: string
   level: number
@@ -521,7 +519,7 @@ async function fetchWaterFlow(url: string): Promise<{
   }
 }
 
-// New function to parse Spitzingsee temperature data from JavaScript
+// Fetch current temperature for Spitzingsee from the new inline markup
 async function fetchSpitzingseeTemperature(url: string): Promise<{
   current: WaterTemperatureDataPoint
   history: WaterTemperatureDataPoint[]
@@ -547,45 +545,34 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
 
     const html = await response.text()
 
-    // Parse current temperature from curinfo div first
-    const currentTemp = parseSpitzingseeCurinfo(html)
+    const tempMatch = html.match(
+      /Aktuelle Wassertemperatur[^:]*:\s*<span[^>]*>(-?\d+[.,]?\d*)\s*°\s*C<\/span>/i,
+    )
 
-    // Parse data from both JavaScript arrays and HTML table
-    const jsData = parseSpitzingseeJavaScriptData(html, url)
-    const tableData = parseSpitzingseeTableData(html, url)
-
-    // Merge the data without duplicates
-    const mergedData = mergeSpitzingseeData(jsData, tableData)
-
-    // Override current date's datapoint with curinfo temperature if available
-    if (currentTemp !== null && mergedData.length > 0) {
-      const today = new Date()
-      const todayString = `${today.getDate().toString().padStart(2, "0")}.${(today.getMonth() + 1).toString().padStart(2, "0")}.${today.getFullYear()}`
-
-      // Find and update today's datapoint or create a new one
-      const todayIndex = mergedData.findIndex((point) => point.date.startsWith(todayString))
-
-      const currentDataPoint: WaterTemperatureDataPoint = {
-        date: `${todayString} ${today.getHours().toString().padStart(2, "0")}:${today.getMinutes().toString().padStart(2, "0")}`,
-        temperature: currentTemp,
-        timestamp: new Date(today),
+    if (!tempMatch) {
+      console.warn(`Spitzingsee: expected temperature pattern not found in HTML response from ${url}`)
+      return {
+        current: null,
+        history: [],
+        changeStatus: "stable",
       }
-
-      if (todayIndex >= 0) {
-        // Replace existing today's datapoint
-        mergedData[todayIndex] = currentDataPoint
-      } else {
-        // Add new current datapoint at the beginning
-        mergedData.unshift(currentDataPoint)
-      }
-
-      // Re-sort to ensure most recent first
-      mergedData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-
-      console.log(`Updated current Spitzingsee temperature to ${currentTemp}°C from curinfo div`)
     }
 
-    return processSpitzingseeDataPoints(mergedData, url)
+    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
+    const now = new Date()
+    const dateString = `${now.getDate().toString().padStart(2, "0")}.${(now.getMonth() + 1).toString().padStart(2, "0")}.${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
+
+    const dataPoint: WaterTemperatureDataPoint = {
+      date: dateString,
+      temperature,
+      timestamp: new Date(now),
+    }
+
+    return {
+      current: dataPoint,
+      history: [],
+      changeStatus: "stable",
+    }
   } catch (error) {
     console.error(`Error fetching Spitzingsee temperature data for ${url}:`, error)
     return {
@@ -594,317 +581,6 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
       changeStatus: "stable",
     }
   }
-}
-
-// New function to parse current temperature from curinfo div
-function parseSpitzingseeCurinfo(html: string): number | null {
-  try {
-    const $ = cheerio.load(html)
-    const curinfoDiv = $("#curinfo")
-
-    if (curinfoDiv.length === 0) {
-      console.warn("No curinfo div found for Spitzingsee")
-      return null
-    }
-
-    const curinfoText = curinfoDiv.text()
-    console.log(`Curinfo text: ${curinfoText}`)
-
-    // Extract temperature from "Der aktuelle Wert beträgt 14.4 Grad"
-    const tempMatch = curinfoText.match(/Der aktuelle Wert beträgt\s+(\d+[.,]\d*)\s+Grad/i)
-
-    if (!tempMatch) {
-      console.warn(`Could not extract temperature from curinfo: ${curinfoText}`)
-      return null
-    }
-
-    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
-
-    if (isNaN(temperature)) {
-      console.warn(`Invalid temperature value: ${tempMatch[1]}`)
-      return null
-    }
-
-    console.log(`Extracted current temperature from curinfo: ${temperature}°C`)
-    return temperature
-  } catch (error) {
-    console.error("Error parsing curinfo div:", error)
-    return null
-  }
-}
-
-// Parse JavaScript data from the chart
-function parseSpitzingseeJavaScriptData(html: string, url: string): WaterTemperatureDataPoint[] {
-  const dataPoints: WaterTemperatureDataPoint[] = []
-
-  // More robust regex to extract the JavaScript data array
-  const dataMatch = html.match(/arrayToDataTable$$\[\s*\['Days',\s*'[^']+'\],\s*((?:\[[-\d]+,[\d.]+\],?\s*)+)\s*\]$$/)
-
-  if (!dataMatch) {
-    // Try alternative pattern in case the format is slightly different
-    const altMatch = html.match(/\[[-\d]+,[\d.]+\](?:\s*,\s*\[[-\d]+,[\d.]+\])*/g)
-    if (altMatch) {
-      console.log(`Found alternative JS data pattern for Spitzingsee: ${altMatch[0].substring(0, 100)}...`)
-      const dataString = altMatch.join(",")
-      return parseJavaScriptDataString(dataString)
-    }
-
-    console.warn(`No JavaScript temperature data found for Spitzingsee URL: ${url}`)
-    return []
-  }
-
-  return parseJavaScriptDataString(dataMatch[1])
-}
-
-// Parse the JavaScript data string into data points
-function parseJavaScriptDataString(dataString: string): WaterTemperatureDataPoint[] {
-  const dataPoints: WaterTemperatureDataPoint[] = []
-
-  // Extract individual data points [day, temperature]
-  const pointMatches = dataString.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/g)
-
-  if (!pointMatches) {
-    console.warn(`Could not parse JS data points: ${dataString.substring(0, 200)}...`)
-    return []
-  }
-
-  console.log(`Found ${pointMatches.length} JS data points for Spitzingsee`)
-
-  pointMatches.forEach((match) => {
-    const pointMatch = match.match(/\[(-?\d+),(\d+(?:\.\d+)?)\]/)
-    if (pointMatch) {
-      const dayOfYear = Number.parseInt(pointMatch[1], 10)
-      const temperature = Number.parseFloat(pointMatch[2])
-
-      // Convert day of year to actual date
-      const date = new Date(currentYear, 0, 1)
-      date.setDate(date.getDate() + dayOfYear)
-
-      const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
-
-      const dataPoint: WaterTemperatureDataPoint = {
-        date: dateString,
-        temperature,
-        timestamp: date,
-      }
-
-      dataPoints.push(dataPoint)
-    }
-  })
-
-  return dataPoints
-}
-
-// Parse HTML table data
-function parseSpitzingseeTableData(html: string, url: string): WaterTemperatureDataPoint[] {
-  const dataPoints: WaterTemperatureDataPoint[] = []
-  const $ = cheerio.load(html)
-
-  // Look for the table with header "Tabelle der Wassertemperaturwerte nach Tagen"
-  const tableHeader = $('h3:contains("Tabelle der Wassertemperaturwerte nach Tagen")')
-  if (tableHeader.length === 0) {
-    console.warn(`No temperature table found for Spitzingsee URL: ${url}`)
-    return []
-  }
-
-  // Find the table after this header
-  const table = tableHeader.next(".table-container").find("table")
-  if (table.length === 0) {
-    console.warn(`No table found after temperature header for Spitzingsee URL: ${url}`)
-    return []
-  }
-
-  let tableRowCount = 0
-
-  // Parse table rows
-  table.find("tbody tr").each((index, element) => {
-    const dateText = $(element).find("td").eq(0).text().trim()
-
-    // Find temperature cell - try center-aligned first, then pattern matching
-    let tempText = ""
-    const centerCell = $(element).find("td.center")
-    if (centerCell.length > 0) {
-      tempText = centerCell.first().text().trim()
-    } else {
-      // Look for cell containing temperature pattern
-      $(element)
-        .find("td")
-        .each((i, cell) => {
-          const cellText = $(cell).text().trim()
-          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
-            tempText = cellText
-          }
-        })
-      // Fallback to second cell
-      if (!tempText && $(element).find("td").length >= 2) {
-        tempText = $(element).find("td").eq(1).text().trim()
-      }
-    }
-
-    if (index < 5) {
-      console.log(`Row ${index}: date="${dateText}", temp="${tempText}"`)
-    }
-
-    // Extract temperature value
-    const tempMatch = tempText.match(/(\d+[.,]\d*)/)
-    if (!tempMatch) return
-
-    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
-    if (isNaN(temperature)) return
-
-    // Parse date (format: "Jul 30")
-    const dateMatch = dateText.match(/(\w{3})\s+(\d+)/)
-    if (!dateMatch) return
-
-    const monthName = dateMatch[1]
-    const day = Number.parseInt(dateMatch[2], 10)
-
-    // Convert month name to number
-    const monthMap = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
-    }
-
-    const month = monthMap[monthName]
-    if (month === undefined) return
-
-    const date = new Date(currentYear, month, day, 12, 0) // Set to noon for consistency
-    const dateString = `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()} 12:00`
-
-    const dataPoint: WaterTemperatureDataPoint = {
-      date: dateString,
-      temperature,
-      timestamp: date,
-    }
-
-    dataPoints.push(dataPoint)
-    tableRowCount++
-  })
-
-  console.log(`Found ${tableRowCount} table data points for Spitzingsee`)
-  return dataPoints
-}
-
-// Merge JavaScript and table data, avoiding duplicates
-function mergeSpitzingseeData(
-  jsData: WaterTemperatureDataPoint[],
-  tableData: WaterTemperatureDataPoint[],
-): WaterTemperatureDataPoint[] {
-  const mergedData: WaterTemperatureDataPoint[] = []
-  const dateMap = new Map<string, WaterTemperatureDataPoint>()
-  const today = new Date()
-  today.setHours(23, 59, 59, 999) // Set to end of today to include today's data
-
-  // Add JavaScript data first, filtering out future dates
-  jsData.forEach((point) => {
-    if (point.timestamp <= today) {
-      // Only include dates up to today
-      const dateKey = point.timestamp.toDateString()
-      dateMap.set(dateKey, point)
-    }
-  })
-
-  // Add table data, preferring table data for dates that exist in both, filtering out future dates
-  tableData.forEach((point) => {
-    if (point.timestamp <= today) {
-      // Only include dates up to today
-      const dateKey = point.timestamp.toDateString()
-      dateMap.set(dateKey, point) // This will overwrite JS data if same date
-    }
-  })
-
-  // Convert map back to array and sort by date descending (most recent first)
-  const allData = Array.from(dateMap.values())
-  allData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-
-  console.log(
-    `Merged data (excluding future dates): ${jsData.length} JS points + ${tableData.length} table points = ${allData.length} total points`,
-  )
-
-  return allData
-}
-
-// Process the merged data points
-function processSpitzingseeDataPoints(
-  dataPoints: WaterTemperatureDataPoint[],
-  url: string,
-): {
-  current: WaterTemperatureDataPoint
-  history: WaterTemperatureDataPoint[]
-  previousDay?: WaterTemperatureDataPoint
-  change?: number
-  changeStatus: ChangeStatus
-} {
-  if (dataPoints.length === 0) {
-    console.warn(`No temperature data found for Spitzingsee`)
-    return {
-      current: null,
-      history: [],
-      changeStatus: "stable",
-    }
-  }
-
-  // Data is already sorted descending by timestamp (most recent first)
-  const current = dataPoints[0] // Most recent data point
-
-  // Keep all data for history (already sorted descending - most recent first)
-  const history = dataPoints
-
-  // Find previous day data (approximately 24 hours ago)
-  let previousDay: WaterTemperatureDataPoint = null
-  let change: number = null
-  let changeStatus: ChangeStatus = "stable"
-
-  if (current) {
-    // Find the closest data point to 24 hours ago
-    previousDay = dataPoints.find((point) => {
-      const timeDiff = Math.abs(current.timestamp.getTime() - point.timestamp.getTime())
-      return timeDiff >= 20 * 60 * 60 * 1000 && timeDiff <= 28 * 60 * 60 * 1000 // Between 20-28 hours
-    })
-
-    if (previousDay) {
-      change = current.temperature - previousDay.temperature
-      const percentChange = (change / previousDay.temperature) * 100
-      changeStatus = getChangeStatus(percentChange)
-    }
-  }
-
-  console.log(
-    `Successfully processed ${history.length} Spitzingsee temperature data points, current: ${current?.temperature}°C on ${current?.date}`,
-  )
-
-  return {
-    current,
-    history,
-    previousDay,
-    change,
-    changeStatus,
-  }
-}
-
-// Helper function to process the extracted data string (legacy function, now calls parseJavaScriptDataString)
-function processSpitzingseeData(
-  dataString: string,
-  url: string,
-): {
-  current: WaterTemperatureDataPoint
-  history: WaterTemperatureDataPoint[]
-  previousDay?: WaterTemperatureDataPoint
-  change?: number
-  changeStatus: ChangeStatus
-} {
-  const jsData = parseJavaScriptDataString(dataString)
-  return processSpitzingseeDataPoints(jsData, url)
 }
 
 // Alle Daten für einen Fluss parallel abrufen

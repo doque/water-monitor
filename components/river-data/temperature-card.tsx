@@ -29,7 +29,7 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
   }, [river, timeRange])
 
   const hasTemperatureData = river.history?.temperatures && river.history.temperatures.length > 0
-  const isDisabled = !hasTemperatureData
+  const isDisabled = river.current?.temperature == null && !hasTemperatureData
 
   return (
     <Card
@@ -46,7 +46,7 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
         {!isLake && isMobile && trendDisplay && <div className="text-sm font-normal mt-1">{trendDisplay}</div>}
       </CardHeader>
       <CardContent className="p-3 sm:p-6 pt-0">
-        {river.current.temperature && hasTemperatureData ? (
+        {river.current.temperature !== null && river.current.temperature !== undefined ? (
           <div>
             <div className="text-4xl font-bold">
               {river.current.temperature.temperature.toFixed(1)} <span className="font-bold">°C</span>
