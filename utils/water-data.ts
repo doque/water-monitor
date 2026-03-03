@@ -756,6 +756,12 @@ export async function fetchRiversData(includeAllRivers = false): Promise<RiversD
   }
 }
 
+export function getHistorySpanDays(dataPoints: { timestamp: Date }[]): number {
+  if (dataPoints.length < 2) return 0
+  const times = dataPoints.map(p => p.timestamp.getTime())
+  return (Math.max(...times) - Math.min(...times)) / (1000 * 60 * 60 * 24)
+}
+
 // Add a helper function to extract river ID from URL
 export function extractRiverId(url: string): string {
   // Handle undefined URLs
