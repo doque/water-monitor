@@ -10,6 +10,19 @@ See [AGENTS.md](./AGENTS.md) for the full project reference — architecture, da
 - **URL state:** `?id=<riverId>&pane=<flow|level|temperature>&interval=<timeRange>`
 - **Language:** UI text is German throughout
 
+## Feature pipeline
+
+When the user provides feature input — a file path, a pasted block of text, or a ramble — run the pipeline in `.claude/workflow.md`. That file is the single source of truth for orchestration.
+
+**Agent prompts** live in `.claude/agents/`:
+- `prd-agent.md` — spec writer (model: opus)
+- `coding-agent.md` — implementer (model: sonnet)
+- `review-agent.md` — auditor (model: sonnet)
+
+**Specs** are written to `specs/<slug>.md` and accumulate review rounds in-place.
+
+---
+
 ## Run locally
 
 ```bash
