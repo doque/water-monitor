@@ -106,3 +106,24 @@ None.
 ## Review Round 2 — PASS
 
 Fix confirmed correct. All 12 acceptance criteria satisfied. Ready to merge.
+
+---
+
+## Correction — Real HTML Structure
+
+Initial spec was written against an incorrect HTML snippet. Actual page structure:
+
+```html
+<p class="temp-note">Wassertemperatur im Spitzingsee beträgt heute 3.6°C.</p>
+<div class="temp-wrapper">
+  <div class="temp-block cold"><div class="temp-value">3.6<span>°C</span></div><div class="temp-label">Heute</div></div>
+  <div class="temp-block mild"><div class="temp-value">3.6<span>°C</span></div><div class="temp-label">Gestern</div></div>
+  <div class="temp-block warm"><div class="temp-value">2.7<span>°C</span></div><div class="temp-label">Vor einer Woche</div></div>
+</div>
+```
+
+Revised implementation: parse `.temp-block` widgets with cheerio → 3 data points (today / yesterday / last week). Enables real chart and trend indicator. Fallback to `temp-note` paragraph regex if no blocks found. AC3 (empty history) superseded — history now contains 3 points.
+
+## Review Round 3 — PASS
+
+All checks passed. One minor fix applied: `isNaN` guard added to fallback parse path for defensive parity with primary path.

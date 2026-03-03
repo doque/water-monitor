@@ -519,7 +519,7 @@ async function fetchWaterFlow(url: string): Promise<{
   }
 }
 
-// Fetch current temperature for Spitzingsee from the new inline markup
+// Fetch temperature for Spitzingsee from .temp-block widgets (Heute / Gestern / Vor einer Woche)
 async function fetchSpitzingseeTemperature(url: string): Promise<{
   current: WaterTemperatureDataPoint
   history: WaterTemperatureDataPoint[]
@@ -527,6 +527,8 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
   change?: number
   changeStatus: ChangeStatus
 }> {
+  const empty = { current: null, history: [], changeStatus: "stable" as ChangeStatus }
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -544,42 +546,61 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
     }
 
     const html = await response.text()
+    const $ = cheerio.load(html)
 
-    const tempMatch = html.match(
-      /Aktuelle Wassertemperatur[^:]*:\s*<span[^>]*>(-?\d+[.,]?\d*)\s*°\s*C<\/span>/i,
-    )
+    const toDateString = (d: Date) =>
+      `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1).toString().padStart(2, "0")}.${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
 
-    if (!tempMatch) {
-      console.warn(`Spitzingsee: expected temperature pattern not found in HTML response from ${url}`)
-      return {
-        current: null,
-        history: [],
-        changeStatus: "stable",
-      }
-    }
-
-    const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
+    // Parse the three .temp-block widgets: Heute / Gestern / Vor einer Woche
+    const dataPoints: WaterTemperatureDataPoint[] = []
     const now = new Date()
-    const dateString = `${now.getDate().toString().padStart(2, "0")}.${(now.getMonth() + 1).toString().padStart(2, "0")}.${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
 
-    const dataPoint: WaterTemperatureDataPoint = {
-      date: dateString,
-      temperature,
-      timestamp: new Date(now),
+    $(".temp-block").each((_, el) => {
+      const label = $(el).find(".temp-label").text().trim()
+      const rawValue = $(el).find(".temp-value").contents().first().text().trim()
+      const temperature = Number.parseFloat(rawValue.replace(",", "."))
+      if (isNaN(temperature)) return
+
+      const timestamp = new Date(now)
+      if (label === "Gestern") {
+        timestamp.setDate(timestamp.getDate() - 1)
+      } else if (label === "Vor einer Woche") {
+        timestamp.setDate(timestamp.getDate() - 7)
+      }
+
+      dataPoints.push({ date: toDateString(timestamp), temperature, timestamp })
+    })
+
+    if (dataPoints.length === 0) {
+      // Fallback: parse sentence in <p class="temp-note">
+      const noteMatch = html.match(/beträgt heute\s+(-?\d+[.,]?\d*)\s*°C/i)
+      if (!noteMatch) {
+        console.warn(`Spitzingsee: no temperature data found in response from ${url}`)
+        return empty
+      }
+      const temperature = Number.parseFloat(noteMatch[1].replace(",", "."))
+      if (isNaN(temperature)) {
+        console.warn(`Spitzingsee: could not parse temperature from temp-note fallback`)
+        return empty
+      }
+      dataPoints.push({ date: toDateString(now), temperature, timestamp: new Date(now) })
     }
 
-    return {
-      current: dataPoint,
-      history: [],
-      changeStatus: "stable",
-    }
+    // Newest first
+    dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+    const current = dataPoints[0]
+    const previousDay = dataPoints[1] ?? null
+    const change = previousDay != null ? current.temperature - previousDay.temperature : null
+    const changeStatus =
+      change != null && previousDay != null
+        ? getChangeStatus((change / previousDay.temperature) * 100)
+        : ("stable" as ChangeStatus)
+
+    return { current, history: dataPoints, previousDay, change, changeStatus }
   } catch (error) {
     console.error(`Error fetching Spitzingsee temperature data for ${url}:`, error)
-    return {
-      current: null,
-      history: [],
-      changeStatus: "stable",
-    }
+    return empty
   }
 }
 
