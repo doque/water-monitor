@@ -33,7 +33,9 @@ async function RiverDataContainer() {
     // Wrap RiverDataDisplay with provider and pass initial data
     return (
       <RiverDataProvider initialData={riversData}>
-        <RiverDataDisplay />
+        <Suspense fallback={<RiverDataSkeleton />}>
+          <RiverDataDisplay />
+        </Suspense>
       </RiverDataProvider>
     )
   } catch (error) {
