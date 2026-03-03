@@ -175,8 +175,6 @@ export function RiverDataDisplay(): JSX.Element {
   }
 
   function getDefaultsForRiver(river: any): { dataType: DataType; timeRange: TimeRangeOption } {
-    console.log("[v0] Getting defaults for river:", river?.name)
-
     if (river?.isLake) {
       return { dataType: "temperature", timeRange: "2w" }
     }
@@ -185,16 +183,12 @@ export function RiverDataDisplay(): JSX.Element {
 
     if (hasActualDataForType(river, "flow")) {
       defaultDataType = "flow"
-      console.log("[v0] Using flow as default")
     } else if (hasActualDataForType(river, "level")) {
       defaultDataType = "level"
-      console.log("[v0] Falling back to level")
     } else if (hasActualDataForType(river, "temperature")) {
       defaultDataType = "temperature"
-      console.log("[v0] Falling back to temperature")
     }
 
-    console.log("[v0] Final default dataType:", defaultDataType)
     return { dataType: defaultDataType, timeRange: "24h" }
   }
 
@@ -331,12 +325,8 @@ export function RiverDataDisplay(): JSX.Element {
     if (!isValid) {
       const largest = availableOptions[availableOptions.length - 1].value
       setTimeRange(largest)
-      router.replace(
-        `?${new URLSearchParams({ id: activeRiverId, pane: activeDataType, interval: largest }).toString()}`,
-        { scroll: false }
-      )
     }
-  }, [availableOptions, timeRange, activeRiverId, activeDataType, router])
+  }, [availableOptions, timeRange])
 
   // Detect if we're on mobile
   useEffect(() => {
@@ -361,8 +351,21 @@ export function RiverDataDisplay(): JSX.Element {
 
         if (!isTimeRangeValidForWaterBody(timeRange, newRiver.isLake, newRiver.name)) {
           // Current time range is not valid for new water body, use largest available
-          const largestAvailable = getLargestAvailableTimeRange(newRiver.isLake, newRiver.name)
-          setTimeRange(largestAvailable)
+          if (newRiver.isLake) {
+            // Compute filtered options for the target lake inline (avoids stale availableOptions
+            // which is derived from the *current* river, not the target)
+            const targetBaseOptions =
+              newRiver.name === "Spitzingsee" ? spitzingseeTimeRangeOptions : otherLakeTimeRangeOptions
+            const targetSpanDays = getHistorySpanDays(newRiver.history?.temperatures ?? [])
+            const targetFilteredOptions = filterTimeRangeOptions(
+              targetBaseOptions as readonly { value: TimeRangeOption; label: string }[],
+              targetSpanDays,
+            )
+            setTimeRange(targetFilteredOptions[targetFilteredOptions.length - 1].value)
+          } else {
+            const largestAvailable = getLargestAvailableTimeRange(newRiver.isLake, newRiver.name)
+            setTimeRange(largestAvailable)
+          }
         }
         // Otherwise keep current timeRange if it's valid
       }

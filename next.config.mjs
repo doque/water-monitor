@@ -3,7 +3,6 @@ import withPWA from "next-pwa"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -13,7 +12,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Add other Next.js configurations here if needed
+  turbopack: {},
 }
 
 export default withPWA({

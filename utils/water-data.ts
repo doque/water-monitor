@@ -253,7 +253,7 @@ async function fetchWaterLevel(url: string): Promise<{
 
 // Wassertemperaturdaten abrufen
 async function fetchWaterTemperature(url: string): Promise<{
-  current: WaterTemperatureDataPoint
+  current: WaterTemperatureDataPoint | null
   history: WaterTemperatureDataPoint[]
   previousDay?: WaterTemperatureDataPoint
   change?: number
@@ -521,7 +521,7 @@ async function fetchWaterFlow(url: string): Promise<{
 
 // Fetch temperature for Spitzingsee from .temp-block widgets (Heute / Gestern / Vor einer Woche)
 async function fetchSpitzingseeTemperature(url: string): Promise<{
-  current: WaterTemperatureDataPoint
+  current: WaterTemperatureDataPoint | null
   history: WaterTemperatureDataPoint[]
   previousDay?: WaterTemperatureDataPoint
   change?: number
