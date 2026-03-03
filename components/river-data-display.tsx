@@ -125,7 +125,10 @@ export function RiverDataDisplay(): JSX.Element {
       case "level":
         return river.history.levels && river.history.levels.length > 0
       case "temperature":
-        return river.history.temperatures && river.history.temperatures.length > 0
+        return (
+          (river.history.temperatures && river.history.temperatures.length > 0) ||
+          river.current?.temperature !== null && river.current?.temperature !== undefined
+        )
       default:
         return false
     }
