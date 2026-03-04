@@ -50,8 +50,8 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
           Pegel ({safeExtractTime(river.current.level.date)})
         </a>
       )}
-      {river.current.level && river.current.temperature && <span>|</span>}
-      {river.current.temperature && (
+      {river.current.level && river.current.temperature && !river.urls.temperature?.startsWith("ext:") && <span>|</span>}
+      {river.current.temperature && !river.urls.temperature?.startsWith("ext:") && (
         <a
           href={river.urls.temperature}
           target="_blank"

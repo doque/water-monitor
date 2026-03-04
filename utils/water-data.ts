@@ -1,5 +1,33 @@
+import { list, put } from "@vercel/blob"
 import * as cheerio from "cheerio"
 import riverSources from "@/data/river-sources.json"
+
+const BLOB_FILE = "spitzingsee-temps.json"
+
+interface SpitzingseeCache {
+  lastUpdated: string
+  temps: Record<string, number> // "DD.MM.YYYY 00:00" → raw °C
+}
+
+async function readSpitzingseeCache(): Promise<SpitzingseeCache | null> {
+  try {
+    const { blobs } = await list({ prefix: BLOB_FILE })
+    if (blobs.length === 0) return null
+    const res = await fetch(blobs[0].url, { cache: "no-store" })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+async function writeSpitzingseeCache(temps: Record<string, number>): Promise<void> {
+  await put(BLOB_FILE, JSON.stringify({ lastUpdated: new Date().toISOString(), temps }), {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  })
+}
 
 // Deterministic jitter seeded by date string — same day always returns same offset
 function dateJitter(seed: string): number {
@@ -598,17 +626,42 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
     }
 
     const temps: number[] = JSON.parse(tempsMatch[1])
-    console.log(`Spitzingsee: found ${temps.length} temps: ${temps}`)
 
-    const dataPoints: WaterTemperatureDataPoint[] = temps.map((rawTemperature, i) => {
+    // Merge fresh scrape with blob cache to build up to 365-day history
+    const cache = await readSpitzingseeCache()
+    const merged: Record<string, number> = { ...(cache?.temps ?? {}) }
+
+    // Fresh data overwrites cached values for the same dates
+    temps.forEach((rawTemperature, i) => {
       const timestamp = new Date(startDate)
       timestamp.setDate(startDate.getDate() + i)
-      const date = toDateString(timestamp)
-      return { date, temperature: rawTemperature + dateJitter(date), rawTemperature, timestamp }
+      merged[toDateString(timestamp)] = rawTemperature
     })
 
-    // Newest first
-    dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    // Sort all entries by date, keep most recent 365
+    const allPoints = Object.entries(merged)
+      .map(([date, rawTemperature]) => {
+        const [d, m, y] = date.split(" ")[0].split(".")
+        return { date, rawTemperature, timestamp: new Date(+y, +m - 1, +d) }
+      })
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 365)
+
+    // Persist merged data (fire and forget)
+    const trimmed: Record<string, number> = {}
+    allPoints.forEach(({ date, rawTemperature }) => { trimmed[date] = rawTemperature })
+    writeSpitzingseeCache(trimmed).catch((e) =>
+      console.error("Spitzingsee: blob write failed", e)
+    )
+
+    const dataPoints: WaterTemperatureDataPoint[] = allPoints.map(
+      ({ date, rawTemperature, timestamp }) => ({
+        date,
+        temperature: rawTemperature + dateJitter(date),
+        rawTemperature,
+        timestamp,
+      })
+    )
 
     const current = dataPoints[0]
     const previousDay = dataPoints[1] ?? null
