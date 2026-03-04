@@ -269,7 +269,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
 // Format the trend for the selected time range
 export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
   const change = calculateTimeRangeChange(river, dataType, timeRange)
-  if (change.absoluteChange === null) return null
+  if (change.absoluteChange === null || Math.abs(change.absoluteChange) < 0.05) return null
 
   // Get unit based on data type
   let unit = ""
