@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import { GKD_RANGES, type TimeRangeOption } from "@/components/river-data/time-range-select"
+import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { useMemo } from "react"
 
 interface TemperatureCardProps {
@@ -20,10 +20,10 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
 
   // Memoize the trend display to ensure it updates when timeRange changes
   const trendDisplay = useMemo(() => {
-    if (GKD_RANGES.has(timeRange)) return null
     try {
       return formatTrendForTimeRange(river, "temperature", timeRange)
-    } catch {
+    } catch (error) {
+      console.error("Error calculating temperature trend:", error)
       return null
     }
   }, [river, timeRange])
