@@ -540,6 +540,8 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
       cache: "no-store",
     })
 
+    console.log(`Spitzingsee: HTTP ${response.status}`)
+
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
@@ -548,42 +550,52 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
     const $ = cheerio.load(html)
 
     const toDateString = (d: Date) =>
-      `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1).toString().padStart(2, "0")}.${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
+      `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1).toString().padStart(2, "0")}.${d.getFullYear()} 00:00`
 
-    // Parse the three .temp-block widgets: Heute / Gestern / Vor einer Woche
-    const dataPoints: WaterTemperatureDataPoint[] = []
+    const GERMAN_MONTHS: Record<string, number> = {
+      Januar: 0, Februar: 1, März: 2, April: 3, Mai: 4, Juni: 5,
+      Juli: 6, August: 7, September: 8, Oktober: 9, November: 10, Dezember: 11,
+    }
+
+    // Parse date range from title, e.g. "Vom  1. Februar bis  4. März"
+    const titleText = $(".title").first().text().trim()
+    console.log(`Spitzingsee: title="${titleText}"`)
+    const titleMatch = titleText.match(
+      /Vom\s+(\d+)\.\s+([^\s.]+)\s+bis\s+(\d+)\.\s+([^\s.]+)/
+    )
+    if (!titleMatch) {
+      console.warn(`Spitzingsee: could not parse date range from title: "${titleText}"`)
+      return empty
+    }
+
     const now = new Date()
+    const currentYear = now.getFullYear()
+    const startMonth = GERMAN_MONTHS[titleMatch[2]]
+    const endMonth = GERMAN_MONTHS[titleMatch[4]]
+    const endYear = currentYear
+    const startYear = endMonth < startMonth ? currentYear - 1 : currentYear
 
-    $(".temp-block").each((_, el) => {
-      const label = $(el).find(".temp-label").text().trim()
-      const rawValue = $(el).find(".temp-value").contents().first().text().trim()
-      const temperature = Number.parseFloat(rawValue.replace(",", "."))
-      if (isNaN(temperature)) return
+    const startDate = new Date(startYear, startMonth, parseInt(titleMatch[1]))
+    const endDate = new Date(endYear, endMonth, parseInt(titleMatch[3]))
+    console.log(`Spitzingsee: date range ${startDate.toDateString()} – ${endDate.toDateString()}`)
 
-      const timestamp = new Date(now)
-      if (label === "Gestern") {
-        timestamp.setDate(timestamp.getDate() - 1)
-      } else if (label === "Vor einer Woche") {
-        timestamp.setDate(timestamp.getDate() - 7)
-      }
+    // Extract temps array from inline script, e.g. const temps = [1.4,1.5,...];
+    const tempsMatch = html.match(/const\s+temps\s*=\s*(\[[^\]]+\])/)
+    if (!tempsMatch) {
+      console.warn(`Spitzingsee: no temps array found in page source`)
+      return empty
+    }
 
-      dataPoints.push({ date: toDateString(timestamp), temperature, timestamp })
+    const temps: number[] = JSON.parse(tempsMatch[1])
+    console.log(`Spitzingsee: found ${temps.length} temps: ${temps}`)
+
+    const dataPoints: WaterTemperatureDataPoint[] = temps.map((temperature, i) => {
+      const timestamp = new Date(startDate)
+      timestamp.setDate(startDate.getDate() + i)
+      return { date: toDateString(timestamp), temperature, timestamp }
     })
 
-    if (dataPoints.length === 0) {
-      // Fallback: parse sentence in <p class="temp-note">
-      const noteMatch = html.match(/beträgt heute\s+(-?\d+[.,]?\d*)\s*°C/i)
-      if (!noteMatch) {
-        console.warn(`Spitzingsee: no temperature data found in response from ${url}`)
-        return empty
-      }
-      const temperature = Number.parseFloat(noteMatch[1].replace(",", "."))
-      if (isNaN(temperature)) {
-        console.warn(`Spitzingsee: could not parse temperature from temp-note fallback`)
-        return empty
-      }
-      dataPoints.push({ date: toDateString(now), temperature, timestamp: new Date(now) })
-    }
+    console.log(`Spitzingsee: dataPoints`, dataPoints.map(p => `${p.date} ${p.temperature}°`))
 
     // Newest first
     dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
