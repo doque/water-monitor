@@ -30,6 +30,7 @@ function smoothGkdPoints(points: GkdDataPoint[], timeRange: TimeRangeOption): Gk
   const targetPoints: Partial<Record<TimeRangeOption, number>> = {
     "2w":  50,
     "1m":  60,
+    "3m":  70,
     "6m":  70,
     "12m": 60,
     "24m": 50,
@@ -421,35 +422,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     [isLake, getDataPointsForTimeRange],
   )
 
-  // Trend display for chart header
-  // Short ranges: use server-data trend calculation
-  // GKD ranges: compare first vs last rendered chart point
+  // Memoize the trend display for the chart header
+  // Hide trend for GKD ranges — server data doesn't span far enough for a meaningful comparison
   const chartTrendDisplay = useMemo(() => {
-    if (!river) return null
-
-    if (!GKD_RANGES.has(timeRange)) {
-      try {
-        return formatTrendForTimeRange(river, dataType, timeRange)
-      } catch {
-        return null
-      }
+    try {
+      if (!river || GKD_RANGES.has(timeRange)) return null
+      return formatTrendForTimeRange(river, dataType, timeRange)
+    } catch (error) {
+      console.error("Error calculating chart trend:", error)
+      return null
     }
-
-    // GKD range — compute from chartData (first vs last point)
-    if (chartData.length < 2) return null
-    const first = chartData[0]?.value
-    const last = chartData[chartData.length - 1]?.value
-    if (typeof first !== "number" || typeof last !== "number" || isNaN(first) || isNaN(last)) return null
-    const diff = last - first
-    if (Math.abs(diff) < 0.01) return null
-    const unit = dataType === "level" ? " cm" : dataType === "temperature" ? "°C" : " m³/s"
-    const emoji = diff > 0 ? "↗️" : "↘️"
-    const sign = diff > 0 ? "+" : "-"
-    const formatted = dataType === "level"
-      ? Math.abs(diff).toFixed(0)
-      : Math.abs(diff).toFixed(1)
-    return <span>{emoji} {sign}{formatted}{unit}</span>
-  }, [river, dataType, timeRange, chartData])
+  }, [river, dataType, timeRange])
 
   // Calculate Y-axis domain with baseline at 0 - with proper null checks
   const yAxisDomain = useMemo(() => {
