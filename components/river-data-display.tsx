@@ -40,7 +40,7 @@ export function RiverDataDisplay(): JSX.Element {
   })
   const [timeRange, setTimeRange] = useState<TimeRangeOption>(() => {
     const interval = searchParams.get("interval")
-    const valid = ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "3m", "6m", "12m", "24m"]
+    const valid = ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "6m", "12m", "24m"]
     return valid.includes(interval || "") ? (interval as TimeRangeOption) : "24h"
   })
   const [isMobile, setIsMobile] = useState(false)
@@ -205,9 +205,9 @@ export function RiverDataDisplay(): JSX.Element {
   // Helper function to get valid time ranges for water body type
   function getValidTimeRanges(isLake: boolean): TimeRangeOption[] {
     if (isLake) {
-      return ["1w", "2w", "1m", "3m", "6m", "12m", "24m"]
+      return ["1w", "2w", "1m", "6m", "12m", "24m"]
     } else {
-      return ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "3m", "6m", "12m", "24m"]
+      return ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "6m", "12m", "24m"]
     }
   }
 

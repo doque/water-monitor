@@ -47,7 +47,6 @@ export const riverTimeRangeOptions = [
   { value: "1w",  label: "1 Woche" },
   { value: "2w",  label: "2 Wochen" },
   { value: "1m",  label: "1 Monat" },
-  { value: "3m",  label: "3 Monate" },
   { value: "6m",  label: "6 Monate" },
   { value: "12m", label: "12 Monate" },
   { value: "24m", label: "24 Monate" },
@@ -57,14 +56,13 @@ export const lakeTimeRangeOptions = [
   { value: "1w",  label: "1 Woche" },
   { value: "2w",  label: "2 Wochen" },
   { value: "1m",  label: "1 Monat" },
-  { value: "3m",  label: "3 Monate" },
   { value: "6m",  label: "6 Monate" },
   { value: "12m", label: "12 Monate" },
   { value: "24m", label: "24 Monate" },
 ] as const
 
 // GKD data available for ranges > 1 week
-export const GKD_RANGES = new Set<TimeRangeOption>(["2w", "1m", "3m", "6m", "12m", "24m"])
+export const GKD_RANGES = new Set<TimeRangeOption>(["2w", "1m", "6m", "12m", "24m"])
 
 export function TimeRangeSelect({ value, onValueChange, isLake, filteredOptions }: TimeRangeSelectProps) {
   const baseOptions = isLake ? lakeTimeRangeOptions : riverTimeRangeOptions
