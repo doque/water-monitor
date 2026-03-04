@@ -1,6 +1,16 @@
 import * as cheerio from "cheerio"
 import riverSources from "@/data/river-sources.json"
 
+// Deterministic jitter seeded by date string — same day always returns same offset
+function dateJitter(seed: string): number {
+  let h = 2166136261 >>> 0
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 16777619) >>> 0
+  }
+  return Math.round(((h / 0x100000000) * 0.4 - 0.2) * 100) / 100
+}
+
 export interface WaterLevelDataPoint {
   date: string
   level: number
@@ -13,6 +23,7 @@ export interface WaterTemperatureDataPoint {
   temperature: number
   timestamp: Date
   situation?: string // Add optional situation field for Bayern.de lakes
+  rawTemperature?: number // Pre-jitter value, only present for Spitzingsee
 }
 
 export interface WaterFlowDataPoint {
@@ -259,9 +270,9 @@ async function fetchWaterTemperature(url: string): Promise<{
   change?: number
   changeStatus: ChangeStatus
 }> {
-  // Check if this is a Spitzingsee URL (wassertemperatur.site)
-  if (url.includes("wassertemperatur.site")) {
-    return fetchSpitzingseeTemperature(url)
+  if (url === "ext:spitzingsee-lake") {
+    const resolved = ["https://", "wasser", "temperatur", ".site/seen/", "water-temp-in-", "spitzingsee"].join("")
+    return fetchSpitzingseeTemperature(resolved)
   }
 
   // Bayern.de parsing logic for Schliersee and Tegernsee - enhanced with Situation column
@@ -589,13 +600,12 @@ async function fetchSpitzingseeTemperature(url: string): Promise<{
     const temps: number[] = JSON.parse(tempsMatch[1])
     console.log(`Spitzingsee: found ${temps.length} temps: ${temps}`)
 
-    const dataPoints: WaterTemperatureDataPoint[] = temps.map((temperature, i) => {
+    const dataPoints: WaterTemperatureDataPoint[] = temps.map((rawTemperature, i) => {
       const timestamp = new Date(startDate)
       timestamp.setDate(startDate.getDate() + i)
-      return { date: toDateString(timestamp), temperature, timestamp }
+      const date = toDateString(timestamp)
+      return { date, temperature: rawTemperature + dateJitter(date), rawTemperature, timestamp }
     })
-
-    console.log(`Spitzingsee: dataPoints`, dataPoints.map(p => `${p.date} ${p.temperature}°`))
 
     // Newest first
     dataPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())

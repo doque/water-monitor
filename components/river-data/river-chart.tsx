@@ -458,6 +458,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       data = prepareChartData(river.history.temperatures, timeRange, (point) => ({
         ...point,
         value: point.temperature,
+        rawValue: point.rawTemperature,
         unit: "°C",
         type: "Temperature",
       }))
@@ -718,6 +719,20 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 animationDuration={800}
                 animationEasing="ease-in-out"
               />
+              {isAdminMode && dataType === "temperature" && chartData.some((d) => d.rawValue != null) && (
+                <Area
+                  type="monotone"
+                  dataKey="rawValue"
+                  stroke="#f97316"
+                  fill="none"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  legendType="none"
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
