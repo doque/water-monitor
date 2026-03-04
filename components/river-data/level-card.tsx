@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import type { TimeRangeOption } from "@/components/river-data/time-range-select"
+import { GKD_RANGES, type TimeRangeOption } from "@/components/river-data/time-range-select"
 import { useMemo } from "react"
 
 interface LevelCardProps {
@@ -17,10 +17,10 @@ interface LevelCardProps {
 export function LevelCard({ river, isActive, onClick, isMobile = false, timeRange }: LevelCardProps) {
   // Memoize the trend display to ensure it updates when timeRange changes
   const trendDisplay = useMemo(() => {
+    if (GKD_RANGES.has(timeRange)) return null
     try {
       return formatTrendForTimeRange(river, "level", timeRange)
-    } catch (error) {
-      console.error("Error calculating level trend:", error)
+    } catch {
       return null
     }
   }, [river, timeRange])

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { RiverData } from "@/utils/water-data"
 import { formatTrendForTimeRange } from "@/utils/formatters"
-import type { TimeRangeOption } from "@/components/river-data/time-range-select"
+import { GKD_RANGES, type TimeRangeOption } from "@/components/river-data/time-range-select"
 import { useMemo } from "react"
 
 interface FlowCardProps {
@@ -33,10 +33,10 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
 
   // Memoize the trend display to ensure it updates when timeRange changes
   const trendDisplay = useMemo(() => {
+    if (GKD_RANGES.has(timeRange)) return null
     try {
       return formatTrendForTimeRange(river, "flow", timeRange)
-    } catch (error) {
-      console.error("Error calculating flow trend:", error)
+    } catch {
       return null
     }
   }, [river, timeRange])
