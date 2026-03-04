@@ -7,9 +7,9 @@ import {
   type TimeRangeOption,
   filterTimeRangeOptions,
   riverTimeRangeOptions,
-  spitzingseeTimeRangeOptions,
-  otherLakeTimeRangeOptions,
+  lakeTimeRangeOptions,
 } from "@/components/river-data/time-range-select"
+import { useGkdData } from "@/hooks/use-gkd-data"
 import { FlowCard } from "@/components/river-data/flow-card"
 import { LevelCard } from "@/components/river-data/level-card"
 import { TemperatureCard } from "@/components/river-data/temperature-card"
@@ -32,10 +32,17 @@ export function RiverDataDisplay(): JSX.Element {
   // Client-side admin mode state
   const [adminMode, setAdminMode] = useState(false)
 
-  // Core state - these are the single source of truth
-  const [activeRiverId, setActiveRiverId] = useState<string>("")
-  const [activeDataType, setActiveDataType] = useState<DataType>("flow")
-  const [timeRange, setTimeRange] = useState<TimeRangeOption>("24h")
+  // Core state - initialized directly from URL params to avoid double-render on load
+  const [activeRiverId, setActiveRiverId] = useState<string>(() => searchParams.get("id") || "")
+  const [activeDataType, setActiveDataType] = useState<DataType>(() => {
+    const pane = searchParams.get("pane")
+    return ["flow", "level", "temperature"].includes(pane || "") ? (pane as DataType) : "flow"
+  })
+  const [timeRange, setTimeRange] = useState<TimeRangeOption>(() => {
+    const interval = searchParams.get("interval")
+    const valid = ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "3m", "6m", "12m", "24m"]
+    return valid.includes(interval || "") ? (interval as TimeRangeOption) : "24h"
+  })
   const [isMobile, setIsMobile] = useState(false)
 
   // Refs to prevent infinite loops and track initialization
@@ -97,20 +104,23 @@ export function RiverDataDisplay(): JSX.Element {
   // Determine the base option set for the active water body
   const baseTimeRangeOptions = useMemo(() => {
     if (!activeRiver) return riverTimeRangeOptions
-    if (activeRiver.isLake) {
-      return activeRiver.name === "Spitzingsee" ? spitzingseeTimeRangeOptions : otherLakeTimeRangeOptions
-    }
-    return riverTimeRangeOptions
+    return activeRiver.isLake ? lakeTimeRangeOptions : riverTimeRangeOptions
   }, [activeRiver])
 
-  // Filter options based on available data span — lakes only; rivers always show full base set
+  // Filter options based on available data span.
+  // Rivers and GKD lakes (Schliersee/Tegernsee) show full option set.
+  // Spitzingsee filters by blob data span.
   const availableOptions = useMemo(() => {
     if (isLoading || !activeRiver || !activeRiver.isLake) return undefined
+    if (activeRiver.name !== "Spitzingsee") return undefined // GKD lakes always have 2y of data
     return filterTimeRangeOptions(
-      baseTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
+      lakeTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
       spanDays
     )
-  }, [isLoading, activeRiver, baseTimeRangeOptions, spanDays])
+  }, [isLoading, activeRiver, spanDays])
+
+  // GKD historical data for long time ranges
+  const { history: gkdHistory, isLoading: isGkdLoading } = useGkdData(activeRiver ?? null, activeDataType, timeRange)
 
   // Helper function to generate consistent IDs for both rivers and lakes
   function getRiverOrLakeId(river: any): string {
@@ -193,125 +203,76 @@ export function RiverDataDisplay(): JSX.Element {
   }
 
   // Helper function to get valid time ranges for water body type
-  function getValidTimeRanges(isLake: boolean, lakeName?: string): TimeRangeOption[] {
+  function getValidTimeRanges(isLake: boolean): TimeRangeOption[] {
     if (isLake) {
-      if (lakeName === "Spitzingsee") {
-        return ["1w", "2w", "1m", "2m", "6m"]
-      } else {
-        return ["1w", "2w", "1m", "2m"]
-      }
+      return ["1w", "2w", "1m", "3m", "6m", "12m", "24m"]
     } else {
-      return ["1h", "2h", "6h", "12h", "24h", "48h", "1w"]
+      return ["1h", "6h", "12h", "24h", "2d", "1w", "2w", "1m", "3m", "6m", "12m", "24m"]
     }
   }
 
   // Helper function to get largest available time range
-  function getLargestAvailableTimeRange(isLake: boolean, lakeName?: string): TimeRangeOption {
-    const validRanges = getValidTimeRanges(isLake, lakeName)
+  function getLargestAvailableTimeRange(isLake: boolean): TimeRangeOption {
+    const validRanges = getValidTimeRanges(isLake)
     return validRanges[validRanges.length - 1]
   }
 
   // Helper function to check if time range is valid for water body
-  function isTimeRangeValidForWaterBody(timeRange: TimeRangeOption, isLake: boolean, lakeName?: string): boolean {
-    const validRanges = getValidTimeRanges(isLake, lakeName)
-    return validRanges.includes(timeRange)
+  function isTimeRangeValidForWaterBody(timeRange: TimeRangeOption, isLake: boolean): boolean {
+    return getValidTimeRanges(isLake).includes(timeRange)
   }
 
-  // Helper function to validate URL parameters
-  function validateUrlParams(urlRiverId: string, urlDataType: string, urlTimeRange: string, river: any) {
-    const validRiverIds = riversWithIds?.map((r) => getRiverOrLakeId(r)) || []
-    const validDataTypes = ["flow", "level", "temperature"]
-    const validTimeRanges = ["1h", "2h", "6h", "12h", "24h", "48h", "1w", "2w", "1m", "2m", "6m"]
-
-    const validatedRiverId =
-      urlRiverId && validRiverIds.includes(urlRiverId)
-        ? urlRiverId
-        : urlRiverId
-          ? urlRiverId // Keep the URL ID even if not found yet (data might still be loading)
-          : validRiverIds[0] || ""
-
-    let validatedDataType: DataType
-    if (validDataTypes.includes(urlDataType) && river) {
-      if (hasActualDataForType(river, urlDataType as DataType)) {
-        validatedDataType = urlDataType as DataType
-      } else {
-        // Requested pane has no data, use smart fallback
-        const defaults = getDefaultsForRiver(river)
-        validatedDataType = defaults.dataType
-      }
-    } else if (validDataTypes.includes(urlDataType)) {
-      // URL has a specific pane but no river context yet - preserve it
-      validatedDataType = urlDataType as DataType
-    } else {
-      // No pane specified in URL, use smart defaults
-      const defaults = getDefaultsForRiver(river)
-      validatedDataType = defaults.dataType
-    }
-
-    let validatedTimeRange: TimeRangeOption
-    if (validTimeRanges.includes(urlTimeRange)) {
-      // URL has a specific time range - preserve it during initialization
-      validatedTimeRange = urlTimeRange as TimeRangeOption
-    } else {
-      // No time range specified in URL, use smart defaults
-      const defaults = getDefaultsForRiver(river)
-      validatedTimeRange = defaults.timeRange
-    }
-
-    return {
-      riverId: validatedRiverId,
-      dataType: validatedDataType,
-      timeRange: validatedTimeRange,
-    }
-  }
-
-  // Single initialization effect - runs once when data is loaded
+  // Single initialization effect - runs once when data is loaded, validates/corrects state
+  // Does NOT depend on searchParams — state is already initialized from URL in useState above
   useEffect(() => {
-    if (!isLoading && riversWithIds && riversWithIds.length > 0 && !isInitializedRef.current) {
-      // Read URL parameters
-      const urlRiverId = searchParams.get("id") || ""
-      const urlDataType = searchParams.get("pane") || ""
-      const urlTimeRange = searchParams.get("interval") || ""
+    if (isLoading || !riversWithIds || riversWithIds.length === 0 || isInitializedRef.current) return
 
-      // If no URL params at all, use first river defaults
-      if (!urlRiverId && !urlDataType && !urlTimeRange) {
-        const firstRiver = riversWithIds[0]
-        const defaults = getDefaultsForRiver(firstRiver)
+    isInitializedRef.current = true
 
-        setActiveRiverId(getRiverOrLakeId(firstRiver))
-        setActiveDataType(defaults.dataType)
-        setTimeRange(defaults.timeRange)
-      } else {
-        const targetRiver = riversWithIds.find((r) => getRiverOrLakeId(r) === urlRiverId) || riversWithIds[0]
-
-        // Validate URL params with the correct river context
-        const validated = validateUrlParams(urlRiverId, urlDataType, urlTimeRange, targetRiver)
-
-        setActiveRiverId(validated.riverId)
-        setActiveDataType(validated.dataType)
-        setTimeRange(validated.timeRange)
-      }
-
-      // Mark as initialized
-      isInitializedRef.current = true
+    if (!activeRiverId) {
+      // No river in URL — fall back to first river defaults
+      const firstRiver = riversWithIds[0]
+      const defaults = getDefaultsForRiver(firstRiver)
+      setActiveRiverId(getRiverOrLakeId(firstRiver))
+      setActiveDataType(defaults.dataType)
+      setTimeRange(defaults.timeRange)
+      return
     }
-  }, [isLoading, riversWithIds, searchParams])
+
+    const targetRiver = riversWithIds.find((r) => getRiverOrLakeId(r) === activeRiverId)
+    if (!targetRiver) {
+      // River ID from URL not found — fall back to first river
+      const firstRiver = riversWithIds[0]
+      const defaults = getDefaultsForRiver(firstRiver)
+      setActiveRiverId(getRiverOrLakeId(firstRiver))
+      setActiveDataType(defaults.dataType)
+      setTimeRange(defaults.timeRange)
+      return
+    }
+
+    // Validate data type for this river (e.g. "flow" for a lake)
+    if (!hasActualDataForType(targetRiver, activeDataType)) {
+      setActiveDataType(getDefaultsForRiver(targetRiver).dataType)
+    }
+
+    // Validate time range for this water body type (e.g. "1h" for a lake)
+    if (!isTimeRangeValidForWaterBody(timeRange, !!targetRiver.isLake)) {
+      setTimeRange(getDefaultsForRiver(targetRiver).timeRange)
+    }
+  }, [isLoading, riversWithIds])
 
   // URL update effect - only updates URL when state changes and component is initialized
   useEffect(() => {
     if (!isInitializedRef.current || urlUpdateInProgressRef.current) return
     if (!activeRiverId || !activeDataType || !timeRange) return
 
+    const newSearch = `?id=${activeRiverId}&pane=${activeDataType}&interval=${timeRange}`
+
+    // Skip router.replace if URL already matches — avoids searchParams update → re-render cycle
+    if (typeof window !== "undefined" && window.location.search === newSearch) return
+
     urlUpdateInProgressRef.current = true
-
-    const params = new URLSearchParams()
-    params.set("id", activeRiverId)
-    params.set("pane", activeDataType)
-    params.set("interval", timeRange)
-
-    router.replace(`?${params.toString()}`, { scroll: false })
-
-    // Reset flag after URL update
+    router.replace(newSearch, { scroll: false })
     setTimeout(() => {
       urlUpdateInProgressRef.current = false
     }, 0)
@@ -349,22 +310,22 @@ export function RiverDataDisplay(): JSX.Element {
         setActiveRiverId(value)
         setActiveDataType(defaults.dataType)
 
-        if (!isTimeRangeValidForWaterBody(timeRange, newRiver.isLake, newRiver.name)) {
-          // Current time range is not valid for new water body, use largest available
+        if (!isTimeRangeValidForWaterBody(timeRange, !!newRiver.isLake)) {
+          // Current time range is not valid for new water body, use a sensible default
           if (newRiver.isLake) {
-            // Compute filtered options for the target lake inline (avoids stale availableOptions
-            // which is derived from the *current* river, not the target)
-            const targetBaseOptions =
-              newRiver.name === "Spitzingsee" ? spitzingseeTimeRangeOptions : otherLakeTimeRangeOptions
-            const targetSpanDays = getHistorySpanDays(newRiver.history?.temperatures ?? [])
-            const targetFilteredOptions = filterTimeRangeOptions(
-              targetBaseOptions as readonly { value: TimeRangeOption; label: string }[],
-              targetSpanDays,
-            )
-            setTimeRange(targetFilteredOptions[targetFilteredOptions.length - 1].value)
+            if (newRiver.name === "Spitzingsee") {
+              // Filter by blob data span
+              const targetSpanDays = getHistorySpanDays(newRiver.history?.temperatures ?? [])
+              const targetFilteredOptions = filterTimeRangeOptions(
+                lakeTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
+                targetSpanDays,
+              )
+              setTimeRange(targetFilteredOptions[targetFilteredOptions.length - 1].value)
+            } else {
+              setTimeRange("2w") // Default for GKD lakes
+            }
           } else {
-            const largestAvailable = getLargestAvailableTimeRange(newRiver.isLake, newRiver.name)
-            setTimeRange(largestAvailable)
+            setTimeRange("24h") // Default for rivers
           }
         }
         // Otherwise keep current timeRange if it's valid
@@ -520,6 +481,8 @@ export function RiverDataDisplay(): JSX.Element {
             timeRange={timeRange}
             isMobile={isMobile}
             isAdminMode={adminMode}
+            extendedHistory={gkdHistory}
+            isGkdLoading={isGkdLoading}
           />
 
           {activeRiver?.webcamUrl && (

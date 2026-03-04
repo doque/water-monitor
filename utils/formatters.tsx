@@ -120,19 +120,21 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     return { absoluteChange: null, status: "stable", timeSpan: timeRange }
   }
 
-  // Special handling for lake-specific time ranges (1w, 2w, 1m, 2m, 6m)
+  // Special handling for lake-specific time ranges
   const isLake = river?.isLake
-  if (isLake && ["1w", "2w", "1m", "2m", "6m"].includes(timeRange)) {
+  if (isLake && ["1w", "2w", "1m", "3m", "6m", "12m", "24m"].includes(timeRange)) {
     // For lakes, we compare the first and last data points in the selected time range
-    const lakeDataPoints = {
-      "1w": 7, // 1 week = 7 days
-      "2w": 14, // 2 weeks = 14 days
-      "1m": 30, // 1 month = 30 days
-      "2m": 60, // 2 months = 60 days
-      "6m": 180, // 6 months = 180 days
+    const lakeDataPoints: Partial<Record<TimeRangeOption, number>> = {
+      "1w": 7,
+      "2w": 14,
+      "1m": 30,
+      "3m": 90,
+      "6m": 180,
+      "12m": 365,
+      "24m": 730,
     }
 
-    const maxDataPoints = lakeDataPoints[timeRange] || 30
+    const maxDataPoints = lakeDataPoints[timeRange] ?? 30
 
     // Make sure we don't try to access beyond the available data
     const compareIndex = Math.min(maxDataPoints - 1, data.length - 1)
@@ -181,32 +183,30 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
   }
 
   // Original logic for rivers with 15-minute intervals
-  const idealDataPointsBack = {
-    "1h": 4, // 1 hour = 4 × 15-minute intervals
-    "2h": 8, // 2 hours = 8 × 15-minute intervals
-    "6h": 24, // 6 hours = 24 × 15-minute intervals
-    "12h": 48, // 12 hours = 48 × 15-minute intervals
-    "24h": 96, // 24 hours = 96 × 15-minute intervals
-    "48h": 192, // 48 hours = 192 × 15-minute intervals
-    "1w": 672, // 1 week = 672 × 15-minute intervals (7 days × 24 hours × 4)
+  const idealDataPointsBack: Partial<Record<TimeRangeOption, number>> = {
+    "1h":  4,
+    "6h":  24,
+    "12h": 48,
+    "24h": 96,
+    "2d":  192,
+    "1w":  672,
   }
 
   const idealTargetIndex = idealDataPointsBack[timeRange]
 
   // Minimum data requirements for reasonable extrapolation
-  const minDataPointsForTimeRange = {
-    "1h": 2, // At least 30 minutes
-    "2h": 4, // At least 1 hour
-    "6h": 8, // At least 2 hours
-    "12h": 24, // At least 6 hours
-    "24h": 48, // At least 12 hours
-    "48h": 96, // At least 24 hours
-    "1w": 192, // At least 48 hours for 1 week extrapolation
+  const minDataPointsForTimeRange: Partial<Record<TimeRangeOption, number>> = {
+    "1h":  2,
+    "6h":  8,
+    "12h": 24,
+    "24h": 48,
+    "2d":  96,
+    "1w":  192,
   }
 
   const minRequired = minDataPointsForTimeRange[timeRange]
 
-  if (data.length < minRequired) {
+  if (!idealTargetIndex || !minRequired || data.length < minRequired) {
     // Not enough data for reasonable extrapolation
     return { absoluteChange: null, status: "stable", timeSpan: timeRange }
   }
@@ -288,30 +288,19 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
   // Time range text for display - updated to use days instead of months
   const getTimeRangeText = (timeSpan: TimeRangeOption) => {
     switch (timeSpan) {
-      case "1h":
-        return "1h"
-      case "2h":
-        return "2h"
-      case "6h":
-        return "6h"
-      case "12h":
-        return "12h"
-      case "24h":
-        return "24h"
-      case "48h":
-        return "48h"
-      case "1w":
-        return "7d" // Changed from "1w" to "7d"
-      case "2w":
-        return "14d" // Changed from "2w" to "14d"
-      case "1m":
-        return "30d" // Changed from "1m" to "30d"
-      case "2m":
-        return "60d" // Changed from "2m" to "60d"
-      case "6m":
-        return "180d" // Changed from "6m" to "180d"
-      default:
-        return timeSpan
+      case "1h":  return "1h"
+      case "6h":  return "6h"
+      case "12h": return "12h"
+      case "24h": return "24h"
+      case "2d":  return "2d"
+      case "1w":  return "7d"
+      case "2w":  return "14d"
+      case "1m":  return "30d"
+      case "3m":  return "3M"
+      case "6m":  return "6M"
+      case "12m": return "12M"
+      case "24m": return "24M"
+      default:    return timeSpan
     }
   }
 

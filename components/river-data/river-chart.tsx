@@ -3,6 +3,9 @@
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
 import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
+import { GKD_RANGES, timeRangeDurationDays } from "@/components/river-data/time-range-select"
+import type { GkdHistory } from "@/hooks/use-gkd-data"
+import type { GkdDataPoint } from "@/app/api/gkd/route"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTrendForTimeRange } from "@/utils/formatters"
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
@@ -15,6 +18,74 @@ interface RiverChartProps {
   timeRange: TimeRangeOption
   isMobile: boolean
   isAdminMode?: boolean
+  extendedHistory?: GkdHistory | null
+  isGkdLoading?: boolean
+}
+
+// --- GKD helpers ---
+
+function smoothGkdPoints(points: GkdDataPoint[], timeRange: TimeRangeOption): GkdDataPoint[] {
+  // Target ~50-80 chart points regardless of input density
+  // GKD data can be daily (rivers) or 15-min (lakes), so compute stride dynamically
+  const targetPoints: Partial<Record<TimeRangeOption, number>> = {
+    "2w":  50,
+    "1m":  60,
+    "3m":  70,
+    "6m":  70,
+    "12m": 60,
+    "24m": 50,
+  }
+  const target = targetPoints[timeRange]
+  if (!target || points.length <= target) return points
+  const stride = Math.max(1, Math.floor(points.length / target))
+  const win = Math.max(1, stride) // window = stride for balanced smoothing
+  const result: GkdDataPoint[] = []
+  for (let i = 0; i < points.length; i += stride) {
+    const half = Math.floor(win / 2)
+    const start = Math.max(0, i - half)
+    const end = Math.min(points.length, start + win)
+    const slice = points.slice(start, end)
+    const avg = slice.reduce((s, p) => s + p.value, 0) / slice.length
+    result.push({ ...points[i], value: avg })
+  }
+  return result
+}
+
+const GKD_MONTH_ABBR = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+
+function formatGkdLabel(date: string, timeRange: TimeRangeOption): string {
+  // date is "DD.MM.YYYY 00:00" or "DD.MM.YYYY"
+  const parts = date.split(" ")[0].split(".")
+  if (parts.length < 3) return date
+  const [dd, mm, yyyy] = parts
+  if (timeRange === "12m" || timeRange === "24m") {
+    return `${GKD_MONTH_ABBR[+mm - 1]} '${yyyy.slice(2)}`
+  }
+  return `${dd}.${mm}`
+}
+
+function filterGkdByTimeRange(points: GkdDataPoint[], timeRange: TimeRangeOption): GkdDataPoint[] {
+  if (points.length === 0) return points
+  const days = timeRangeDurationDays[timeRange]
+  // Find actual latest timestamp — don't assume sort order
+  let latestTimestamp = 0
+  for (const p of points) {
+    if (p.timestamp > latestTimestamp) latestTimestamp = p.timestamp
+  }
+  const cutoff = latestTimestamp - days * 24 * 60 * 60 * 1000
+  const filtered = points.filter(p => p.timestamp >= cutoff)
+  // Ensure oldest-first for chart rendering
+  filtered.sort((a, b) => a.timestamp - b.timestamp)
+  return filtered
+}
+
+function prepareGkdData(points: GkdDataPoint[], timeRange: TimeRangeOption) {
+  const filtered = filterGkdByTimeRange(points, timeRange)
+  const smoothed = smoothGkdPoints(filtered, timeRange)
+  return smoothed.map(p => {
+    const label = formatGkdLabel(p.date, timeRange)
+    return { value: p.value, time: label, label, fullDate: p.date }
+  })
 }
 
 // Add proper TypeScript interfaces for tooltip and tick components
@@ -50,16 +121,19 @@ const CustomTooltip = ({ active, payload, label, dataType, isLake }: CustomToolt
     switch (dataType) {
       case "level":
         unit = "cm"
-        valueFormatted = payload[0].value.toString()
+        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(0)
         break
       case "temperature":
         unit = "°C"
         valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(1)
         break
-      case "flow":
+      case "flow": {
         unit = "m³/s"
-        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(2)
+        const v = payload[0].value
+        // Max 2 decimal places, but drop trailing zeros
+        valueFormatted = v % 1 === 0 ? v.toString() : Number.parseFloat(v.toString()).toFixed(2).replace(/0+$/, "").replace(/\.$/, "")
         break
+      }
     }
 
     // Format the date from the fullDate property
@@ -129,7 +203,7 @@ const CustomXAxisTick = ({ x, y, payload, isLongTimeRange }: CustomXAxisTickProp
 }
 
 // Custom Y-axis tick formatter to avoid duplicates and ensure integer values
-const formatYAxisTick = (value) => {
+const formatYAxisTick = (value: number) => {
   return Math.round(value).toString()
 }
 
@@ -184,7 +258,7 @@ const createPlaceholderData = (dataType: DataType) => {
   return data
 }
 
-export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false }: RiverChartProps) {
+export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode = false, extendedHistory, isGkdLoading = false }: RiverChartProps) {
   // All hooks must be called at the top level, before any conditional returns
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [chartHeight, setChartHeight] = useState(300)
@@ -241,32 +315,31 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
   }, [])
 
-  // Helper function to get data points for time range - updated for lakes
+  // Helper function to get data points for time range
   const getDataPointsForTimeRange = useCallback(
     (timeRange: TimeRangeOption): number => {
-      // For lakes, calculate based on time range
       if (isLake) {
-        const lakeDataPoints = {
-          "1w": 7, // 1 week = 7 days
-          "2w": 14, // 2 weeks = 14 days
-          "1m": 30, // 1 month = 30 days
-          "2m": 60, // 2 months = 60 days
-          "6m": 180, // 6 months = 180 days (Spitzingsee only)
+        const lakeDataPoints: Partial<Record<TimeRangeOption, number>> = {
+          "1w":  7,
+          "2w":  14,
+          "1m":  30,
+          "3m":  90,
+          "6m":  180,
+          "12m": 365,
+          "24m": 730,
         }
-        return lakeDataPoints[timeRange] || 30 // Default to 30 days
+        return lakeDataPoints[timeRange] ?? 30
       }
 
-      // For rivers, use original logic
-      const riverDataPoints = {
-        "1h": 4,
-        "2h": 8,
-        "6h": 24,
+      const riverDataPoints: Partial<Record<TimeRangeOption, number>> = {
+        "1h":  4,
+        "6h":  24,
         "12h": 48,
         "24h": 96,
-        "48h": 192,
-        "1w": 672,
+        "2d":  192,
+        "1w":  672,
       }
-      return riverDataPoints[timeRange] || 96
+      return riverDataPoints[timeRange] ?? 96
     },
     [isLake],
   )
@@ -310,17 +383,16 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       const isLongTimeRange = timeRange === "1w"
 
       // Filter based on selected time range
-      const dataPoints = {
-        "1h": 4, // 1 hour × 4 data points per hour (15-minute intervals)
-        "2h": 8, // 2 hours × 4 data points per hour
-        "6h": 24, // 6 hours × 4 data points per hour
-        "12h": 48, // 12 hours × 4 data points per hour
-        "24h": 96, // 24 hours × 4 data points per hour
-        "48h": 192, // 48 hours × 4 data points per hour
-        "1w": 672, // 7 days × 24 hours × 4 data points per hour
+      const dataPoints: Partial<Record<TimeRangeOption, number>> = {
+        "1h":  4,
+        "6h":  24,
+        "12h": 48,
+        "24h": 96,
+        "2d":  192,
+        "1w":  672,
       }
 
-      filteredData = filteredData.slice(0, dataPoints[timeRange])
+      filteredData = filteredData.slice(0, dataPoints[timeRange] ?? 96)
 
       // For longer time ranges: reduce data points to improve display
       if (timeRange === "1w" && filteredData.length > 100) {
@@ -330,21 +402,20 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
       // Reverse to show oldest to newest
       return filteredData.reverse().map((point) => {
-        // For longer time ranges (> 48h) we show date and time
         const dateParts = point.date ? point.date.split(" ") : ["", ""]
-        const timePart = dateParts.length > 1 ? dateParts[1].substring(0, 5) : "" // Extract HH:MM
-        const datePart = dateParts[0].substring(0, 5) // Extract DD.MM.
+        const timePart = dateParts.length > 1 ? dateParts[1].substring(0, 5) : ""
+        const datePart = dateParts[0].substring(0, 5) // "DD.MM"
 
-        // For longer time ranges we keep date and time separate for the custom tick component
+        // For GKD ranges show date label; for 1w show date+time; otherwise HH:MM
         const label = isLongTimeRange
-          ? `${datePart} ${timePart}` // Keep date and time separate for custom tick
-          : timePart // Only "HH:MM" for shorter time ranges
+          ? `${datePart} ${timePart}`
+          : timePart
 
         return {
           ...mapper(point),
           time: timePart,
           label: label,
-          fullDate: point.date, // Full date for tooltip
+          fullDate: point.date,
         }
       })
     },
@@ -352,9 +423,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   )
 
   // Memoize the trend display for the chart header
+  // Hide trend for GKD ranges — server data doesn't span far enough for a meaningful comparison
   const chartTrendDisplay = useMemo(() => {
     try {
-      if (!river) return null
+      if (!river || GKD_RANGES.has(timeRange)) return null
       return formatTrendForTimeRange(river, dataType, timeRange)
     } catch (error) {
       console.error("Error calculating chart trend:", error)
@@ -370,32 +442,46 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       return [0, 10] // Default domain for empty data
     }
 
-    if (isLake) {
-      // For lakes, use filtered data based on time range
-      if (dataType === "temperature" && river.history.temperatures?.length > 0) {
-        const maxDataPoints = getDataPointsForTimeRange(timeRange)
-        data = river.history.temperatures
-          .slice(0, maxDataPoints)
-          .map((point) => point.temperature)
-          .filter((value) => typeof value === "number")
+    // Use GKD extended history for long ranges
+    if (extendedHistory && GKD_RANGES.has(timeRange)) {
+      const gkdPoints =
+        dataType === "temperature" ? extendedHistory.temperatures :
+        dataType === "level"       ? extendedHistory.levels :
+        dataType === "flow"        ? extendedHistory.flows : undefined
+      if (gkdPoints && gkdPoints.length > 0) {
+        const filtered = filterGkdByTimeRange(gkdPoints, timeRange)
+        data = smoothGkdPoints(filtered, timeRange).map(p => p.value).filter(v => !isNaN(v))
       }
-    } else {
-      // Get the appropriate data array based on data type and time range for rivers
-      if (dataType === "level" && river.history.levels?.length > 0) {
-        data = river.history.levels
-          .slice(0, getDataPointsForTimeRange(timeRange))
-          .map((point) => point.level)
-          .filter((value) => typeof value === "number")
-      } else if (dataType === "temperature" && river.history.temperatures?.length > 0) {
-        data = river.history.temperatures
-          .slice(0, getDataPointsForTimeRange(timeRange))
-          .map((point) => point.temperature)
-          .filter((value) => typeof value === "number")
-      } else if (dataType === "flow" && river.history.flows?.length > 0) {
-        data = river.history.flows
-          .slice(0, getDataPointsForTimeRange(timeRange))
-          .map((point) => point.flow)
-          .filter((value) => typeof value === "number")
+    }
+
+    if (data.length === 0) {
+      if (isLake) {
+        // For lakes, use filtered data based on time range
+        if (dataType === "temperature" && river.history.temperatures?.length > 0) {
+          const maxDataPoints = getDataPointsForTimeRange(timeRange)
+          data = river.history.temperatures
+            .slice(0, maxDataPoints)
+            .map((point) => point.temperature)
+            .filter((value) => typeof value === "number")
+        }
+      } else {
+        // Get the appropriate data array based on data type and time range for rivers
+        if (dataType === "level" && river.history.levels?.length > 0) {
+          data = river.history.levels
+            .slice(0, getDataPointsForTimeRange(timeRange))
+            .map((point) => point.level)
+            .filter((value) => typeof value === "number")
+        } else if (dataType === "temperature" && river.history.temperatures?.length > 0) {
+          data = river.history.temperatures
+            .slice(0, getDataPointsForTimeRange(timeRange))
+            .map((point) => point.temperature)
+            .filter((value) => typeof value === "number")
+        } else if (dataType === "flow" && river.history.flows?.length > 0) {
+          data = river.history.flows
+            .slice(0, getDataPointsForTimeRange(timeRange))
+            .map((point) => point.flow)
+            .filter((value) => typeof value === "number")
+        }
       }
     }
 
@@ -420,12 +506,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const newMax = Math.ceil(max + padding)
 
     return [baselineMin, newMax]
-  }, [river, dataType, timeRange, getDataPointsForTimeRange, isLake])
+  }, [river, dataType, timeRange, getDataPointsForTimeRange, isLake, extendedHistory])
 
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
-    if (yAxisDomain[0] === "auto" || yAxisDomain[1] === "auto") return 5
-
     const min = yAxisDomain[0] as number
     const max = yAxisDomain[1] as number
     const range = max - min
@@ -443,6 +527,19 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     // Safety check for river data
     if (!river || !river.history) {
       return createPlaceholderData(dataType)
+    }
+
+    // GKD extended history takes priority for long time ranges
+    if (extendedHistory && GKD_RANGES.has(timeRange)) {
+      const gkdPoints =
+        dataType === "temperature" ? extendedHistory.temperatures :
+        dataType === "level"       ? extendedHistory.levels :
+        dataType === "flow"        ? extendedHistory.flows : undefined
+      if (gkdPoints && gkdPoints.length > 0) {
+        const prepared = prepareGkdData(gkdPoints, timeRange)
+        if (prepared.length > 0) return prepared
+        // If filtering emptied the data, fall through to server data
+      }
     }
 
     let data: any[] = []
@@ -477,70 +574,41 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
 
     return data
-  }, [river, dataType, timeRange, prepareChartData])
+  }, [river, dataType, timeRange, prepareChartData, extendedHistory])
 
-  // Calculate the interval for the X-axis based on time range and device type - updated for new lake time ranges
+  // Calculate the interval for the X-axis based on time range and device type
   const xAxisInterval = useMemo(() => {
-    if (isLake) {
-      const dataLength = chartData.length
-
-      // Adjust intervals based on time range for lakes
-      if (timeRange === "6m") {
-        // 6 months: show fewer labels
-        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 12))
-      } else if (timeRange === "2m") {
-        // 2 months: moderate number of labels
-        return isMobile ? Math.max(1, Math.floor(dataLength / 8)) : Math.max(1, Math.floor(dataLength / 10))
-      } else if (timeRange === "1m") {
-        // 1 month: more labels
-        return isMobile ? Math.max(1, Math.floor(dataLength / 6)) : Math.max(1, Math.floor(dataLength / 8))
-      } else {
-        // 1-2 weeks: show most labels
-        return isMobile ? Math.max(1, Math.floor(dataLength / 4)) : Math.max(1, Math.floor(dataLength / 6))
-      }
-    }
-
-    // Original logic for rivers
-    const isLongTimeRange = timeRange === "1w"
     const dataLength = chartData.length
 
+    // GKD daily data ranges — target ~5 labels on mobile, ~8 on desktop
+    if (GKD_RANGES.has(timeRange)) {
+      const target = isMobile ? 4 : 7
+      return Math.max(1, Math.floor(dataLength / target) - 1)
+    }
+
+    if (isLake) {
+      // Short lake ranges (server data, daily points)
+      return isMobile ? Math.max(1, Math.floor(dataLength / 4)) : Math.max(1, Math.floor(dataLength / 6))
+    }
+
+    // Rivers — 15-min interval data
     if (isMobile) {
       switch (timeRange) {
-        case "1h":
-          return 0 // Mobile: Every 15 minutes (show all)
-        case "2h":
-          return 1 // Mobile: Every 30 minutes
-        case "6h":
-          return 5 // Mobile: Every 1.5 hours (show more)
-        case "12h":
-          return 11 // Mobile: Every 3 hours (show more)
-        case "24h":
-          return 23 // Mobile: Every 6 hours (show more)
-        case "48h":
-          return 47 // Mobile: Every 12 hours (show more)
-        default:
-          return isLongTimeRange
-            ? Math.floor(dataLength / 6) // Mobile: More labels for longer time ranges
-            : Math.floor(dataLength / 7)
+        case "1h":  return 0
+        case "6h":  return 5
+        case "12h": return 11
+        case "24h": return 23
+        case "2d":  return 47
+        default:    return Math.floor(dataLength / 6)
       }
     } else {
       switch (timeRange) {
-        case "1h":
-          return 0 // Desktop: Every 15 minutes
-        case "2h":
-          return 1 // Desktop: Every 30 minutes
-        case "6h":
-          return 3 // Desktop: Every 1 hour
-        case "12h":
-          return 7 // Desktop: Every 2 hours
-        case "24h":
-          return 11 // Desktop: Every 3 hours
-        case "48h":
-          return 23 // Desktop: Every 6 hours
-        default:
-          return isLongTimeRange
-            ? Math.floor(dataLength / 8) // Desktop: Fewer labels for longer time ranges
-            : Math.floor(dataLength / 10)
+        case "1h":  return 0
+        case "6h":  return 3
+        case "12h": return 7
+        case "24h": return 11
+        case "2d":  return 23
+        default:    return Math.floor(dataLength / 8)
       }
     }
   }, [timeRange, chartData.length, isMobile, isLake])
@@ -615,6 +683,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   ])
 
   const isLongTimeRange = timeRange === "1w"
+  const isGkdRange = GKD_RANGES.has(timeRange)
 
   const hasAnyDataForCurrentType = useMemo(() => {
     if (!river || !river.history) return false
@@ -652,6 +721,18 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     )
   }
 
+  // Only show loading text if GKD is loading AND we have no server data to display as fallback
+  const hasServerData = (() => {
+    if (!river?.history) return false
+    switch (dataType) {
+      case "flow": return (river.history.flows?.length ?? 0) > 0
+      case "level": return (river.history.levels?.length ?? 0) > 0
+      case "temperature": return (river.history.temperatures?.length ?? 0) > 0
+      default: return false
+    }
+  })()
+  const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
+
   // Render the chart with guaranteed rendering
   return (
     <Card>
@@ -663,7 +744,13 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
         </div>
       </CardHeader>
       <CardContent className="p-1 sm:p-3">
-        <div className="h-[300px] w-full" ref={chartContainerRef}>
+        <div className="h-[300px] w-full relative" ref={chartContainerRef}>
+          {showGkdLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="text-sm text-muted-foreground animate-pulse">Daten werden geladen…</div>
+            </div>
+          )}
+          <div className={`transition-opacity duration-700 ease-in-out h-full ${showGkdLoading ? "opacity-0" : "opacity-100"}`}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
@@ -680,10 +767,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(158, 158, 158, 0.2)" />
               <XAxis
-                dataKey={isLake ? "time" : isLongTimeRange ? "label" : "time"}
-                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake} />}
+                dataKey={isGkdRange || isLake ? "label" : isLongTimeRange ? "label" : "time"}
+                tick={(props) => <CustomXAxisTick {...props} isLongTimeRange={isLongTimeRange && !isLake && !isGkdRange} />}
                 interval={xAxisInterval}
-                height={isLongTimeRange && !isLake ? 50 : 30} // Normal height for lakes
+                height={isLongTimeRange && !isLake && !isGkdRange ? 50 : 30}
                 stroke="currentColor"
                 allowDataOverflow={false}
               />
@@ -712,11 +799,10 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 fill="url(#colorValue)"
                 fillOpacity={1}
                 strokeWidth={2}
-                activeDot={{ r: 4, stroke: chartConfig.stroke, strokeWidth: 1, fill: "#fff" }}
+                activeDot={false}
                 dot={false}
-                // Re-enabled smooth animations for chart transitions
                 isAnimationActive={true}
-                animationDuration={800}
+                animationDuration={GKD_RANGES.has(timeRange) ? 1500 : 1200}
                 animationEasing="ease-in-out"
               />
               {isAdminMode && dataType === "temperature" && chartData.some((d) => d.rawValue != null) && (
@@ -735,6 +821,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               )}
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
       </CardContent>
     </Card>

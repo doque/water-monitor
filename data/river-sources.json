@@ -3,6 +3,7 @@
     {
       "name": "Mangfall",
       "location": "Valley",
+      "gkdSlug": "valley-18203003",
       "levelUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=abfluss&setdiskr=15",
       "flowThresholds": {
@@ -14,6 +15,7 @@
     {
       "name": "Leitzach",
       "location": "Stauden",
+      "gkdSlug": "stauden-18242005",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/stauden-18242005/tabelle?methode=abfluss&setdiskr=15",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/stauden-18242005/tabelle",
@@ -27,6 +29,7 @@
     {
       "name": "Weißach",
       "location": "Oberach",
+      "gkdSlug": "oberach-18212004",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/oberach-18212004/tabelle?methode=abfluss&setdiskr=15",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/bayern/oberach-18212004/tabelle",
@@ -40,6 +43,7 @@
     {
       "name": "Schlierach",
       "location": "Miesbach",
+      "gkdSlug": "miesbach-18226009",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/miesbach-18226009/tabelle?methode=abfluss&setdiskr=15",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/miesbach-18226009/tabelle",
@@ -53,6 +57,7 @@
     {
       "name": "Söllbach",
       "location": "Bad Wiessee",
+      "gkdSlug": "bad-wiessee-18218306",
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=abfluss&setdiskr=15",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/bad-wiessee-18218306/tabelle",
@@ -64,11 +69,13 @@
     },
     {
       "name": "Schliersee",
+      "gkdSlug": "schliersee-18222008",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelleZweiMonate",
       "isLake": true
     },
     {
       "name": "Tegernsee",
+      "gkdSlug": "gmund_tegernsee-18201303",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/gmund_tegernsee-18201303/tabelleZweiMonate",
       "isLake": true
     },

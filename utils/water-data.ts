@@ -18,7 +18,10 @@ async function readSpitzingseeCache(): Promise<SpitzingseeCache | null> {
   try {
     const { blobs } = await list({ prefix: BLOB_FILE })
     if (blobs.length === 0) return null
-    const res = await fetch(blobs[0].url, { cache: "no-store" })
+    const res = await fetch(blobs[0].url, {
+      headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+      cache: "no-store",
+    })
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -28,7 +31,7 @@ async function readSpitzingseeCache(): Promise<SpitzingseeCache | null> {
 
 async function writeSpitzingseeCache(temps: Record<string, SpitzingseeCacheEntry>): Promise<void> {
   await put(BLOB_FILE, JSON.stringify({ lastUpdated: new Date().toISOString(), temps }), {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     allowOverwrite: true,
   })
@@ -111,6 +114,7 @@ export interface RiverData {
   flowThresholds?: Thresholds
   alertLevel?: AlertLevel
   isLake?: boolean
+  gkdSlug?: string
 }
 
 export type ChangeStatus =
@@ -779,6 +783,7 @@ async function fetchRiverData(config): Promise<RiverData> {
       flowThresholds: config.flowThresholds,
       alertLevel: alertLevel,
       isLake: config.isLake === true,
+      gkdSlug: config.gkdSlug,
     }
 
     return riverData
@@ -804,6 +809,7 @@ async function fetchRiverData(config): Promise<RiverData> {
       flowThresholds: config.flowThresholds,
       alertLevel: "normal",
       isLake: config.isLake === true,
+      gkdSlug: config.gkdSlug,
     }
   }
 }
