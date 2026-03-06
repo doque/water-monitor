@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/cron/spitzingsee",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

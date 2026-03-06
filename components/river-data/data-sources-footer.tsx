@@ -26,10 +26,20 @@ function safeExtractTime(dateString: string, isLake?: boolean): string {
 }
 
 export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
+  // Check if there are any data sources to display
+  const hasFlow = river.current.flow && river.urls.flow
+  const hasLevel = river.current.level && river.urls.level
+  const hasTemperature = river.current.temperature && river.urls.temperature && !river.urls.temperature?.startsWith("ext:")
+
+  // Don't render anything if there are no data sources (e.g., Spitzingsee)
+  if (!hasFlow && !hasLevel && !hasTemperature) {
+    return null
+  }
+
   return (
     <div className="text-xs text-muted-foreground text-center space-x-2">
       <span>Datenquellen:</span>
-      {river.current.flow && (
+      {hasFlow && (
         <a
           href={river.urls.flow}
           target="_blank"
@@ -39,8 +49,8 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
           Abfluss ({safeExtractTime(river.current.flow.date)})
         </a>
       )}
-      {river.current.flow && river.current.level && <span>|</span>}
-      {river.current.level && (
+      {hasFlow && hasLevel && <span>|</span>}
+      {hasLevel && (
         <a
           href={river.urls.level}
           target="_blank"
@@ -50,8 +60,9 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
           Pegel ({safeExtractTime(river.current.level.date)})
         </a>
       )}
-      {river.current.level && river.current.temperature && !river.urls.temperature?.startsWith("ext:") && <span>|</span>}
-      {river.current.temperature && !river.urls.temperature?.startsWith("ext:") && (
+      {hasLevel && hasTemperature && <span>|</span>}
+      {!hasLevel && hasFlow && hasTemperature && <span>|</span>}
+      {hasTemperature && (
         <a
           href={river.urls.temperature}
           target="_blank"

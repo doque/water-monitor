@@ -16,7 +16,11 @@ type DataType = "temperature" | "level" | "flow"
 function buildGkdUrl(kind: DataKind, type: DataType, slug: string, beginn: string, ende: string): string {
   const base = "https://www.gkd.bayern.de/de"
   if (kind === "lake") {
-    // Only temperature available for lakes
+    if (type === "level") {
+      // Lake water level (Pegel)
+      return `${base}/seen/wasserstand/bayern/${slug}/messwerte/tabelle?beginn=${beginn}&ende=${ende}&addhr=hr_w_hw`
+    }
+    // Lake temperature
     return `${base}/seen/wassertemperatur/bayern/${slug}/gesamtzeitraum/tabelle?start=${ende}&beginn=${beginn}&ende=${ende}&dir=none`
   }
   const pathMap: Record<DataType, string> = {

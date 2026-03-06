@@ -36,9 +36,12 @@ export function useGkdData(
   const cacheRef = useRef<Record<string, GkdHistory>>({})
 
   const gkdSlug = river?.gkdSlug
+  const gkdLevelSlug = river?.gkdLevelSlug
   const isLake = !!river?.isLake
   const isGkdRange = GKD_RANGES.has(timeRange)
   const cacheKey = gkdSlug || ""
+  // Lakes with gkdLevelSlug need GKD data for all time ranges (level data only comes from GKD)
+  const needsGkdForLevel = isLake && !!gkdLevelSlug
 
   useEffect(() => {
     if (!gkdSlug || !river) {
@@ -53,8 +56,8 @@ export function useGkdData(
       return
     }
 
-    // Only trigger first fetch when user enters a GKD range
-    if (!isGkdRange) return
+    // Trigger fetch when user enters a GKD range, or immediately for lakes that need level data
+    if (!isGkdRange && !needsGkdForLevel) return
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -69,13 +72,42 @@ export function useGkdData(
         const result: GkdHistory = {}
 
         if (isLake) {
-          // Lakes: only temperature available from GKD
-          const params = new URLSearchParams({ kind, type: "temperature", slug: gkdSlug, beginn, ende })
-          const res = await fetch(`/api/gkd?${params}`, { signal: controller.signal })
-          if (res.ok && !controller.signal.aborted) {
-            const json = await res.json()
-            result.temperatures = json.data
+          // Lakes: fetch temperature, and level if gkdLevelSlug is available
+          const fetches: Promise<void>[] = []
+
+          // Temperature fetch (uses gkdSlug)
+          if (gkdSlug) {
+            fetches.push((async () => {
+              try {
+                const params = new URLSearchParams({ kind, type: "temperature", slug: gkdSlug, beginn, ende })
+                const res = await fetch(`/api/gkd?${params}`, { signal: controller.signal })
+                if (res.ok && !controller.signal.aborted) {
+                  const json = await res.json()
+                  result.temperatures = json.data
+                }
+              } catch {
+                // Individual type fetch failure is non-fatal
+              }
+            })())
           }
+
+          // Level fetch (uses gkdLevelSlug if available)
+          if (gkdLevelSlug) {
+            fetches.push((async () => {
+              try {
+                const params = new URLSearchParams({ kind, type: "level", slug: gkdLevelSlug, beginn, ende })
+                const res = await fetch(`/api/gkd?${params}`, { signal: controller.signal })
+                if (res.ok && !controller.signal.aborted) {
+                  const json = await res.json()
+                  result.levels = json.data
+                }
+              } catch {
+                // Individual type fetch failure is non-fatal
+              }
+            })())
+          }
+
+          await Promise.all(fetches)
         } else {
           // Rivers: fetch ALL data types in parallel — no refetch when switching panes
           const types: DataType[] = ["temperature", "level", "flow"]
@@ -110,10 +142,14 @@ export function useGkdData(
     doFetch()
     return () => controller.abort()
     // dataType intentionally excluded — we fetch all types at once
-  }, [gkdSlug, cacheKey, isGkdRange, river?.name, isLake])
+  }, [gkdSlug, gkdLevelSlug, cacheKey, isGkdRange, needsGkdForLevel, river?.name, isLake])
+
+  // For lakes, return GKD data for all lake time ranges (including "1w")
+  // since lakes don't have server-side level data
+  const shouldReturnHistory = isGkdRange || (isLake && !!history)
 
   return {
-    history: isGkdRange ? history : null,
-    isLoading: isGkdRange && isLoading,
+    history: shouldReturnHistory ? history : null,
+    isLoading: shouldReturnHistory ? isLoading : false,
   }
 }

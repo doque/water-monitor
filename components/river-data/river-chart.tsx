@@ -1,6 +1,6 @@
 "use client"
 
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ReferenceLine } from "recharts"
 import type { RiverData, AlertLevel } from "@/utils/water-data"
 import type { TimeRangeOption } from "@/components/river-data/time-range-select"
 import { GKD_RANGES, timeRangeDurationDays } from "@/components/river-data/time-range-select"
@@ -79,12 +79,16 @@ function filterGkdByTimeRange(points: GkdDataPoint[], timeRange: TimeRangeOption
   return filtered
 }
 
-function prepareGkdData(points: GkdDataPoint[], timeRange: TimeRangeOption) {
+function prepareGkdData(points: GkdDataPoint[], timeRange: TimeRangeOption, lakeLevelAverage?: number) {
   const filtered = filterGkdByTimeRange(points, timeRange)
   const smoothed = smoothGkdPoints(filtered, timeRange)
   return smoothed.map(p => {
     const label = formatGkdLabel(p.date, timeRange)
-    return { value: p.value, time: label, label, fullDate: p.date }
+    // For lake levels, convert to cm deviation from average
+    const value = lakeLevelAverage
+      ? Math.round((p.value - lakeLevelAverage) * 100)  // cm from average
+      : p.value
+    return { value, absoluteValue: p.value, time: label, label, fullDate: p.date }
   })
 }
 
@@ -100,6 +104,9 @@ interface CustomTooltipProps {
   label?: string
   dataType: DataType
   isLake?: boolean
+  lakeLevelAverage?: number // 24-month average for lake levels
+  // Allow additional props from Recharts
+  [key: string]: unknown
 }
 
 interface CustomXAxisTickProps {
@@ -112,7 +119,7 @@ interface CustomXAxisTickProps {
 }
 
 // Custom tooltip component with proper typing
-const CustomTooltip = ({ active, payload, label, dataType, isLake }: CustomTooltipProps) => {
+const CustomTooltip = ({ active, payload, label, dataType, isLake, lakeLevelAverage }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     // Get the appropriate unit based on data type
     let unit = ""
@@ -120,8 +127,16 @@ const CustomTooltip = ({ active, payload, label, dataType, isLake }: CustomToolt
 
     switch (dataType) {
       case "level":
-        unit = "cm"
-        valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(0)
+        if (isLake && lakeLevelAverage) {
+          // Lake levels are already in cm deviation from average
+          const deviationCm = Math.round(payload[0].value)
+          const sign = deviationCm >= 0 ? "+" : ""
+          unit = "cm"
+          valueFormatted = `${sign}${deviationCm}`
+        } else {
+          unit = "cm"
+          valueFormatted = Number.parseFloat(payload[0].value.toString()).toFixed(0)
+        }
         break
       case "temperature":
         unit = "°C"
@@ -166,6 +181,49 @@ const CustomTooltip = ({ active, payload, label, dataType, isLake }: CustomToolt
   }
 
   return null
+}
+
+// Custom Y-axis tick for lake levels - shows "Mittel" with value at 0, cm deviations elsewhere
+interface CustomYAxisTickProps {
+  x?: number
+  y?: number
+  payload?: { value: number }
+  lakeLevelAverage?: number
+}
+
+const CustomLakeLevelYAxisTick = ({ x, y, payload, lakeLevelAverage }: CustomYAxisTickProps) => {
+  if (!payload || lakeLevelAverage === undefined || lakeLevelAverage === null) return null
+
+  const value = Math.round(payload.value)
+
+  // Skip ticks too close to 0 (within ±8cm) to avoid overlap with the Mittel label
+  if (value !== 0 && Math.abs(value) <= 8) {
+    return null
+  }
+
+  if (value === 0) {
+    // Show "24M Mittel" with value on two lines
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={-5} y={-6} textAnchor="end" fill="#f97316" fontSize={9} fontWeight={500}>
+          24M Mittel
+        </text>
+        <text x={-5} y={6} textAnchor="end" fill="#f97316" fontSize={9}>
+          {lakeLevelAverage.toFixed(2)}m
+        </text>
+      </g>
+    )
+  }
+
+  // Show +X or -X for other ticks
+  const label = value > 0 ? `+${value}` : `${value}`
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-5} y={4} textAnchor="end" fill="currentColor" fontSize={10}>
+        {label}
+      </text>
+    </g>
+  )
 }
 
 // Custom tick component for X-axis with proper typing
@@ -437,19 +495,24 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
   // Calculate Y-axis domain with baseline at 0 - with proper null checks
   const yAxisDomain = useMemo(() => {
     let data: number[] = []
+    const pegelnullpunkt = river?.pegelnullpunkt
+    const isLakeLevelWithRef = isLake && dataType === "level" && pegelnullpunkt
+    // For lakes with gkdLevelSlug, level data comes from GKD for ALL time ranges
+    const useLakeLevelFromGkd = isLake && dataType === "level" && river?.gkdLevelSlug
 
     if (!river || !river.history) {
       return [0, 10] // Default domain for empty data
     }
 
-    // Use GKD extended history for long ranges
-    if (extendedHistory && GKD_RANGES.has(timeRange)) {
+    // Use GKD extended history for long ranges, or for lake levels (all ranges)
+    if (extendedHistory && (GKD_RANGES.has(timeRange) || useLakeLevelFromGkd)) {
       const gkdPoints =
         dataType === "temperature" ? extendedHistory.temperatures :
         dataType === "level"       ? extendedHistory.levels :
         dataType === "flow"        ? extendedHistory.flows : undefined
       if (gkdPoints && gkdPoints.length > 0) {
         const filtered = filterGkdByTimeRange(gkdPoints, timeRange)
+        // Lake level data from GKD is already in m NHN, no conversion needed
         data = smoothGkdPoints(filtered, timeRange).map(p => p.value).filter(v => !isNaN(v))
       }
     }
@@ -490,7 +553,28 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     const min = Math.min(...data)
     const max = Math.max(...data)
 
-    // Always baseline to 0 for the minimum
+    // For lake levels, data is now in cm deviation from average
+    // Y-axis based on actual data range with some padding, always including 0 (the average)
+    if (isLakeLevelWithRef && extendedHistory?.levels && extendedHistory.levels.length > 0) {
+      const avgSum = extendedHistory.levels.reduce((acc, p) => acc + p.value, 0)
+      const avgLevel = avgSum / extendedHistory.levels.length
+      // Filter by time range first, then convert to cm deviations
+      const filtered = filterGkdByTimeRange(extendedHistory.levels, timeRange)
+      const deviations = filtered.map(p => Math.round((p.value - avgLevel) * 100))
+      const minDev = Math.min(...deviations)
+      const maxDev = Math.max(...deviations)
+      // Add 20% padding, round to nearest 10cm
+      const range = maxDev - minDev
+      const padding = Math.max(10, range * 0.2)
+      let domainMin = Math.floor((minDev - padding) / 10) * 10
+      let domainMax = Math.ceil((maxDev + padding) / 10) * 10
+      // Ensure 0 (the average) is included in the domain
+      if (domainMin > 0) domainMin = -10
+      if (domainMax < 0) domainMax = 10
+      return [domainMin, domainMax]
+    }
+
+    // Always baseline to 0 for the minimum (rivers, temperatures)
     const baselineMin = 0
 
     // Use relative padding based on max value instead of flat 5
@@ -508,11 +592,26 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     return [baselineMin, newMax]
   }, [river, dataType, timeRange, getDataPointsForTimeRange, isLake, extendedHistory])
 
+  // Check if showing lake level in m NHN
+  const isLakeLevelWithRef = isLake && dataType === "level" && river?.pegelnullpunkt
+
+  // Calculate 24-month average for lake levels (used as reference line)
+  const lakeLevelAverage = useMemo(() => {
+    if (isLakeLevelWithRef && extendedHistory?.levels && extendedHistory.levels.length > 0) {
+      const sum = extendedHistory.levels.reduce((acc, p) => acc + p.value, 0)
+      return sum / extendedHistory.levels.length
+    }
+    return null
+  }, [isLakeLevelWithRef, extendedHistory?.levels])
+
   // Calculate the optimal number of ticks for the Y-axis
   const optimalTickCount = useMemo(() => {
     const min = yAxisDomain[0] as number
     const max = yAxisDomain[1] as number
     const range = max - min
+
+    // For lake levels in m NHN (small range like 0.5-1.5m), use fewer ticks
+    if (isLakeLevelWithRef) return 5
 
     // For small ranges, use fewer ticks to avoid duplicates
     if (range <= 10) return 5
@@ -520,7 +619,46 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
 
     // For larger ranges, use more ticks
     return 7
-  }, [yAxisDomain])
+  }, [yAxisDomain, isLakeLevelWithRef])
+
+  // Generate explicit tick values for lake levels (always includes 0 for the Mittel label)
+  const lakeLevelTicks = useMemo(() => {
+    if (!isLakeLevelWithRef) return undefined
+    const min = yAxisDomain[0] as number
+    const max = yAxisDomain[1] as number
+    const range = max - min
+    // Choose step size based on range
+    const step = range <= 40 ? 10 : range <= 80 ? 20 : range <= 150 ? 30 : 50
+    const ticks: number[] = []
+    // Add ticks from min to max, ensuring 0 is included
+    for (let v = Math.ceil(min / step) * step; v <= max; v += step) {
+      ticks.push(v)
+    }
+    // Ensure 0 is in the ticks
+    if (!ticks.includes(0)) {
+      ticks.push(0)
+      ticks.sort((a, b) => a - b)
+    }
+    return ticks
+  }, [isLakeLevelWithRef, yAxisDomain])
+
+  // Y-axis tick formatter - shows cm deviation for lake levels, with average value at 0
+  const yAxisTickFormatter = useCallback((value: number) => {
+    if (isLakeLevelWithRef && lakeLevelAverage) {
+      const rounded = Math.round(value)
+      // Skip ticks too close to 0 (within ±10cm) to avoid overlap with Mittel label
+      if (rounded !== 0 && Math.abs(rounded) <= 10) {
+        return ""
+      }
+      if (rounded === 0) {
+        // Show "Mittel" with value - use newline for multiline
+        return `Mittel\n${lakeLevelAverage.toFixed(2)}m`
+      }
+      // Show as +X or -X for other ticks
+      return rounded > 0 ? `+${rounded}` : `${rounded}`
+    }
+    return Math.round(value).toString()
+  }, [isLakeLevelWithRef, lakeLevelAverage])
 
   // Prepare chart data based on data type - with stable dependencies
   const chartData = useMemo(() => {
@@ -529,14 +667,20 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       return createPlaceholderData(dataType)
     }
 
-    // GKD extended history takes priority for long time ranges
-    if (extendedHistory && GKD_RANGES.has(timeRange)) {
+    const pegelnullpunkt = river.pegelnullpunkt
+    const isLakeLevelWithRef = isLake && dataType === "level" && pegelnullpunkt
+    // For lakes with gkdLevelSlug, level data comes from GKD for ALL time ranges
+    const useLakeLevelFromGkd = isLake && dataType === "level" && river.gkdLevelSlug
+
+    // GKD extended history takes priority for long time ranges, or for lake levels (all ranges)
+    if (extendedHistory && (GKD_RANGES.has(timeRange) || useLakeLevelFromGkd)) {
       const gkdPoints =
         dataType === "temperature" ? extendedHistory.temperatures :
         dataType === "level"       ? extendedHistory.levels :
         dataType === "flow"        ? extendedHistory.flows : undefined
       if (gkdPoints && gkdPoints.length > 0) {
-        const prepared = prepareGkdData(gkdPoints, timeRange)
+        // For lake levels, pass average to convert to cm deviation
+        const prepared = prepareGkdData(gkdPoints, timeRange, isLakeLevelWithRef ? (lakeLevelAverage ?? undefined) : undefined)
         if (prepared.length > 0) return prepared
         // If filtering emptied the data, fall through to server data
       }
@@ -574,7 +718,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     }
 
     return data
-  }, [river, dataType, timeRange, prepareChartData, extendedHistory])
+  }, [river, dataType, timeRange, prepareChartData, extendedHistory, isLake, lakeLevelAverage])
 
   // Calculate the interval for the X-axis based on time range and device type
   const xAxisInterval = useMemo(() => {
@@ -692,13 +836,17 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
       case "flow":
         return river.history.flows && river.history.flows.length > 0
       case "level":
+        // For lakes with gkdLevelSlug, level data comes from GKD (extendedHistory)
+        if (isLake && river.gkdLevelSlug) {
+          return extendedHistory?.levels && extendedHistory.levels.length > 0
+        }
         return river.history.levels && river.history.levels.length > 0
       case "temperature":
         return river.history.temperatures && river.history.temperatures.length > 0
       default:
         return false
     }
-  }, [river, dataType])
+  }, [river, dataType, isLake, extendedHistory])
 
   if (!hasAnyDataForCurrentType) {
     return (
@@ -711,7 +859,7 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
             <div className="text-center">
               <p className="text-sm">Keine Daten verfügbar</p>
               <p className="text-xs mt-1">
-                Für {dataType === "flow" ? "Abfluss" : dataType === "level" ? "Wasserstand" : "Temperatur"} sind derzeit
+                Für {dataType === "flow" ? "Abfluss" : dataType === "level" ? "Pegel" : "Temperatur"} sind derzeit
                 keine Messwerte vorhanden.
               </p>
             </div>
@@ -776,17 +924,21 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
               />
               <YAxis
                 domain={yAxisDomain}
-                tickCount={optimalTickCount}
-                tickFormatter={formatYAxisTick}
-                tick={{ fontSize: 10 }}
-                width={30}
+                ticks={lakeLevelTicks}
+                tickCount={isLakeLevelWithRef ? undefined : optimalTickCount}
+                tickFormatter={isLakeLevelWithRef ? undefined : yAxisTickFormatter}
+                tick={isLakeLevelWithRef
+                  ? (props: any) => <CustomLakeLevelYAxisTick {...props} lakeLevelAverage={lakeLevelAverage} />
+                  : { fontSize: 10 }
+                }
+                width={isLakeLevelWithRef ? 60 : 30}
                 stroke="currentColor"
                 allowDecimals={false}
                 allowDataOverflow={false}
               />
               {!isMobile && (
                 <Tooltip
-                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} />}
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} lakeLevelAverage={lakeLevelAverage ?? undefined} />}
                   cursor={{ stroke: "rgba(0, 0, 0, 0.2)", strokeWidth: 1, strokeDasharray: "3 3" }}
                   wrapperStyle={{ zIndex: 100 }}
                 />
@@ -805,6 +957,15 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
                 animationDuration={GKD_RANGES.has(timeRange) ? 1500 : 1200}
                 animationEasing="ease-in-out"
               />
+              {/* 24-month average reference line for lake levels (at 0 since data is deviation) */}
+              {isLakeLevelWithRef && lakeLevelAverage && (
+                <ReferenceLine
+                  y={0}
+                  stroke="#f97316"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                />
+              )}
               {isAdminMode && dataType === "temperature" && chartData.some((d) => d.rawValue != null) && (
                 <Area
                   type="monotone"

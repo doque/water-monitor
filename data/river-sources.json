@@ -70,12 +70,16 @@
     {
       "name": "Schliersee",
       "gkdSlug": "schliersee-18222008",
+      "gkdLevelSlug": "schliersee-18222008",
+      "pegelnullpunkt": 776.18,
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/inn/schliersee-18222008/tabelleZweiMonate",
       "isLake": true
     },
     {
       "name": "Tegernsee",
       "gkdSlug": "gmund_tegernsee-18201303",
+      "gkdLevelSlug": "st-quirin-18201008",
+      "pegelnullpunkt": 725.04,
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/gmund_tegernsee-18201303/tabelleZweiMonate",
       "isLake": true
     },

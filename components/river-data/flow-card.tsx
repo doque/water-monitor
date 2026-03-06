@@ -47,7 +47,7 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
 
   return (
     <Card
-      className={`transition-all ${isActive ? "bg-muted" : isDisabled ? "opacity-50" : "hover:bg-muted/50"} ${!isDisabled ? "cursor-pointer" : "cursor-not-allowed"}`}
+      className={`transition-all ${isActive ? "bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500" : isDisabled ? "opacity-50" : "hover:bg-muted/50"} ${!isDisabled ? "cursor-pointer" : "cursor-not-allowed"}`}
       onClick={() => !isDisabled && onClick()}
     >
       <CardHeader className="pb-2 p-3 sm:p-6">

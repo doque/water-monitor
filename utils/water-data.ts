@@ -115,6 +115,8 @@ export interface RiverData {
   alertLevel?: AlertLevel
   isLake?: boolean
   gkdSlug?: string
+  gkdLevelSlug?: string
+  pegelnullpunkt?: number // Lake level reference point in m NHN
 }
 
 export type ChangeStatus =
@@ -568,7 +570,8 @@ async function fetchWaterFlow(url: string): Promise<{
 }
 
 // Fetch temperature for Spitzingsee from .temp-block widgets (Heute / Gestern / Vor einer Woche)
-async function fetchSpitzingseeTemperature(url: string): Promise<{
+// Exported for use by cron job
+export async function fetchSpitzingseeTemperature(url: string): Promise<{
   current: WaterTemperatureDataPoint | null
   history: WaterTemperatureDataPoint[]
   previousDay?: WaterTemperatureDataPoint
@@ -784,6 +787,8 @@ async function fetchRiverData(config): Promise<RiverData> {
       alertLevel: alertLevel,
       isLake: config.isLake === true,
       gkdSlug: config.gkdSlug,
+      gkdLevelSlug: config.gkdLevelSlug,
+      pegelnullpunkt: config.pegelnullpunkt,
     }
 
     return riverData
@@ -810,6 +815,8 @@ async function fetchRiverData(config): Promise<RiverData> {
       alertLevel: "normal",
       isLake: config.isLake === true,
       gkdSlug: config.gkdSlug,
+      gkdLevelSlug: config.gkdLevelSlug,
+      pegelnullpunkt: config.pegelnullpunkt,
     }
   }
 }

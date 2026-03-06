@@ -152,8 +152,8 @@ export function RiverDataDisplay(): JSX.Element {
         // Check if river has flow URL and is not a lake
         return !river.isLake && !!river.urls?.flow
       case "level":
-        // Check if river has level URL
-        return !!river.urls?.level
+        // Check if river has level URL or lake has gkdLevelSlug
+        return !!river.urls?.level || (river.isLake && !!river.gkdLevelSlug)
       case "temperature":
         // Check if river has temperature URL
         return !!river.urls?.temperature
@@ -173,6 +173,8 @@ export function RiverDataDisplay(): JSX.Element {
       case "flow":
         return river.history.flows && river.history.flows.length > 0
       case "level":
+        // For lakes with gkdLevelSlug, data comes from GKD (fetched on demand)
+        if (river.isLake && river.gkdLevelSlug) return true
         return river.history.levels && river.history.levels.length > 0
       case "temperature":
         return (
@@ -446,6 +448,8 @@ export function RiverDataDisplay(): JSX.Element {
               isActive={activeDataType === "level"}
               onClick={() => handleDataTypeChange("level")}
               timeRange={timeRange}
+              extendedHistory={gkdHistory}
+              isAdminMode={adminMode}
             />
             <TemperatureCard
               river={activeRiver}
@@ -503,6 +507,7 @@ export function RiverDataDisplay(): JSX.Element {
                   onClick={() => handleDataTypeChange("level")}
                   isMobile={true}
                   timeRange={timeRange}
+                  extendedHistory={gkdHistory}
                 />
                 <FlowCard
                   river={activeRiver}
@@ -521,6 +526,7 @@ export function RiverDataDisplay(): JSX.Element {
                   onClick={() => handleDataTypeChange("level")}
                   isMobile={true}
                   timeRange={timeRange}
+                  extendedHistory={gkdHistory}
                 />
                 <TemperatureCard
                   river={activeRiver}
