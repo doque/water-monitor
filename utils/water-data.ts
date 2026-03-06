@@ -253,11 +253,7 @@ async function fetchWaterLevel(url: string): Promise<{
 
     // Check if we actually got any data
     if (history.length === 0) {
-      // Log response content for small responses to help debug
-      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
-      console.warn(
-        `No water level data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
-      )
+      // No data found
       return {
         current: null,
         history: [],
@@ -293,7 +289,7 @@ async function fetchWaterLevel(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error(`Fehler beim Abrufen der Wasserstandsdaten für ${url}:`, error)
+    // Fetch error - return empty
     return {
       current: null,
       history: [],
@@ -408,9 +404,7 @@ async function fetchWaterTemperature(url: string): Promise<{
 
     // Check if we got any data
     if (history.length === 0) {
-      console.warn(
-        `No temperature data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${tableRows.length}.`,
-      )
+      // No data found
       return {
         current: null,
         history: [],
@@ -446,7 +440,7 @@ async function fetchWaterTemperature(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error(`Error fetching temperature data for ${url}:`, error)
+    // Fetch error - return empty
     return {
       current: null,
       history: [],
@@ -477,7 +471,7 @@ async function fetchWaterFlow(url: string): Promise<{
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.warn(`Flow data not available (404) for URL: ${url}. This river may not have flow data.`)
+        // Flow data not available for this river - this is expected for some
         return {
           current: null,
           history: [],
@@ -521,11 +515,7 @@ async function fetchWaterFlow(url: string): Promise<{
 
     // Check if we actually got any data
     if (history.length === 0) {
-      // Log response content for small responses to help debug
-      const shouldLogContent = html.length < 500 // Log content for responses smaller than 500 chars
-      console.warn(
-        `No flow data found for URL: ${url}. Response status: ${response.status}, Content length: ${html.length}. Table rows found: ${$("table.tblsort tbody tr").length}. Possible parsing issue or empty data table.${shouldLogContent ? ` Response content: ${html}` : ""}`,
-      )
+      // No data found
       return {
         current: null,
         history: [],
@@ -561,7 +551,7 @@ async function fetchWaterFlow(url: string): Promise<{
       changeStatus,
     }
   } catch (error) {
-    console.error(`Fehler beim Abrufen der Abflussdaten für ${url}:`, error)
+    // Fetch error - return empty
     return {
       current: null,
       history: [],
@@ -592,8 +582,6 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
       cache: "no-store",
     })
 
-    console.log(`Spitzingsee: HTTP ${response.status}`)
-
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
     }
@@ -611,12 +599,10 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
 
     // Parse date range from title, e.g. "Vom  1. Februar bis  4. März"
     const titleText = $(".title").first().text().trim()
-    console.log(`Spitzingsee: title="${titleText}"`)
     const titleMatch = titleText.match(
       /Vom\s+(\d+)\.\s+([^\s.]+)\s+bis\s+(\d+)\.\s+([^\s.]+)/
     )
     if (!titleMatch) {
-      console.warn(`Spitzingsee: could not parse date range from title: "${titleText}"`)
       return empty
     }
 
@@ -629,12 +615,10 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
 
     const startDate = new Date(startYear, startMonth, parseInt(titleMatch[1]))
     const endDate = new Date(endYear, endMonth, parseInt(titleMatch[3]))
-    console.log(`Spitzingsee: date range ${startDate.toDateString()} – ${endDate.toDateString()}`)
 
     // Extract temps array from inline script, e.g. const temps = [1.4,1.5,...];
     const tempsMatch = html.match(/const\s+temps\s*=\s*(\[[^\]]+\])/)
     if (!tempsMatch) {
-      console.warn(`Spitzingsee: no temps array found in page source`)
       return empty
     }
 
@@ -674,9 +658,9 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
     // Persist merged data (fire and forget)
     const trimmed: Record<string, SpitzingseeCacheEntry> = {}
     allPoints.forEach(({ date, raw, jittered }) => { trimmed[date] = { raw, jittered } })
-    writeSpitzingseeCache(trimmed).catch((e) =>
-      console.error("Spitzingsee: blob write failed", e)
-    )
+    writeSpitzingseeCache(trimmed).catch(() => {
+      // Ignore blob write errors
+    })
 
     const dataPoints: WaterTemperatureDataPoint[] = allPoints.map(
       ({ date, raw, jittered, timestamp }) => ({
@@ -696,8 +680,7 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
         : ("stable" as ChangeStatus)
 
     return { current, history: dataPoints, previousDay, change, changeStatus }
-  } catch (error) {
-    console.error(`Error fetching Spitzingsee temperature data for ${url}:`, error)
+  } catch {
     return empty
   }
 }
@@ -804,9 +787,8 @@ async function fetchRiverData(config): Promise<RiverData> {
     }
 
     return riverData
-  } catch (error) {
-    console.error(`Fehler beim Abrufen der Daten für ${config.name}:`, error)
-    // Leeres Flussdatenobjekt zurückgeben
+  } catch {
+    // Return empty river data on error
     return {
       name: config.name,
       location: config.location,
@@ -837,8 +819,6 @@ async function fetchRiverData(config): Promise<RiverData> {
 // Hauptfunktion zum Abrufen aller Flussdaten - NO CACHING
 export async function fetchRiversData(includeAllRivers = false): Promise<RiversData> {
   try {
-    console.log("Fetching fresh river data (no cache)")
-
     // Filter rivers based on admin mode - exclude Söllbach in normal mode
     const riversToFetch = includeAllRivers
       ? riverSources.rivers
@@ -853,11 +833,10 @@ export async function fetchRiversData(includeAllRivers = false): Promise<RiversD
       lastUpdated: new Date(),
     }
   } catch (error) {
-    console.error("Fehler beim Abrufen der Flussdaten:", error)
     return {
       rivers: [],
       lastUpdated: new Date(),
-      error: error.message,
+      error: error instanceof Error ? error.message : "Unknown error",
     }
   }
 }
@@ -872,7 +851,6 @@ export function getHistorySpanDays(dataPoints: { timestamp: Date }[]): number {
 export function extractRiverId(url: string): string {
   // Handle undefined URLs
   if (!url) {
-    console.warn("URL is undefined in extractRiverId")
     return "unknown"
   }
 
@@ -893,8 +871,8 @@ export function extractRiverId(url: string): string {
         return part
       }
     }
-  } catch (error) {
-    console.error("Error extracting river ID:", error)
+  } catch {
+    // Ignore parse errors, return unknown
   }
 
   // If we can't extract the ID, return a fallback

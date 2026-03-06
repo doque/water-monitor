@@ -43,7 +43,6 @@ export function RiverDataProvider({ children, initialData }: RiverDataProviderPr
       const riversData = await response.json()
       setData(riversData)
     } catch (err) {
-      console.error("Error fetching river data:", err)
       setError(err instanceof Error ? err.message : "Unknown error occurred")
     } finally {
       setIsLoading(false)

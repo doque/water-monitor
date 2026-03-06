@@ -133,7 +133,6 @@ export function useGkdData(
         }
       } catch (err: any) {
         if (err?.name !== "AbortError") {
-          console.error("GKD fetch error:", err)
           setIsLoading(false)
         }
       }

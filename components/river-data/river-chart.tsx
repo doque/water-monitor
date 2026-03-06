@@ -486,8 +486,8 @@ export function RiverChart({ river, dataType, timeRange, isMobile, isAdminMode =
     try {
       if (!river || GKD_RANGES.has(timeRange)) return null
       return formatTrendForTimeRange(river, dataType, timeRange)
-    } catch (error) {
-      console.error("Error calculating chart trend:", error)
+    } catch {
+      
       return null
     }
   }, [river, dataType, timeRange])

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
+import { withEvlog, useLogger } from "@/lib/evlog"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -43,7 +44,8 @@ function toDateString(d: Date): string {
   return `${dd}.${mm}.${yyyy} 00:00`
 }
 
-export async function GET(request: Request) {
+export const GET = withEvlog(async (request: Request) => {
+  const log = useLogger()
   const { searchParams } = new URL(request.url)
   const kind = searchParams.get("kind") as DataKind
   const type = searchParams.get("type") as DataType
@@ -55,14 +57,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing params: kind, type, slug, beginn, ende required" }, { status: 400 })
   }
 
+  log.set({ gkd: { kind, type, slug } })
+
   const url = buildGkdUrl(kind, type, slug, beginn, ende)
 
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "Googlebot" },
-      next: { revalidate: 3600 }, // Cache GKD HTML for 1 hour
+      next: { revalidate: 3600 },
     })
     if (!res.ok) {
+      log.set({ gkd: { status: res.status } })
       return NextResponse.json({ error: `GKD returned ${res.status}` }, { status: 502 })
     }
 
@@ -72,12 +77,11 @@ export async function GET(request: Request) {
 
     $("table.tblsort tbody tr").each((_, row) => {
       const cells = $(row).find("td")
-      const dateStr = cells.eq(0).text().trim()        // "DD.MM.YYYY" or "DD.MM.YYYY HH:MM"
-      const valueStr = cells.eq(1).text().trim().replace(",", ".")  // Mittelwert
+      const dateStr = cells.eq(0).text().trim()
+      const valueStr = cells.eq(1).text().trim().replace(",", ".")
 
       if (!dateStr || !valueStr || valueStr === "-") return
 
-      // Split off time portion first ("DD.MM.YYYY HH:MM" → "DD.MM.YYYY" + "HH:MM")
       const [datePart, timePart] = dateStr.split(" ")
       const [d, m, y] = datePart.split(".")
       if (!d || !m || !y) return
@@ -97,14 +101,14 @@ export async function GET(request: Request) {
       data.push({ date: dateStr, value, timestamp })
     })
 
-    // Return oldest-first (GKD gives newest-first)
     data.reverse()
+    log.set({ gkd: { points: data.length } })
 
     return NextResponse.json({ data }, {
       headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=1800" },
     })
   } catch (err) {
-    console.error("GKD fetch error:", err)
+    log.error(err as Error)
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 })
   }
-}
+})

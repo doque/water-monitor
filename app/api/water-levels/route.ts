@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server"
 import { fetchRiversData } from "@/utils/water-data"
+import { withEvlog, useLogger } from "@/lib/evlog"
 
-// Force dynamic rendering for this API route
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export async function GET() {
+export const GET = withEvlog(async () => {
+  const log = useLogger()
   try {
     const data = await fetchRiversData()
+    log.set({ rivers: data.rivers.length })
     return NextResponse.json(data, {
       headers: {
         "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
@@ -16,7 +18,7 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error("Fehler beim Abrufen der Flussdaten:", error)
+    log.error(error as Error)
     return NextResponse.json(
       { error: "Fehler beim Abrufen der Flussdaten" },
       {
@@ -29,4 +31,4 @@ export async function GET() {
       },
     )
   }
-}
+})

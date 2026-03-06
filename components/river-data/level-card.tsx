@@ -25,8 +25,7 @@ export function LevelCard({ river, isActive, onClick, isMobile = false, timeRang
     if (!river.isLake && GKD_RANGES.has(timeRange)) return null
     try {
       return formatTrendForTimeRange(river, "level", timeRange)
-    } catch (error) {
-      console.error("Error calculating level trend:", error)
+    } catch {
       return null
     }
   }, [river, timeRange])

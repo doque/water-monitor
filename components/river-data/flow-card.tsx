@@ -35,8 +35,8 @@ export function FlowCard({ river, isActive, onClick, timeRange, showColors = fal
   const trendDisplay = useMemo(() => {
     try {
       return formatTrendForTimeRange(river, "flow", timeRange)
-    } catch (error) {
-      console.error("Error calculating flow trend:", error)
+    } catch {
+      
       return null
     }
   }, [river, timeRange])

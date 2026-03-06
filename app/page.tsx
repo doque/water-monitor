@@ -5,6 +5,7 @@ import { RiverDataSkeleton } from "@/components/river-data-skeleton"
 import { Suspense } from "react"
 import { AdminModeHeader } from "@/components/admin-mode-header"
 import { RiverDataProvider } from "@/contexts/river-data-context"
+import { log } from "@/lib/evlog"
 
 // Force dynamic rendering - no static generation
 export const dynamic = "force-dynamic"
@@ -39,7 +40,7 @@ async function RiverDataContainer() {
       </RiverDataProvider>
     )
   } catch (error) {
-    console.error("Error in RiverDataContainer:", error)
+    log.error({ page: "home", error: error instanceof Error ? error.message : String(error) })
     return (
       <div className="p-6 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
         <p className="text-yellow-800 dark:text-yellow-300 font-medium">Fehler beim Laden der Flussdaten.</p>

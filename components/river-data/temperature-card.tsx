@@ -22,8 +22,8 @@ export function TemperatureCard({ river, isActive, onClick, isMobile = false, ti
   const trendDisplay = useMemo(() => {
     try {
       return formatTrendForTimeRange(river, "temperature", timeRange)
-    } catch (error) {
-      console.error("Error calculating temperature trend:", error)
+    } catch {
+      
       return null
     }
   }, [river, timeRange])
