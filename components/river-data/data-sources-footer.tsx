@@ -29,12 +29,19 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
   // Check if there are any data sources to display
   const hasFlow = river.current.flow && river.urls.flow
   const hasLevel = river.current.level && river.urls.level
+  // Lakes with gkdLevelSlug get level data from GKD
+  const hasGkdLevel = river.isLake && river.gkdLevelSlug
   const hasTemperature = river.current.temperature && river.urls.temperature && !river.urls.temperature?.startsWith("ext:")
 
   // Don't render anything if there are no data sources (e.g., Spitzingsee)
-  if (!hasFlow && !hasLevel && !hasTemperature) {
+  if (!hasFlow && !hasLevel && !hasGkdLevel && !hasTemperature) {
     return null
   }
+
+  // Build GKD level URL for lakes
+  const gkdLevelUrl = hasGkdLevel
+    ? `https://www.gkd.bayern.de/de/seen/wasserstand/bayern/${river.gkdLevelSlug}/messwerte`
+    : null
 
   return (
     <div className="text-xs text-muted-foreground text-center space-x-2">
@@ -49,7 +56,7 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
           Abfluss ({safeExtractTime(river.current.flow.date)})
         </a>
       )}
-      {hasFlow && hasLevel && <span>|</span>}
+      {hasFlow && (hasLevel || hasGkdLevel) && <span>|</span>}
       {hasLevel && (
         <a
           href={river.urls.level}
@@ -57,10 +64,20 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
           rel="noopener noreferrer"
           className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
         >
-          Pegel ({safeExtractTime(river.current.level.date)})
+          Pegel ({safeExtractTime(river.current.level!.date)})
         </a>
       )}
-      {hasLevel && hasTemperature && <span>|</span>}
+      {hasGkdLevel && !hasLevel && gkdLevelUrl && (
+        <a
+          href={gkdLevelUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+        >
+          Pegel (GKD)
+        </a>
+      )}
+      {(hasLevel || hasGkdLevel) && hasTemperature && <span>|</span>}
       {!hasLevel && hasFlow && hasTemperature && <span>|</span>}
       {hasTemperature && (
         <a

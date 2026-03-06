@@ -306,11 +306,13 @@ export function RiverDataDisplay(): JSX.Element {
     (value: string) => {
       const newRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === value)
       if (newRiver) {
-        // Get smart default for dataType
-        const defaults = getDefaultsForRiver(newRiver)
-
         setActiveRiverId(value)
-        setActiveDataType(defaults.dataType)
+
+        // Keep current pane if it's available for the new water body, otherwise fall back to first available
+        if (!hasActualDataForType(newRiver, activeDataType)) {
+          const defaults = getDefaultsForRiver(newRiver)
+          setActiveDataType(defaults.dataType)
+        }
 
         if (!isTimeRangeValidForWaterBody(timeRange, !!newRiver.isLake)) {
           // Current time range is not valid for new water body, use a sensible default
@@ -333,7 +335,7 @@ export function RiverDataDisplay(): JSX.Element {
         // Otherwise keep current timeRange if it's valid
       }
     },
-    [riversWithIds, timeRange],
+    [riversWithIds, timeRange, activeDataType],
   )
 
   const handleTimeRangeChange = useCallback((value: TimeRangeOption) => {
