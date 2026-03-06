@@ -601,8 +601,8 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
     const html = await response.text()
     const $ = cheerio.load(html)
 
-    // Use ISO date format (YYYY-MM-DD) for cache keys
-    const toDateKey = (d: Date) => d.toISOString().split("T")[0]
+    // Use full ISO timestamp for cache keys
+    const toDateKey = (d: Date) => d.toISOString()
 
     const GERMAN_MONTHS: Record<string, number> = {
       Januar: 0, Februar: 1, März: 2, April: 3, Mai: 4, Juni: 5,
@@ -653,12 +653,18 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
     })
 
     // Sort all entries by date, keep most recent 365
+    // Support ISO (2024-03-06T00:00:00.000Z) and legacy German (06.03.2024 00:00) formats
     const allPoints = Object.entries(merged)
       .map(([date, entry]) => {
-        // Support both ISO (YYYY-MM-DD) and legacy (DD.MM.YYYY) formats
-        const timestamp = date.includes("-")
-          ? new Date(date)
-          : (() => { const [d, m, y] = date.split(" ")[0].split("."); return new Date(+y, +m - 1, +d) })()
+        let timestamp: Date
+        if (date.includes("T") || date.match(/^\d{4}-\d{2}-\d{2}/)) {
+          // ISO format
+          timestamp = new Date(date)
+        } else {
+          // Legacy German format: DD.MM.YYYY HH:MM
+          const [d, m, y] = date.split(" ")[0].split(".")
+          timestamp = new Date(+y, +m - 1, +d)
+        }
         return { date, ...entry, timestamp }
       })
       .filter(p => !isNaN(p.timestamp.getTime()))
