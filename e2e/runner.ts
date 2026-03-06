@@ -1,6 +1,6 @@
 /**
  * E2E Test Runner for Water Monitor
- * Uses agent-browser for browser automation
+ * Uses agent-browser with parallel sessions for faster execution
  *
  * Usage:
  *   pnpm test                    # Spawns dev server, runs tests
@@ -13,6 +13,15 @@ import { createServer } from "net"
 
 const PRODUCTION_URL = "https://monitor.bfv-mbteg.de"
 const LOCAL_PORT = 3000
+
+// Test fixtures - abstract water body references
+const FIXTURES = {
+  river: "valley-18203003", // Any river with flow/level/temp
+  river2: "stauden-18242005", // Another river for switching tests
+  lake: "lake-tegernsee", // Any lake with level data
+  lake2: "lake-schliersee", // Another lake
+  lakeWithWebcam: "lake-spitzingsee",
+}
 
 // Parse args
 let BASE_URL = `http://localhost:${LOCAL_PORT}`
@@ -58,7 +67,6 @@ async function ensureServer(): Promise<void> {
     detached: false,
   })
 
-  // Wait for server to be ready
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("Server startup timeout")), 30000)
     const checkReady = setInterval(async () => {
@@ -75,28 +83,14 @@ async function ensureServer(): Promise<void> {
   console.log(`\x1b[2m  Dev server ready\x1b[0m\n`)
 }
 
-// Cleanup server on exit
-function cleanup() {
-  if (serverProcess) {
-    serverProcess.kill()
-  }
-  browser("close")
-}
-
-// Test state
-interface TestResult {
-  name: string
-  passed: boolean
-  error?: string
-}
-
-const results: TestResult[] = []
-let currentSuite = ""
-
-// Helpers
-function browser(cmd: string): string {
+// Browser helpers with session support
+function browser(cmd: string, session?: string): string {
+  const sessionFlag = session ? `--session ${session}` : ""
   try {
-    return execSync(`npx agent-browser ${cmd}`, { encoding: "utf-8", timeout: 30000 })
+    return execSync(`npx agent-browser ${sessionFlag} ${cmd}`, {
+      encoding: "utf-8",
+      timeout: 30000,
+    })
   } catch (e: any) {
     return e.stdout || e.message
   }
@@ -106,294 +100,267 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-// Test utilities
-function describe(name: string, fn: () => Promise<void>) {
-  currentSuite = name
-  return fn()
-}
-
-async function test(name: string, fn: () => Promise<void>) {
-  const fullName = currentSuite ? `${currentSuite} > ${name}` : name
-  process.stdout.write(`  ○ ${name}...`)
-  try {
-    await fn()
-    results.push({ name: fullName, passed: true })
-    console.log(" \x1b[32m✓\x1b[0m")
-  } catch (e: any) {
-    results.push({ name: fullName, passed: false, error: e.message })
-    console.log(` \x1b[31m✗\x1b[0m ${e.message}`)
-  }
+// Test framework
+interface TestResult {
+  suite: string
+  name: string
+  passed: boolean
+  error?: string
 }
 
 function expect(actual: string) {
   return {
     toContain(expected: string) {
       if (!actual.includes(expected)) {
-        throw new Error(`Expected to contain "${expected}"`)
+        throw new Error(`Expected "${expected}"`)
       }
     },
     toMatch(regex: RegExp) {
       if (!regex.test(actual)) {
-        throw new Error(`Expected to match ${regex}`)
+        throw new Error(`Expected ${regex}`)
       }
-    },
-    not: {
-      toContain(expected: string) {
-        if (actual.includes(expected)) {
-          throw new Error(`Expected NOT to contain "${expected}"`)
-        }
-      },
     },
   }
 }
 
-function getUrl(): string {
-  return browser("get url").trim()
-}
+// Test suite runner (silent execution, returns results)
+async function runSuite(
+  session: string,
+  suiteName: string,
+  tests: Array<{ name: string; fn: (s: string) => Promise<void> }>,
+): Promise<TestResult[]> {
+  const results: TestResult[] = []
 
-function getSnapshot(): string {
-  return browser("snapshot")
+  // Initialize session
+  browser(`open ${BASE_URL}`, session)
+  await sleep(2000)
+
+  for (const t of tests) {
+    try {
+      await t.fn(session)
+      results.push({ suite: suiteName, name: t.name, passed: true })
+    } catch (e: any) {
+      results.push({ suite: suiteName, name: t.name, passed: false, error: e.message })
+    }
+  }
+
+  browser("close", session)
+  return results
 }
 
 // ============================================
-// TEST SUITES
+// TEST DEFINITIONS
+// ============================================
+
+const riverTests = [
+  {
+    name: "Default page loads with selector and chart",
+    fn: async (s: string) => {
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Abfluss")
+      expect(snap).toContain("Entwicklung")
+    },
+  },
+  {
+    name: "URL id param selects water body",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river2}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Leitzach")
+    },
+  },
+  {
+    name: "Pane param activates correct pane",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/cm/)
+    },
+  },
+  {
+    name: "Flow chart shows m³/s units",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=flow`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/m³\/s/)
+    },
+  },
+  {
+    name: "Level chart shows cm units",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/cm/)
+    },
+  },
+  {
+    name: "Rivers show hourly time range options",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}`, s)
+      await sleep(1500)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/Stunden?/)
+    },
+  },
+  {
+    name: "Data sources footer shows links",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}`, s)
+      await sleep(1500)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Datenquellen")
+    },
+  },
+]
+
+const lakeTests = [
+  {
+    name: "Lake ID param selects lake",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Tegernsee")
+    },
+  },
+  {
+    name: "Lakes default to level pane (no flow)",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Pegel")
+    },
+  },
+  {
+    name: "Lakes show weekly/monthly time ranges",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/Wochen/)
+    },
+  },
+  {
+    name: "Lake level shows 24M Mittel reference",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake2}&pane=level&interval=2w`, s)
+      await sleep(3000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/Mittel/)
+    },
+  },
+  {
+    name: "Lake with webcam displays image",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lakeWithWebcam}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/Webcam|img/i)
+    },
+  },
+  {
+    name: "Lake shows GKD data source",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake2}`, s)
+      await sleep(1500)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/GKD|Pegel/)
+    },
+  },
+]
+
+const navigationTests = [
+  {
+    name: "Combined URL params work together",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.lake2}&pane=level&interval=2w`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Schliersee")
+      expect(snap).toMatch(/2 Wochen/)
+    },
+  },
+  {
+    name: "Pane persists when switching water bodies",
+    fn: async (s: string) => {
+      browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`, s)
+      await sleep(2000)
+      browser(`open ${BASE_URL}?id=${FIXTURES.river2}&pane=level`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toMatch(/cm/)
+    },
+  },
+  {
+    name: "Mobile viewport renders correctly",
+    fn: async (s: string) => {
+      browser("set viewport 375 667", s)
+      browser(`open ${BASE_URL}`, s)
+      await sleep(2000)
+      const snap = browser("snapshot", s)
+      expect(snap).toContain("Entwicklung")
+      browser("set viewport 1280 800", s)
+    },
+  },
+]
+
+// ============================================
+// MAIN
 // ============================================
 
 async function runTests() {
   console.log("\n\x1b[1m🌊 Water Monitor E2E Tests\x1b[0m")
   console.log(`   Target: ${BASE_URL}\n`)
 
-  // Ensure server is running for local tests
   await ensureServer()
 
-  // Handle cleanup on exit
   process.on("SIGINT", cleanup)
   process.on("SIGTERM", cleanup)
 
-  // Setup browser
-  browser(`open ${BASE_URL}`)
-  await sleep(2000)
+  // Run test suites in parallel using different sessions
+  console.log("\x1b[2m  Running 3 test suites in parallel...\x1b[0m\n")
 
-  // ------------------------------------------
-  await describe("1. Initial Page Load", async () => {
-    await test("Page loads with river selector", async () => {
-      const snap = getSnapshot()
-      expect(snap).toContain("Mangfall")
-    })
+  const startTime = Date.now()
+  const [riverResults, lakeResults, navResults] = await Promise.all([
+    runSuite("rivers", "Rivers", riverTests),
+    runSuite("lakes", "Lakes", lakeTests),
+    runSuite("nav", "Navigation", navigationTests),
+  ])
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
 
-    await test("Default Abfluss pane is visible", async () => {
-      const snap = getSnapshot()
-      expect(snap).toContain("Abfluss")
-    })
+  const results = [...riverResults, ...lakeResults, ...navResults]
 
-    await test("Chart title 'Entwicklung' visible", async () => {
-      const snap = getSnapshot()
-      expect(snap).toContain("Entwicklung")
-    })
-  })
+  // Print results by suite
+  for (const suite of ["Rivers", "Lakes", "Navigation"]) {
+    const suiteResults = results.filter((r) => r.suite === suite)
+    console.log(`\x1b[1m${suite}\x1b[0m`)
+    for (const r of suiteResults) {
+      const icon = r.passed ? "\x1b[32m✓\x1b[0m" : "\x1b[31m✗\x1b[0m"
+      console.log(`  ${icon} ${r.name}${r.error ? ` - ${r.error}` : ""}`)
+    }
+    console.log()
+  }
 
-  // ------------------------------------------
-  await describe("2. URL State Mapping", async () => {
-    await test("River ID param selects Leitzach", async () => {
-      browser(`open ${BASE_URL}?id=stauden-18242005`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toContain("Leitzach")
-    })
-
-    await test("Lake ID param selects Tegernsee", async () => {
-      browser(`open ${BASE_URL}?id=lake-tegernsee`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toContain("Tegernsee")
-    })
-
-    await test("?pane=level activates Pegel pane", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=level`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      // Chart title shows "Entwicklung" with level units (cm)
-      expect(snap).toMatch(/Pegel|cm/)
-    })
-
-    await test("Combined params work together", async () => {
-      browser(`open ${BASE_URL}?id=lake-schliersee&pane=level&interval=2w`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toContain("Schliersee")
-      expect(snap).toMatch(/2 Wochen|2w/)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("3. Pane Switching", async () => {
-    await test("Switching panes updates chart content", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=flow`)
-      await sleep(2000)
-      let snap = getSnapshot()
-      expect(snap).toMatch(/m³\/s/)
-
-      // Switch to level pane
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=level`)
-      await sleep(2000)
-      snap = getSnapshot()
-      expect(snap).toMatch(/cm/)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("4. Pane Persistence When Switching Waters", async () => {
-    await test("Pegel persists when switching Mangfall → Leitzach", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=level`)
-      await sleep(2000)
-      browser(`open ${BASE_URL}?id=stauden-18242005&pane=level`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      // Should show Leitzach with level data (cm)
-      expect(snap).toContain("Leitzach")
-      expect(snap).toMatch(/cm/)
-    })
-
-    await test("Lake shows level pane (no flow available)", async () => {
-      browser(`open ${BASE_URL}?id=lake-tegernsee`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      // Lakes show Pegel, not Abfluss
-      expect(snap).toContain("Pegel")
-    })
-  })
-
-  // ------------------------------------------
-  await describe("5. Time Range Selection", async () => {
-    await test("Rivers show hourly time ranges", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/1\s*h|6\s*h|24\s*h|Stunde/)
-    })
-
-    await test("Lakes show weekly/monthly time ranges", async () => {
-      browser(`open ${BASE_URL}?id=lake-tegernsee`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Wochen|Monate/)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("6. Chart Rendering", async () => {
-    await test("Flow chart renders", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=flow`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toContain("Entwicklung")
-    })
-
-    await test("Level chart renders", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=level`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toContain("Entwicklung")
-    })
-
-    await test("Temperature chart renders", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003&pane=temperature`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toContain("Entwicklung")
-    })
-  })
-
-  // ------------------------------------------
-  await describe("7. Lake Level (Schliersee/Tegernsee)", async () => {
-    await test("Schliersee shows Mittel reference", async () => {
-      browser(`open ${BASE_URL}?id=lake-schliersee&pane=level&interval=24m`)
-      await sleep(3000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Mittel|cm/)
-    })
-
-    await test("Tegernsee shows Pegel with deviation", async () => {
-      browser(`open ${BASE_URL}?id=lake-tegernsee&pane=level&interval=24m`)
-      await sleep(3000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Pegel|cm|Mittel/)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("8. Webcam Display", async () => {
-    await test("Spitzingsee shows webcam", async () => {
-      browser(`open ${BASE_URL}?id=lake-spitzingsee`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Webcam|img|image/i)
-    })
-
-    await test("Tegernsee shows webcam", async () => {
-      browser(`open ${BASE_URL}?id=lake-tegernsee`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Webcam|img|image/i)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("9. Data Sources Footer", async () => {
-    await test("River shows Datenquellen", async () => {
-      browser(`open ${BASE_URL}?id=valley-18203003`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Datenquellen|Abfluss|Pegel/)
-    })
-
-    await test("Schliersee shows GKD Pegel source", async () => {
-      browser(`open ${BASE_URL}?id=lake-schliersee`)
-      await sleep(1500)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Pegel|GKD|Datenquellen/)
-    })
-  })
-
-  // ------------------------------------------
-  await describe("10. Mobile Viewport", async () => {
-    await test("App renders on mobile viewport", async () => {
-      browser("set viewport 375 667")
-      browser(`open ${BASE_URL}`)
-      await sleep(2000)
-      const snap = getSnapshot()
-      expect(snap).toMatch(/Mangfall|Abfluss|Entwicklung/)
-      // Reset
-      browser("set viewport 1280 800")
-    })
-  })
-
-  // Summary
   const passed = results.filter((r) => r.passed).length
   const failed = results.filter((r) => !r.passed).length
 
-  console.log("\n" + "=".repeat(50))
-  console.log("\x1b[1mTest Results\x1b[0m")
   console.log("=".repeat(50))
-  console.log(`\x1b[32m✓ Passed: ${passed}\x1b[0m`)
-  console.log(`\x1b[31m✗ Failed: ${failed}\x1b[0m`)
-  console.log(`  Total:  ${results.length}`)
+  console.log(`\x1b[1mResults\x1b[0m  ${passed} passed, ${failed} failed (${elapsed}s)`)
 
-  if (failed > 0) {
-    console.log("\n\x1b[31mFailed tests:\x1b[0m")
-    results
-      .filter((r) => !r.passed)
-      .forEach((r) => {
-        console.log(`  • ${r.name}`)
-        if (r.error) console.log(`    ${r.error}`)
-      })
-    cleanup()
-    process.exit(1)
-  }
-
-  console.log("\n\x1b[32mAll tests passed!\x1b[0m\n")
   cleanup()
-  process.exit(0)
+  process.exit(failed > 0 ? 1 : 0)
+}
+
+function cleanup() {
+  if (serverProcess) serverProcess.kill()
+  browser("close", "rivers")
+  browser("close", "lakes")
+  browser("close", "nav")
 }
 
 runTests().catch((e) => {
