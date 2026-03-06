@@ -111,6 +111,7 @@ export interface RiverData {
     flow?: string
   }
   webcamUrl?: string
+  webcamClickUrl?: string
   flowThresholds?: Thresholds
   alertLevel?: AlertLevel
   isLake?: boolean
@@ -783,6 +784,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         flow: config.flowUrl,
       },
       webcamUrl: config.webcamUrl,
+      webcamClickUrl: config.webcamClickUrl,
       flowThresholds: config.flowThresholds,
       alertLevel: alertLevel,
       isLake: config.isLake === true,
@@ -811,6 +813,7 @@ async function fetchRiverData(config): Promise<RiverData> {
         flow: config.flowUrl,
       },
       webcamUrl: config.webcamUrl,
+      webcamClickUrl: config.webcamClickUrl,
       flowThresholds: config.flowThresholds,
       alertLevel: "normal",
       isLake: config.isLake === true,
