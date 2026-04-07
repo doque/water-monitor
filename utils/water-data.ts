@@ -663,8 +663,9 @@ export async function fetchSpitzingseeTemperature(url: string): Promise<{
     })
 
     const dataPoints: WaterTemperatureDataPoint[] = allPoints.map(
-      ({ date, raw, jittered, timestamp }) => ({
-        date,
+      ({ raw, jittered, timestamp }) => ({
+        // Format date as DD.MM.YYYY to match other chart data sources
+        date: `${timestamp.getDate().toString().padStart(2, "0")}.${(timestamp.getMonth() + 1).toString().padStart(2, "0")}.${timestamp.getFullYear()}`,
         temperature: jittered,
         rawTemperature: raw,
         timestamp,

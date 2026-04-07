@@ -246,6 +246,29 @@ async function runTests() {
   })
 
   // ==========================================
+  describe("Timestamps")
+
+  await test("Spitzingsee uses German date format (not ISO)", async () => {
+    browser(`open ${BASE_URL}?id=${FIXTURES.lakeWithWebcam}&pane=temperature`)
+    await sleep(2000)
+    const snapshot = snap()
+    // Should NOT have ISO format like "2024-03-06T00:00:00"
+    if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(snapshot)) {
+      throw new Error("Found ISO timestamp format (YYYY-MM-DDTHH:MM)")
+    }
+  })
+
+  await test("Lake tooltips show DD.MM.YYYY format", async () => {
+    browser(`open ${BASE_URL}?id=${FIXTURES.lake}&pane=level`)
+    await sleep(2000)
+    const snapshot = snap()
+    // Verify no ISO dates leaked into the rendered output
+    if (/\d{4}-\d{2}-\d{2}T/.test(snapshot)) {
+      throw new Error("Found ISO timestamp in lake chart")
+    }
+  })
+
+  // ==========================================
   describe("Navigation")
 
   await test("Pane persists when switching waters", async () => {
