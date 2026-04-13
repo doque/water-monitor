@@ -52,6 +52,7 @@ export function AdminModeHeader() {
         } ${adminMode ? "ring-2 ring-green-400 rounded-full" : ""}`}
         onClick={handleLogoClick}
         title={adminMode ? "Admin Mode Active" : ""}
+        data-testid="logo"
       >
         <Image
           src="/images/mbteg-logo.png"

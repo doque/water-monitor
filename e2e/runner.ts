@@ -278,7 +278,7 @@ async function runTests() {
 
     // Enable admin mode by clicking logo 5 times
     for (let i = 0; i < 5; i++) {
-      browser('click "BFV Miesbach-Tegernsee"')
+      browser('click [data-testid="logo"]')
       await sleep(100)
     }
     await sleep(500)
@@ -298,7 +298,7 @@ async function runTests() {
   await test("Selection does NOT persist for non-admin", async () => {
     // Disable admin mode by clicking logo 5 times again
     for (let i = 0; i < 5; i++) {
-      browser('click "BFV Miesbach-Tegernsee"')
+      browser('click [data-testid="logo"]')
       await sleep(100)
     }
     await sleep(500)
