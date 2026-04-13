@@ -17,7 +17,7 @@ import { RiverChart, type DataType } from "@/components/river-data/river-chart"
 import { WebcamCard } from "@/components/river-data/webcam-card"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
 import { extractRiverId, getHistorySpanDays } from "@/utils/water-data"
-import { isAdminMode } from "@/utils/admin-mode"
+import { isAdminMode, getAdminSelections, setAdminSelections } from "@/utils/admin-mode"
 import { useRiverData } from "@/contexts/river-data-context"
 import { RiverDataSkeleton } from "@/components/river-data-skeleton"
 import type { JSX } from "react/jsx-runtime"
@@ -54,7 +54,18 @@ export function RiverDataDisplay(): JSX.Element {
     setAdminMode(isAdminMode())
 
     const handleAdminModeChange = (event: CustomEvent) => {
-      setAdminMode(event.detail.adminMode)
+      const newAdminMode = event.detail.adminMode
+      setAdminMode(newAdminMode)
+
+      // When entering admin mode, apply stored selections if available
+      if (newAdminMode) {
+        const stored = getAdminSelections()
+        if (stored) {
+          if (stored.riverId) setActiveRiverId(stored.riverId)
+          if (stored.pane) setActiveDataType(stored.pane as DataType)
+          if (stored.interval) setTimeRange(stored.interval as TimeRangeOption)
+        }
+      }
     }
 
     window.addEventListener("adminModeChanged", handleAdminModeChange as EventListener)
@@ -232,7 +243,19 @@ export function RiverDataDisplay(): JSX.Element {
     isInitializedRef.current = true
 
     if (!activeRiverId) {
-      // No river in URL — fall back to first river defaults
+      // No river in URL — check for stored admin selections first
+      // Use isAdminMode() directly since adminMode state may not be set yet
+      if (isAdminMode()) {
+        const stored = getAdminSelections()
+        if (stored?.riverId && riversWithIds.some((r) => getRiverOrLakeId(r) === stored.riverId)) {
+          setActiveRiverId(stored.riverId)
+          if (stored.pane) setActiveDataType(stored.pane as DataType)
+          if (stored.interval) setTimeRange(stored.interval as TimeRangeOption)
+          return
+        }
+      }
+
+      // Fall back to first river defaults
       const firstRiver = riversWithIds[0]
       const defaults = getDefaultsForRiver(firstRiver)
       setActiveRiverId(getRiverOrLakeId(firstRiver))
@@ -279,6 +302,19 @@ export function RiverDataDisplay(): JSX.Element {
       urlUpdateInProgressRef.current = false
     }, 0)
   }, [activeRiverId, activeDataType, timeRange, router])
+
+  // Persist selections to localStorage when admin mode is active
+  useEffect(() => {
+    if (!isInitializedRef.current) return
+    if (!adminMode) return
+    if (!activeRiverId || !activeDataType || !timeRange) return
+
+    setAdminSelections({
+      riverId: activeRiverId,
+      pane: activeDataType,
+      interval: timeRange,
+    })
+  }, [adminMode, activeRiverId, activeDataType, timeRange])
 
   // Guard: if selected timeRange is not in availableOptions, fall back to largest available
   useEffect(() => {

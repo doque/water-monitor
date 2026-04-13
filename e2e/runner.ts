@@ -269,6 +269,50 @@ async function runTests() {
   })
 
   // ==========================================
+  describe("Admin Mode")
+
+  await test("Selection persists in localStorage for admin", async () => {
+    // Start fresh
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+
+    // Enable admin mode by clicking logo 5 times
+    for (let i = 0; i < 5; i++) {
+      browser('click "BFV Miesbach-Tegernsee"')
+      await sleep(100)
+    }
+    await sleep(500)
+
+    // Navigate to a specific selection
+    browser(`open ${BASE_URL}?id=${FIXTURES.lake2}&pane=level&interval=1m`)
+    await sleep(2000)
+
+    // Open bare URL - should restore admin selection
+    browser(`open ${BASE_URL}`)
+    await sleep(2000)
+
+    // Verify Schliersee was restored (the lake2 fixture)
+    expect(snap()).toContain("Schliersee")
+  })
+
+  await test("Selection does NOT persist for non-admin", async () => {
+    // Disable admin mode by clicking logo 5 times again
+    for (let i = 0; i < 5; i++) {
+      browser('click "BFV Miesbach-Tegernsee"')
+      await sleep(100)
+    }
+    await sleep(500)
+
+    // Open bare URL - should NOT restore, should show default (first river)
+    browser(`open ${BASE_URL}`)
+    await sleep(2000)
+
+    // Should show Schlierach (default first river), not Schliersee
+    const snapshot = snap()
+    expect(snapshot).toContain("Schlierach")
+  })
+
+  // ==========================================
   describe("Navigation")
 
   await test("Pane persists when switching waters", async () => {
