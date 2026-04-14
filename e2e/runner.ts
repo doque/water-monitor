@@ -307,9 +307,9 @@ async function runTests() {
     browser(`open ${BASE_URL}`)
     await sleep(2000)
 
-    // Should show Schlierach (default first river), not Schliersee
+    // Should show Mangfall (default first river), not Schliersee
     const snapshot = snap()
-    expect(snapshot).toContain("Schlierach")
+    expect(snapshot).toContain("Mangfall")
   })
 
   // ==========================================
