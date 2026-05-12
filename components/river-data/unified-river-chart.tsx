@@ -10,7 +10,7 @@ import type { GkdDataPoint } from "@/app/api/gkd/route"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
-import { formatTrendForTimeRange } from "@/utils/formatters"
+import { formatTrendFromChartData } from "@/utils/formatters"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -516,15 +516,7 @@ export function UnifiedRiverChart({
     [isLake, getDataPointsForTimeRange],
   )
 
-  // Chart trend display - only visible in admin mode
-  const chartTrendDisplay = useMemo(() => {
-    if (!river || !isAdminMode) return null
-    try {
-      return formatTrendForTimeRange(river, dataType, timeRange)
-    } catch {
-      return null
-    }
-  }, [river, dataType, timeRange, isAdminMode])
+
 
   // Calculate Y-axis domain
   const yAxisDomain = useMemo(() => {
@@ -742,6 +734,16 @@ export function UnifiedRiverChart({
     return data
   }, [river, dataType, timeRange, prepareChartData, extendedHistory, isLake, lakeLevelAverage])
 
+  // Chart trend display - calculated from actual chart data, only visible in admin mode
+  const chartTrendDisplay = useMemo(() => {
+    if (!isAdminMode || !chartData || chartData.length < 2) return null
+    try {
+      return formatTrendFromChartData(chartData, dataType, timeRange)
+    } catch {
+      return null
+    }
+  }, [chartData, dataType, timeRange, isAdminMode])
+  
   // Calculate X-axis interval
   const xAxisInterval = useMemo(() => {
     const dataLength = chartData.length

@@ -98,51 +98,39 @@ export function getChangeStatus(change: number, dataType: DataType) {
   return "stable"
 }
 
-// Calculate the absolute change for the selected time range
-// Simplified: always returns a value if we have at least 2 data points
-export function calculateTimeRangeChange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
-  // Get data based on type
-  let data: any[] = []
-  let valueKey: string = ""
-  
-  if (dataType === "level") {
-    data = [...(river.history?.levels || [])]
-    valueKey = "level"
-  } else if (dataType === "temperature") {
-    data = [...(river.history?.temperatures || [])]
-    valueKey = "temperature"
-  } else if (dataType === "flow") {
-    data = [...(river.history?.flows || [])]
-    valueKey = "flow"
-  }
-
-  // Need at least 2 data points to calculate a trend
-  if (data.length < 2) {
+// Calculate trend from chart data array
+// chartData should be in display order (oldest first, newest last)
+export function calculateTrendFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType,
+  timeRange: TimeRangeOption
+) {
+  if (!chartData || chartData.length < 2) {
     return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
   }
 
-  const current = data[0]
-  const oldest = data[data.length - 1]
+  // chartData is in display order: oldest first, newest last
+  const oldestValue = chartData[0]?.value
+  const newestValue = chartData[chartData.length - 1]?.value
 
-  // Get the numeric values
-  const currentValue = current?.[valueKey]
-  const oldestValue = oldest?.[valueKey]
-
-  // If either value is not a number, return 0 change (not null)
-  if (typeof currentValue !== "number" || typeof oldestValue !== "number") {
+  if (typeof oldestValue !== "number" || typeof newestValue !== "number") {
     return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
   }
 
-  const absoluteChange = currentValue - oldestValue
+  const absoluteChange = newestValue - oldestValue
   const status = getChangeStatus(absoluteChange, dataType)
 
   return { absoluteChange, status, timeSpan: timeRange }
 }
 
-// Format the trend for the selected time range
+// Format the trend from chart data
 // Always returns a string - never null
-export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption): string {
-  const change = calculateTimeRangeChange(river, dataType, timeRange)
+export function formatTrendFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType,
+  timeRange: TimeRangeOption
+): string {
+  const change = calculateTrendFromChartData(chartData, dataType, timeRange)
 
   // Get unit based on data type
   let unit = ""
