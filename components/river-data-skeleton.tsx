@@ -19,13 +19,7 @@ export function RiverDataSkeleton() {
       {/* Unified chart skeleton */}
       <Card>
         <CardHeader className="border-b p-0">
-          <div className="grid grid-cols-4">
-            {/* Trend pane skeleton */}
-            <div className="flex flex-col justify-center gap-1 px-3 py-3 border-r sm:px-4 sm:py-4">
-              <Skeleton className="h-3 w-8" />
-              <Skeleton className="h-4 w-12" />
-            </div>
-            {/* Data panes skeleton */}
+          <div className="grid grid-cols-3">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -37,7 +31,8 @@ export function RiverDataSkeleton() {
             ))}
           </div>
         </CardHeader>
-        <CardContent className="px-2 py-4 sm:p-6 sm:pt-4">
+        <CardContent className="px-2 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
+          <Skeleton className="h-3 w-32 mb-2" />
           <Skeleton className="h-[250px] sm:h-[300px] w-full" />
         </CardContent>
       </Card>

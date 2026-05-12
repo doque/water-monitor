@@ -869,13 +869,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
     return (
       <Card>
         <CardHeader className="border-b p-0">
-          <div className="grid grid-cols-4">
-            {/* Trend pane */}
-            <div className="flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r sm:px-4 sm:py-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Trend</span>
-              <span className="text-xs sm:text-sm text-muted-foreground">--</span>
-            </div>
-            {/* Data type panes */}
+          <div className="grid grid-cols-3">
             {paneConfigs.map((pane) => {
               const valueData = pane.getValue(river, extendedHistory)
               const isDisabled = pane.isDisabled(river)
@@ -919,21 +913,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
   return (
     <Card>
       <CardHeader className="border-b p-0">
-        <div className="grid grid-cols-4">
-          {/* Trend/Entwicklung pane */}
-          <div className="flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r sm:px-4 sm:py-4">
-            <span className="text-[10px] sm:text-xs text-muted-foreground">
-              Trend
-            </span>
-            {chartTrendDisplay ? (
-              <span className="text-xs sm:text-sm font-medium leading-tight text-foreground">
-                {chartTrendDisplay}
-              </span>
-            ) : (
-              <span className="text-xs sm:text-sm text-muted-foreground">--</span>
-            )}
-          </div>
-          {/* Data type panes */}
+        <div className="grid grid-cols-3">
           {paneConfigs.map((pane) => {
             const valueData = pane.getValue(river, extendedHistory)
             const isDisabled = pane.isDisabled(river)
@@ -970,7 +950,12 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
           })}
         </div>
       </CardHeader>
-      <CardContent className="px-2 py-4 sm:p-6 sm:pt-4">
+      <CardContent className="px-2 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
+        {chartTrendDisplay && (
+          <div className="text-xs text-muted-foreground mb-2">
+            Trend: <span className="text-foreground font-medium">{chartTrendDisplay}</span>
+          </div>
+        )}
         <div className="h-[250px] sm:h-[300px] w-full relative" ref={chartContainerRef}>
           {showLoading && (
             <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
