@@ -182,7 +182,8 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     }
   }
 
-  // Original logic for rivers with 15-minute intervals
+  // Original logic for rivers with 15-minute intervals (4 per hour)
+  // For lakes with longer ranges, approximate based on available data density
   const idealDataPointsBack: Partial<Record<TimeRangeOption, number>> = {
     "1h":  4,
     "6h":  24,
@@ -191,6 +192,9 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "2d":  192,
     "1w":  672,
     "2w":  1344,
+    "1m":  2880,   // ~30 days
+    "3m":  8640,   // ~90 days
+    "6m":  17280,  // ~180 days
   }
 
   const idealTargetIndex = idealDataPointsBack[timeRange]

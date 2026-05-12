@@ -1020,13 +1020,11 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   tickLine={false}
                   axisLine={false}
                 />
-                {!isMobile && (
-                  <Tooltip
-                    content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} lakeLevelAverage={lakeLevelAverage ?? undefined} />}
-                    cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "3 3" }}
-                    wrapperStyle={{ zIndex: 100 }}
-                  />
-                )}
+                <Tooltip
+                  content={(props) => <CustomTooltip {...props} dataType={dataType} isLake={isLake} lakeLevelAverage={lakeLevelAverage ?? undefined} />}
+                  cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "3 3" }}
+                  wrapperStyle={{ zIndex: 100 }}
+                />
                 <Area
                   type="monotone"
                   dataKey={chartConfig.dataKey}
@@ -1034,7 +1032,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   fill="url(#colorValue)"
                   fillOpacity={1}
                   strokeWidth={2}
-                  activeDot={false}
+                  activeDot={{ r: 4, fill: chartConfig.stroke, stroke: "hsl(var(--background))", strokeWidth: 2 }}
                   dot={false}
                   isAnimationActive={true}
                   animationDuration={GKD_RANGES.has(timeRange) ? 1500 : 1200}
