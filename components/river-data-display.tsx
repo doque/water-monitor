@@ -40,6 +40,7 @@ export function RiverDataDisplay(): JSX.Element {
     return valid.includes(interval || "") ? (interval as TimeRangeOption) : "24h"
   })
   const [isMobile, setIsMobile] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   // Refs to prevent infinite loops and track initialization
   const isInitializedRef = useRef(false)
@@ -316,7 +317,12 @@ export function RiverDataDisplay(): JSX.Element {
     (value: string) => {
       const newRiver = riversWithIds?.find((r) => getRiverOrLakeId(r) === value)
       if (newRiver) {
+        // Start transition animation
+        setIsTransitioning(true)
         setActiveRiverId(value)
+        
+        // End transition after a short delay to allow chart to update
+        setTimeout(() => setIsTransitioning(false), 500)
 
         if (!hasActualDataForType(newRiver, activeDataType)) {
           const defaults = getDefaultsForRiver(newRiver)
@@ -435,6 +441,7 @@ export function RiverDataDisplay(): JSX.Element {
         isAdminMode={adminMode}
         extendedHistory={gkdHistory}
         isGkdLoading={isGkdLoading}
+        isTransitioning={isTransitioning}
         onDataTypeChange={handleDataTypeChange}
       />
 

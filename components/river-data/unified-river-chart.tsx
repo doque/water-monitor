@@ -21,6 +21,7 @@ interface UnifiedRiverChartProps {
   isAdminMode?: boolean
   extendedHistory?: GkdHistory | null
   isGkdLoading?: boolean
+  isTransitioning?: boolean
   onDataTypeChange: (dataType: DataType) => void
 }
 
@@ -296,20 +297,32 @@ const getPaneConfigs = (river: RiverData, extendedHistory?: GkdHistory | null): 
       key: "flow",
       label: "Abfluss",
       getValue: (river) => {
-        if (!river.current.flow || !river.history?.flows?.length) return null
-        return {
-          value: river.current.flow.flow.toFixed(2),
-          unit: "m³/s"
+        // Show current flow value if available
+        if (river.current?.flow?.flow != null) {
+          return {
+            value: river.current.flow.flow.toFixed(2),
+            unit: "m³/s"
+          }
         }
+        // Fall back to latest history point if current is not available
+        if (river.history?.flows?.length) {
+          const latest = river.history.flows[0]
+          return {
+            value: latest.flow.toFixed(2),
+            unit: "m³/s"
+          }
+        }
+        return null
       },
-      isDisabled: (river) => river.isLake === true || !river.history?.flows?.length
+      isDisabled: (river) => river.isLake === true || (!river.current?.flow && !river.history?.flows?.length)
     },
     {
       key: "level",
       label: "Pegel",
-      getValue: (river) => {
-        if (isLakeLevelWithRef && extendedHistory?.levels?.length) {
-          const levels = extendedHistory.levels
+      getValue: (river, extHistory) => {
+        // Lake with reference level (deviation display)
+        if (isLakeLevelWithRef && extHistory?.levels?.length) {
+          const levels = extHistory.levels
           const latestPoint = levels[levels.length - 1]
           const sum = levels.reduce((acc, p) => acc + p.value, 0)
           const average = sum / levels.length
@@ -321,26 +334,48 @@ const getPaneConfigs = (river: RiverData, extendedHistory?: GkdHistory | null): 
             subtext: `Mittel: ${average.toFixed(2)}m`
           }
         }
-        if (!river.current.level || !river.history?.levels?.length) return null
-        return {
-          value: river.current.level.level.toString(),
-          unit: "cm"
+        // Show current level value if available
+        if (river.current?.level?.level != null) {
+          return {
+            value: river.current.level.level.toString(),
+            unit: "cm"
+          }
         }
+        // Fall back to latest history point
+        if (river.history?.levels?.length) {
+          const latest = river.history.levels[0]
+          return {
+            value: latest.level.toString(),
+            unit: "cm"
+          }
+        }
+        return null
       },
       isDisabled: (river) => {
         if (isLakeLevelWithRef) return !extendedHistory?.levels?.length
-        return !river.history?.levels?.length
+        return !river.current?.level && !river.history?.levels?.length
       }
     },
     {
       key: "temperature",
       label: "Temperatur",
       getValue: (river) => {
-        if (river.current.temperature === null || river.current.temperature === undefined) return null
-        return {
-          value: river.current.temperature.temperature.toFixed(1),
-          unit: "°C"
+        // Show current temperature if available
+        if (river.current?.temperature?.temperature != null) {
+          return {
+            value: river.current.temperature.temperature.toFixed(1),
+            unit: "°C"
+          }
         }
+        // Fall back to latest history point
+        if (river.history?.temperatures?.length) {
+          const latest = river.history.temperatures[0]
+          return {
+            value: latest.temperature.toFixed(1),
+            unit: "°C"
+          }
+        }
+        return null
       },
       isDisabled: (river) => {
         return river.current?.temperature == null && !river.history?.temperatures?.length
@@ -357,6 +392,7 @@ export function UnifiedRiverChart({
   isAdminMode = false, 
   extendedHistory, 
   isGkdLoading = false,
+  isTransitioning = false,
   onDataTypeChange 
 }: UnifiedRiverChartProps) {
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -826,8 +862,9 @@ export function UnifiedRiverChart({
       default: return false
     }
   })()
-  const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
-
+const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
+  const showLoading = showGkdLoading || isTransitioning
+  
   if (!hasAnyDataForCurrentType) {
     return (
       <Card>
@@ -898,12 +935,12 @@ export function UnifiedRiverChart({
       </CardHeader>
       <CardContent className="px-2 py-4 sm:p-6 sm:pt-4">
         <div className="h-[250px] sm:h-[300px] w-full relative" ref={chartContainerRef}>
-          {showGkdLoading && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
+          {showLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
               <div className="text-sm text-muted-foreground animate-pulse">Daten werden geladen...</div>
             </div>
           )}
-          <div className={`transition-opacity duration-700 ease-in-out h-full ${showGkdLoading ? "opacity-0" : "opacity-100"}`}>
+          <div className={`transition-opacity duration-300 ease-in-out h-full ${showLoading ? "opacity-30" : "opacity-100"}`}>
             <ChartContainer config={shadcnChartConfig} className="h-full w-full">
               <AreaChart
                 data={chartData}
