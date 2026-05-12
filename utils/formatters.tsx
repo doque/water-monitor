@@ -190,6 +190,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "24h": 96,
     "2d":  192,
     "1w":  672,
+    "2w":  1344,
   }
 
   const idealTargetIndex = idealDataPointsBack[timeRange]
