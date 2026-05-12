@@ -3,7 +3,10 @@ import "./globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-sans"
+})
 
 // Force dynamic rendering for the entire app
 export const dynamic = "force-dynamic"
@@ -64,7 +67,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
