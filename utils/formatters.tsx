@@ -196,37 +196,27 @@ export function formatTrendFromChartData(
     }
   }
 
-  // Format the delta from average: For flow use 2 decimal places, for others use existing logic
-  let deltaFormatted = ""
+  // Format the absolute change (newest - oldest): For flow use 2 decimal places, for others use existing logic
+  let changeFormatted = ""
   if (dataType === "flow") {
-    deltaFormatted = Math.abs(change.deltaFromAvg).toFixed(2)
+    changeFormatted = Math.abs(change.absoluteChange).toFixed(2)
   } else {
-    deltaFormatted =
-      Math.abs(change.deltaFromAvg) >= 10
-        ? Math.abs(change.deltaFromAvg).toFixed(0)
-        : Math.abs(change.deltaFromAvg).toFixed(1)
+    changeFormatted =
+      Math.abs(change.absoluteChange) >= 10
+        ? Math.abs(change.absoluteChange).toFixed(0)
+        : Math.abs(change.absoluteChange).toFixed(1)
   }
 
-  // Format the average value
-  let avgFormatted = ""
-  if (dataType === "flow") {
-    avgFormatted = change.average.toFixed(2)
-  } else {
-    avgFormatted = change.average >= 10 
-      ? change.average.toFixed(0) 
-      : change.average.toFixed(1)
+  // Get trend arrow based on absolute change
+  let arrow = "→"
+  if (change.absoluteChange > 0.01) {
+    arrow = "↗"
+  } else if (change.absoluteChange < -0.01) {
+    arrow = "↘"
   }
 
-  // Get trend arrow for delta from average
-  let deltaArrow = "→"
-  if (change.deltaFromAvg > 0.01) {
-    deltaArrow = "↗"
-  } else if (change.deltaFromAvg < -0.01) {
-    deltaArrow = "↘"
-  }
-
-  const deltaSign = change.deltaFromAvg >= 0 ? "+" : ""
+  const sign = change.absoluteChange >= 0 ? "+" : ""
   const timeRangeDisplay = getTimeRangeText(change.timeSpan)
 
-  return `${deltaArrow} ${deltaSign}${deltaFormatted}${unit} in ${timeRangeDisplay}`
+  return `${arrow} ${sign}${changeFormatted}${unit} in ${timeRangeDisplay}`
 }
