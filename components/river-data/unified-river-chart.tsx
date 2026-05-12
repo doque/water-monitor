@@ -952,7 +952,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
       </CardHeader>
       <CardContent className="px-2 pt-1.5 pb-4 sm:px-6 sm:pt-2 sm:pb-6">
         {chartTrendDisplay && (
-          <div className="flex justify-end -mb-4 relative z-10">
+          <div className="flex justify-end -mb-4 relative z-10 pr-2">
             <span className="text-[10px] sm:text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
               {chartTrendDisplay}
             </span>
