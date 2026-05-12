@@ -951,12 +951,12 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-        {chartTrendDisplay && (
-          <div className="text-xs text-muted-foreground mb-2">
-            Trend: <span className="text-foreground font-medium">{chartTrendDisplay}</span>
-          </div>
-        )}
         <div className="h-[250px] sm:h-[300px] w-full relative" ref={chartContainerRef}>
+          {chartTrendDisplay && (
+            <div className="absolute top-0 right-0 z-20 text-[10px] sm:text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded border border-border/50">
+              {chartTrendDisplay}
+            </div>
+          )}
           {showLoading && (
             <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
               <div className="text-sm text-muted-foreground animate-pulse">Daten werden geladen...</div>
