@@ -169,45 +169,43 @@ export function formatTrendFromChartData(
     }
   }
 
-  // Format the absolute change: For flow use 2 decimal places, for others use existing logic
-  let formattedChange = ""
+  // Format the delta from average: For flow use 2 decimal places, for others use existing logic
+  let deltaFormatted = ""
   if (dataType === "flow") {
-    formattedChange = Math.abs(change.absoluteChange).toFixed(2)
+    deltaFormatted = Math.abs(change.deltaFromAvg).toFixed(2)
   } else {
-    formattedChange =
-      Math.abs(change.absoluteChange) >= 10
-        ? Math.abs(change.absoluteChange).toFixed(0)
-        : Math.abs(change.absoluteChange).toFixed(1)
+    deltaFormatted =
+      Math.abs(change.deltaFromAvg) >= 10
+        ? Math.abs(change.deltaFromAvg).toFixed(0)
+        : Math.abs(change.deltaFromAvg).toFixed(1)
   }
 
-  // Get trend arrow
-  let trendArrow = "→"
-  if (change.absoluteChange > 0.01) {
-    trendArrow = "↗"
-  } else if (change.absoluteChange < -0.01) {
-    trendArrow = "↘"
+  // Format the average value
+  let avgFormatted = ""
+  if (dataType === "flow") {
+    avgFormatted = change.average.toFixed(2)
+  } else {
+    avgFormatted = change.average >= 10 
+      ? change.average.toFixed(0) 
+      : change.average.toFixed(1)
   }
 
-  // Format the sign and value properly
-  const trendSign = change.absoluteChange >= 0 ? "+" : ""
+  // Get trend arrow for delta from average
+  let deltaArrow = "→"
+  if (change.deltaFromAvg > 0.01) {
+    deltaArrow = "↗"
+  } else if (change.deltaFromAvg < -0.01) {
+    deltaArrow = "↘"
+  }
+
+  const deltaSign = change.deltaFromAvg >= 0 ? "+" : ""
   const timeRangeDisplay = getTimeRangeText(change.timeSpan)
 
-  // Format delta from average
-  let avgFormattedChange = ""
-  if (dataType === "flow") {
-    avgFormattedChange = Math.abs(change.deltaFromAvg).toFixed(2)
-  } else {
-    avgFormattedChange = Math.abs(change.deltaFromAvg) >= 10
-      ? Math.abs(change.deltaFromAvg).toFixed(0)
-      : Math.abs(change.deltaFromAvg).toFixed(1)
-  }
-  const avgSign = change.deltaFromAvg >= 0 ? "+" : "-"
-
   return (
-    <span className="flex items-center gap-2">
-      <span>{trendArrow} {trendSign}{formattedChange}{unit} in {timeRangeDisplay}</span>
+    <span className="flex items-center gap-1.5">
+      <span>Ø {avgFormatted}{unit}</span>
       <span className="text-muted-foreground">•</span>
-      <span>Ø {avgSign}{avgFormattedChange}{unit}</span>
+      <span>{deltaArrow} {deltaSign}{deltaFormatted}{unit} in {timeRangeDisplay}</span>
     </span>
   )
 }
