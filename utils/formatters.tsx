@@ -106,21 +106,25 @@ export function calculateTrendFromChartData(
   timeRange: TimeRangeOption
 ) {
   if (!chartData || chartData.length < 2) {
-    return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
+    return { absoluteChange: 0, deltaFromAvg: 0, average: 0, current: 0, status: "stable" as const, timeSpan: timeRange }
   }
 
   // chartData is in display order: oldest first, newest last
-  const oldestValue = chartData[0]?.value
-  const newestValue = chartData[chartData.length - 1]?.value
-
-  if (typeof oldestValue !== "number" || typeof newestValue !== "number") {
-    return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
+  const values = chartData.map(d => d.value).filter((v): v is number => typeof v === "number")
+  
+  if (values.length < 2) {
+    return { absoluteChange: 0, deltaFromAvg: 0, average: 0, current: 0, status: "stable" as const, timeSpan: timeRange }
   }
+
+  const oldestValue = values[0]
+  const newestValue = values[values.length - 1]
+  const average = values.reduce((sum, v) => sum + v, 0) / values.length
+  const deltaFromAvg = newestValue - average
 
   const absoluteChange = newestValue - oldestValue
   const status = getChangeStatus(absoluteChange, dataType)
 
-  return { absoluteChange, status, timeSpan: timeRange }
+  return { absoluteChange, deltaFromAvg, average, current: newestValue, status, timeSpan: timeRange }
 }
 
 // Format the trend from chart data
@@ -176,24 +180,34 @@ export function formatTrendFromChartData(
         : Math.abs(change.absoluteChange).toFixed(1)
   }
 
-  // Get the appropriate emoji
-  let emoji = "➡️"
-  if (change.status !== "stable") {
-    emoji = change.absoluteChange > 0 ? "↗️" : "↘️"
+  // Get trend arrow
+  let trendArrow = "→"
+  if (change.absoluteChange > 0.01) {
+    trendArrow = "↗"
+  } else if (change.absoluteChange < -0.01) {
+    trendArrow = "↘"
   }
 
   // Format the sign and value properly
-  const sign = change.absoluteChange > 0 ? "+" : "-"
-  const displayValue = formattedChange
-
-  // Always show the requested time range
+  const trendSign = change.absoluteChange >= 0 ? "+" : ""
   const timeRangeDisplay = getTimeRangeText(change.timeSpan)
 
+  // Format delta from average
+  let avgFormattedChange = ""
+  if (dataType === "flow") {
+    avgFormattedChange = Math.abs(change.deltaFromAvg).toFixed(2)
+  } else {
+    avgFormattedChange = Math.abs(change.deltaFromAvg) >= 10
+      ? Math.abs(change.deltaFromAvg).toFixed(0)
+      : Math.abs(change.deltaFromAvg).toFixed(1)
+  }
+  const avgSign = change.deltaFromAvg >= 0 ? "+" : "-"
+
   return (
-    <span>
-      {emoji} {sign}
-      {displayValue}
-      {unit} in {timeRangeDisplay}
+    <span className="flex items-center gap-2">
+      <span>{trendArrow} {trendSign}{formattedChange}{unit} in {timeRangeDisplay}</span>
+      <span className="text-muted-foreground">•</span>
+      <span>Ø {avgSign}{avgFormattedChange}{unit}</span>
     </span>
   )
 }
