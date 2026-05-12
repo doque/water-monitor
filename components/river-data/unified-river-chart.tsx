@@ -868,12 +868,41 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
   if (!hasAnyDataForCurrentType) {
     return (
       <Card>
-        <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
-          <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-4 sm:px-6 sm:py-5">
-            <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Keine Daten für {dataType === "flow" ? "Abfluss" : dataType === "level" ? "Pegel" : "Temperatur"}
-            </CardDescription>
+        <CardHeader className="border-b p-0">
+          <div className="grid grid-cols-4">
+            {/* Trend pane */}
+            <div className="flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r sm:px-4 sm:py-4">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Trend</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">--</span>
+            </div>
+            {/* Data type panes */}
+            {paneConfigs.map((pane) => {
+              const valueData = pane.getValue(river, extendedHistory)
+              const isDisabled = pane.isDisabled(river)
+              const isActive = dataType === pane.key
+
+              return (
+                <button
+                  key={pane.key}
+                  data-active={isActive}
+                  disabled={isDisabled}
+                  className="relative flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r last:border-r-0 data-[active=true]:bg-muted/50 sm:px-4 sm:py-4 disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-muted/30 data-[active=true]:hover:bg-muted/50"
+                  onClick={() => !isDisabled && onDataTypeChange(pane.key)}
+                >
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                    {pane.label}
+                  </span>
+                  {valueData ? (
+                    <span className="text-sm sm:text-lg font-bold leading-none tabular-nums">
+                      {valueData.value}
+                      <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs sm:text-sm text-muted-foreground">--</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </CardHeader>
         <CardContent className="px-2 py-4 sm:p-6">
@@ -889,14 +918,22 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
 
   return (
     <Card>
-      <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-4 sm:px-6 sm:py-5 border-b sm:border-b-0">
-          <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-          {chartTrendDisplay && (
-            <CardDescription className="text-xs sm:text-sm">{chartTrendDisplay}</CardDescription>
-          )}
-        </div>
-        <div className="flex">
+      <CardHeader className="border-b p-0">
+        <div className="grid grid-cols-4">
+          {/* Trend/Entwicklung pane */}
+          <div className="flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r sm:px-4 sm:py-4">
+            <span className="text-[10px] sm:text-xs text-muted-foreground">
+              Trend
+            </span>
+            {chartTrendDisplay ? (
+              <span className="text-xs sm:text-sm font-medium leading-tight text-foreground">
+                {chartTrendDisplay}
+              </span>
+            ) : (
+              <span className="text-xs sm:text-sm text-muted-foreground">--</span>
+            )}
+          </div>
+          {/* Data type panes */}
           {paneConfigs.map((pane) => {
             const valueData = pane.getValue(river, extendedHistory)
             const isDisabled = pane.isDisabled(river)
@@ -907,7 +944,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                 key={pane.key}
                 data-active={isActive}
                 disabled={isDisabled}
-                className="relative flex flex-1 flex-col justify-center gap-0.5 border-t px-3 py-3 text-left even:border-l data-[active=true]:bg-muted/50 sm:border-l sm:border-t-0 sm:px-6 sm:py-4 disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-muted/30 data-[active=true]:hover:bg-muted/50"
+                className="relative flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r last:border-r-0 data-[active=true]:bg-muted/50 sm:px-4 sm:py-4 disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-muted/30 data-[active=true]:hover:bg-muted/50"
                 onClick={() => !isDisabled && onDataTypeChange(pane.key)}
               >
                 <span className="text-[10px] sm:text-xs text-muted-foreground">
@@ -915,12 +952,12 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                 </span>
                 {valueData ? (
                   <>
-                    <span className="text-base sm:text-2xl font-bold leading-none tabular-nums">
+                    <span className="text-sm sm:text-lg font-bold leading-none tabular-nums">
                       {valueData.value}
-                      <span className="text-xs sm:text-sm font-medium ml-0.5">{valueData.unit}</span>
+                      <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
                     </span>
                     {valueData.subtext && (
-                      <span className="text-[9px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block">
+                      <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate">
                         {valueData.subtext}
                       </span>
                     )}

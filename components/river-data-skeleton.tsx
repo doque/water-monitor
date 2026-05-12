@@ -18,19 +18,21 @@ export function RiverDataSkeleton() {
 
       {/* Unified chart skeleton */}
       <Card>
-        <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
-          <div className="flex flex-1 flex-col justify-center gap-2 px-4 py-4 sm:px-6 sm:py-5 border-b sm:border-b-0">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-          <div className="flex">
+        <CardHeader className="border-b p-0">
+          <div className="grid grid-cols-4">
+            {/* Trend pane skeleton */}
+            <div className="flex flex-col justify-center gap-1 px-3 py-3 border-r sm:px-4 sm:py-4">
+              <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+            {/* Data panes skeleton */}
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="flex flex-1 flex-col justify-center gap-1 border-t px-3 py-3 even:border-l sm:border-l sm:border-t-0 sm:px-6 sm:py-4"
+                className="flex flex-col justify-center gap-1 px-3 py-3 border-r last:border-r-0 sm:px-4 sm:py-4"
               >
-                <Skeleton className="h-3 w-12" />
-                <Skeleton className="h-6 w-16 sm:h-8 sm:w-20" />
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-5 w-14 sm:h-6 sm:w-16" />
               </div>
             ))}
           </div>
