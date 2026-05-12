@@ -516,15 +516,15 @@ export function UnifiedRiverChart({
     [isLake, getDataPointsForTimeRange],
   )
 
-  // Chart trend display
+  // Chart trend display - only visible in admin mode
   const chartTrendDisplay = useMemo(() => {
+    if (!river || !isAdminMode) return null
     try {
-      if (!river || GKD_RANGES.has(timeRange)) return null
       return formatTrendForTimeRange(river, dataType, timeRange)
     } catch {
       return null
     }
-  }, [river, dataType, timeRange])
+  }, [river, dataType, timeRange, isAdminMode])
 
   // Calculate Y-axis domain
   const yAxisDomain = useMemo(() => {

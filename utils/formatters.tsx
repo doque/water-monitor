@@ -99,170 +99,50 @@ export function getChangeStatus(change: number, dataType: DataType) {
 }
 
 // Calculate the absolute change for the selected time range
+// Simplified: always returns a value if we have at least 2 data points
 export function calculateTimeRangeChange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
-  // Determine the data source based on the type
+  // Get data based on type
   let data: any[] = []
+  let valueKey: string = ""
+  
   if (dataType === "level") {
-    data = [...river.history.levels]
+    data = [...(river.history?.levels || [])]
+    valueKey = "level"
   } else if (dataType === "temperature") {
-    data = [...river.history.temperatures]
+    data = [...(river.history?.temperatures || [])]
+    valueKey = "temperature"
   } else if (dataType === "flow") {
-    data = [...river.history.flows]
+    data = [...(river.history?.flows || [])]
+    valueKey = "flow"
   }
 
-  if (data.length === 0) return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-
-  // Current values (newest data point)
-  const current = data[0]
-
-  // Add null/undefined checks for current data point
-  if (!current) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
-
-  // Special handling for lake-specific time ranges
-  const isLake = river?.isLake
-  if (isLake && ["1w", "2w", "1m", "3m", "6m", "12m", "24m"].includes(timeRange)) {
-    // For lakes, we compare the first and last data points in the selected time range
-    const lakeDataPoints: Partial<Record<TimeRangeOption, number>> = {
-      "1w": 7,
-      "2w": 14,
-      "1m": 30,
-      "3m": 90,
-      "6m": 180,
-      "12m": 365,
-      "24m": 730,
-    }
-
-    const maxDataPoints = lakeDataPoints[timeRange] ?? 30
-
-    // Make sure we don't try to access beyond the available data
-    const compareIndex = Math.min(maxDataPoints - 1, data.length - 1)
-    if (compareIndex <= 0) {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-
-    const compareValue = data[compareIndex]
-
-    // Add null/undefined checks for comparison data point
-    if (!compareValue) {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-
-    // Calculate the absolute change with proper null checks
-    let absoluteChange = 0
-
-    if (dataType === "level") {
-      // Check if both values have the level property and are numbers
-      if (typeof current.level !== "number" || typeof compareValue.level !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.level - compareValue.level
-    } else if (dataType === "temperature") {
-      // Check if both values have the temperature property and are numbers
-      if (typeof current.temperature !== "number" || typeof compareValue.temperature !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.temperature - compareValue.temperature
-    } else if (dataType === "flow") {
-      // Check if both values have the flow property and are numbers
-      if (typeof current.flow !== "number" || typeof compareValue.flow !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.flow - compareValue.flow
-    }
-
-    // Determine the status based on the absolute change
-    const status = getChangeStatus(absoluteChange, dataType)
-
-    return {
-      absoluteChange,
-      status,
-      timeSpan: timeRange,
-    }
-  }
-
-  // Always show trend if we have at least 2 data points
+  // Need at least 2 data points to calculate a trend
   if (data.length < 2) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+    return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
   }
 
-  // Ideal data points for 15-minute intervals - used as hint but not required
-  const idealDataPointsBack: Partial<Record<TimeRangeOption, number>> = {
-    "1h":  4,
-    "6h":  24,
-    "12h": 48,
-    "24h": 96,
-    "2d":  192,
-    "1w":  672,
-    "2w":  1344,
-    "1m":  2880,
-    "3m":  8640,
-    "6m":  17280,
+  const current = data[0]
+  const oldest = data[data.length - 1]
+
+  // Get the numeric values
+  const currentValue = current?.[valueKey]
+  const oldestValue = oldest?.[valueKey]
+
+  // If either value is not a number, return 0 change (not null)
+  if (typeof currentValue !== "number" || typeof oldestValue !== "number") {
+    return { absoluteChange: 0, status: "stable" as const, timeSpan: timeRange }
   }
 
-  // If we have a predefined ideal, use it; otherwise just use all available data
-  const idealTargetIndex = idealDataPointsBack[timeRange] ?? data.length - 1
-
-  // Use the ideal index if we have enough data, otherwise use the oldest available data point
-  const actualTargetIndex = Math.min(idealTargetIndex, data.length - 1)
-
-  // Get the comparison value
-  const compareValue = data[actualTargetIndex]
-
-  // Add null/undefined checks for comparison data point
-  if (!compareValue) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
-
-  // Calculate the absolute change with proper null checks
-  let absoluteChange = 0
-
-  if (dataType === "level") {
-    // Check if both values have the level property and are numbers
-    if (typeof current.level !== "number" || typeof compareValue.level !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.level - compareValue.level
-  } else if (dataType === "temperature") {
-    // Check if both values have the temperature property and are numbers
-    if (typeof current.temperature !== "number" || typeof compareValue.temperature !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.temperature - compareValue.temperature
-  } else if (dataType === "flow") {
-    // Check if both values have the flow property and are numbers
-    if (typeof current.flow !== "number" || typeof compareValue.flow !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.flow - compareValue.flow
-  }
-
-  // If we don't have the full time range, extrapolate the change
-  if (actualTargetIndex < idealTargetIndex) {
-    // Calculate the extrapolation factor
-    const actualTimePoints = actualTargetIndex
-    const idealTimePoints = idealTargetIndex
-    const extrapolationFactor = idealTimePoints / actualTimePoints
-
-    // Extrapolate the change to the full requested time range
-    absoluteChange = absoluteChange * extrapolationFactor
-  }
-
-  // Determine the status based on the absolute change
+  const absoluteChange = currentValue - oldestValue
   const status = getChangeStatus(absoluteChange, dataType)
 
-  return {
-    absoluteChange,
-    status,
-    timeSpan: timeRange, // Always return the requested time span
-  }
+  return { absoluteChange, status, timeSpan: timeRange }
 }
 
 // Format the trend for the selected time range
-export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
+// Always returns a string - never null
+export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption): string {
   const change = calculateTimeRangeChange(river, dataType, timeRange)
-  if (change.absoluteChange === null) return null
 
   // Get unit based on data type
   let unit = ""
