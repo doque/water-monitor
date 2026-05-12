@@ -4,6 +4,7 @@ import { CardHeader, CardDescription, CardTitle } from "@/components/ui/card"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { isAdminMode, toggleAdminMode } from "@/utils/admin-mode"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function AdminModeHeader() {
   const [clickCount, setClickCount] = useState(0)
@@ -45,7 +46,8 @@ export function AdminModeHeader() {
   }
 
   return (
-    <CardHeader className="bg-blue-50 dark:bg-blue-950 flex flex-row items-center gap-2 p-3 sm:p-6">
+    <CardHeader className="bg-primary/5 flex flex-row items-center gap-2 p-3 sm:p-6">
+      <div className="flex-1 flex flex-row items-center gap-2">
       <div
         className={`w-[50px] h-[50px] sm:w-[80px] sm:h-[80px] relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
           isAnimating ? "animate-bounce" : ""
@@ -64,7 +66,7 @@ export function AdminModeHeader() {
         {adminMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />}
       </div>
       <div>
-        <CardTitle className="text-blue-800 dark:text-blue-300 text-sm sm:text-xl">
+        <CardTitle className="text-primary text-sm sm:text-xl">
           BFV Miesbach-Tegernsee Monitor
           {adminMode && (
             <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
@@ -74,6 +76,8 @@ export function AdminModeHeader() {
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm">Wasserstände, Temperaturen und Abflussraten</CardDescription>
       </div>
+      </div>
+      <ThemeToggle />
     </CardHeader>
   )
 }

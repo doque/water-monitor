@@ -10,19 +10,15 @@ import {
   lakeTimeRangeOptions,
 } from "@/components/river-data/time-range-select"
 import { useGkdData } from "@/hooks/use-gkd-data"
-import { FlowCard } from "@/components/river-data/flow-card"
-import { LevelCard } from "@/components/river-data/level-card"
-import { TemperatureCard } from "@/components/river-data/temperature-card"
-import { RiverChart, type DataType } from "@/components/river-data/river-chart"
+import { UnifiedRiverChart, type DataType } from "@/components/river-data/unified-river-chart"
 import { WebcamCard } from "@/components/river-data/webcam-card"
 import { DataSourcesFooter } from "@/components/river-data/data-sources-footer"
 import { extractRiverId, getHistorySpanDays } from "@/utils/water-data"
 import { isAdminMode, getAdminSelections, setAdminSelections } from "@/utils/admin-mode"
 import { useRiverData } from "@/contexts/river-data-context"
 import { RiverDataSkeleton } from "@/components/river-data-skeleton"
+import { Button } from "@/components/ui/button"
 import type { JSX } from "react/jsx-runtime"
-
-type RiverDataDisplayProps = {}
 
 export function RiverDataDisplay(): JSX.Element {
   const { data, isLoading, error, refetch } = useRiverData()
@@ -119,11 +115,9 @@ export function RiverDataDisplay(): JSX.Element {
   }, [activeRiver])
 
   // Filter options based on available data span.
-  // Rivers and GKD lakes (Schliersee/Tegernsee) show full option set.
-  // Spitzingsee filters by blob data span.
   const availableOptions = useMemo(() => {
     if (isLoading || !activeRiver || !activeRiver.isLake) return undefined
-    if (activeRiver.name !== "Spitzingsee") return undefined // GKD lakes always have 2y of data
+    if (activeRiver.name !== "Spitzingsee") return undefined
     return filterTimeRangeOptions(
       lakeTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
       spanDays
@@ -160,13 +154,10 @@ export function RiverDataDisplay(): JSX.Element {
 
     switch (dataType) {
       case "flow":
-        // Check if river has flow URL and is not a lake
         return !river.isLake && !!river.urls?.flow
       case "level":
-        // Check if river has level URL or lake has gkdLevelSlug
         return !!river.urls?.level || (river.isLake && !!river.gkdLevelSlug)
       case "temperature":
-        // Check if river has temperature URL
         return !!river.urls?.temperature
       default:
         return false
@@ -176,15 +167,12 @@ export function RiverDataDisplay(): JSX.Element {
   function hasActualDataForType(river: any, dataType: DataType): boolean {
     if (!river || !river.history) return false
 
-    // First check if URLs exist (basic availability)
     if (!hasDataForType(river, dataType)) return false
 
-    // Now check if actual data exists in the history
     switch (dataType) {
       case "flow":
         return river.history.flows && river.history.flows.length > 0
       case "level":
-        // For lakes with gkdLevelSlug, data comes from GKD (fetched on demand)
         if (river.isLake && river.gkdLevelSlug) return true
         return river.history.levels && river.history.levels.length > 0
       case "temperature":
@@ -224,27 +212,18 @@ export function RiverDataDisplay(): JSX.Element {
     }
   }
 
-  // Helper function to get largest available time range
-  function getLargestAvailableTimeRange(isLake: boolean): TimeRangeOption {
-    const validRanges = getValidTimeRanges(isLake)
-    return validRanges[validRanges.length - 1]
-  }
-
   // Helper function to check if time range is valid for water body
   function isTimeRangeValidForWaterBody(timeRange: TimeRangeOption, isLake: boolean): boolean {
     return getValidTimeRanges(isLake).includes(timeRange)
   }
 
-  // Single initialization effect - runs once when data is loaded, validates/corrects state
-  // Does NOT depend on searchParams — state is already initialized from URL in useState above
+  // Single initialization effect
   useEffect(() => {
     if (isLoading || !riversWithIds || riversWithIds.length === 0 || isInitializedRef.current) return
 
     isInitializedRef.current = true
 
     if (!activeRiverId) {
-      // No river in URL — check for stored admin selections first
-      // Use isAdminMode() directly since adminMode state may not be set yet
       if (isAdminMode()) {
         const stored = getAdminSelections()
         if (stored?.riverId && riversWithIds.some((r) => getRiverOrLakeId(r) === stored.riverId)) {
@@ -255,7 +234,6 @@ export function RiverDataDisplay(): JSX.Element {
         }
       }
 
-      // Fall back to first river defaults
       const firstRiver = riversWithIds[0]
       const defaults = getDefaultsForRiver(firstRiver)
       setActiveRiverId(getRiverOrLakeId(firstRiver))
@@ -266,7 +244,6 @@ export function RiverDataDisplay(): JSX.Element {
 
     const targetRiver = riversWithIds.find((r) => getRiverOrLakeId(r) === activeRiverId)
     if (!targetRiver) {
-      // River ID from URL not found — fall back to first river
       const firstRiver = riversWithIds[0]
       const defaults = getDefaultsForRiver(firstRiver)
       setActiveRiverId(getRiverOrLakeId(firstRiver))
@@ -275,25 +252,22 @@ export function RiverDataDisplay(): JSX.Element {
       return
     }
 
-    // Validate data type for this river (e.g. "flow" for a lake)
     if (!hasActualDataForType(targetRiver, activeDataType)) {
       setActiveDataType(getDefaultsForRiver(targetRiver).dataType)
     }
 
-    // Validate time range for this water body type (e.g. "1h" for a lake)
     if (!isTimeRangeValidForWaterBody(timeRange, !!targetRiver.isLake)) {
       setTimeRange(getDefaultsForRiver(targetRiver).timeRange)
     }
   }, [isLoading, riversWithIds])
 
-  // URL update effect - only updates URL when state changes and component is initialized
+  // URL update effect
   useEffect(() => {
     if (!isInitializedRef.current || urlUpdateInProgressRef.current) return
     if (!activeRiverId || !activeDataType || !timeRange) return
 
     const newSearch = `?id=${activeRiverId}&pane=${activeDataType}&interval=${timeRange}`
 
-    // Skip router.replace if URL already matches — avoids searchParams update → re-render cycle
     if (typeof window !== "undefined" && window.location.search === newSearch) return
 
     urlUpdateInProgressRef.current = true
@@ -344,17 +318,14 @@ export function RiverDataDisplay(): JSX.Element {
       if (newRiver) {
         setActiveRiverId(value)
 
-        // Keep current pane if it's available for the new water body, otherwise fall back to first available
         if (!hasActualDataForType(newRiver, activeDataType)) {
           const defaults = getDefaultsForRiver(newRiver)
           setActiveDataType(defaults.dataType)
         }
 
         if (!isTimeRangeValidForWaterBody(timeRange, !!newRiver.isLake)) {
-          // Current time range is not valid for new water body, use a sensible default
           if (newRiver.isLake) {
             if (newRiver.name === "Spitzingsee") {
-              // Filter by blob data span
               const targetSpanDays = getHistorySpanDays(newRiver.history?.temperatures ?? [])
               const targetFilteredOptions = filterTimeRangeOptions(
                 lakeTimeRangeOptions as readonly { value: TimeRangeOption; label: string }[],
@@ -362,13 +333,12 @@ export function RiverDataDisplay(): JSX.Element {
               )
               setTimeRange(targetFilteredOptions[targetFilteredOptions.length - 1].value)
             } else {
-              setTimeRange("2w") // Default for GKD lakes
+              setTimeRange("2w")
             }
           } else {
-            setTimeRange("24h") // Default for rivers
+            setTimeRange("24h")
           }
         }
-        // Otherwise keep current timeRange if it's valid
       }
     },
     [riversWithIds, timeRange, activeDataType],
@@ -397,15 +367,16 @@ export function RiverDataDisplay(): JSX.Element {
   // Handle error state with retry option
   if (error) {
     return (
-      <div className="p-6 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
-        <p className="text-red-800 dark:text-red-300 font-medium">Fehler beim Laden der Flussdaten.</p>
-        <p className="text-sm text-red-700 dark:text-red-400 mt-2">{error}</p>
-        <button
+      <div className="p-6 bg-destructive/10 rounded-lg border border-destructive/20">
+        <p className="text-destructive font-medium">Fehler beim Laden der Flussdaten.</p>
+        <p className="text-sm text-destructive/80 mt-2">{error}</p>
+        <Button
           onClick={refetch}
-          className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+          variant="destructive"
+          className="mt-3"
         >
           Erneut versuchen
-        </button>
+        </Button>
       </div>
     )
   }
@@ -413,15 +384,16 @@ export function RiverDataDisplay(): JSX.Element {
   // Handle no data
   if (!data || !data.rivers || data.rivers.length === 0) {
     return (
-      <div className="p-6 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
-        <p className="text-yellow-800 dark:text-yellow-300 font-medium">Flussdaten konnten nicht geladen werden.</p>
-        {data?.error && <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-2">Fehler: {data.error}</p>}
-        <button
+      <div className="p-6 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+        <p className="text-yellow-700 dark:text-yellow-300 font-medium">Flussdaten konnten nicht geladen werden.</p>
+        {data?.error && <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">Fehler: {data.error}</p>}
+        <Button
           onClick={refetch}
-          className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm"
+          variant="outline"
+          className="mt-3"
         >
           Erneut versuchen
-        </button>
+        </Button>
       </div>
     )
   }
@@ -432,153 +404,51 @@ export function RiverDataDisplay(): JSX.Element {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="grid grid-cols-12 gap-4">
-        {activeRiver?.isLake ? (
-          <>
-            <div className="col-span-7 sm:col-span-6">
-              <RiverSelect
-                rivers={riversWithIds || []}
-                value={activeRiverId}
-                onValueChange={handleRiverChange}
-                showColors={adminMode}
-              />
-            </div>
-            <div className="col-span-5 sm:col-span-6">
-              <TimeRangeSelect
-                value={timeRange}
-                onValueChange={handleTimeRangeChange}
-                isLake={true}
-                lakeName={activeRiver.name}
-                filteredOptions={availableOptions}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="col-span-7 sm:col-span-6">
-              <RiverSelect
-                rivers={riversWithIds || []}
-                value={activeRiverId}
-                onValueChange={handleRiverChange}
-                showColors={adminMode}
-              />
-            </div>
-            <div className="col-span-5 sm:col-span-6">
-              <TimeRangeSelect value={timeRange} onValueChange={handleTimeRangeChange} filteredOptions={availableOptions} />
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="space-y-4 sm:space-y-6">
-        <div className="grid gap-4">
-          <div className="hidden md:grid md:grid-cols-3 gap-4">
-            <FlowCard
-              river={activeRiver}
-              isActive={activeDataType === "flow"}
-              onClick={() => handleDataTypeChange("flow")}
-              timeRange={timeRange}
-              showColors={adminMode}
-            />
-            <LevelCard
-              river={activeRiver}
-              isActive={activeDataType === "level"}
-              onClick={() => handleDataTypeChange("level")}
-              timeRange={timeRange}
-              extendedHistory={gkdHistory}
-              isAdminMode={adminMode}
-            />
-            <TemperatureCard
-              river={activeRiver}
-              isActive={activeDataType === "temperature"}
-              onClick={() => handleDataTypeChange("temperature")}
-              timeRange={timeRange}
-            />
-          </div>
-
-          <div className="md:hidden">
-            {activeRiver?.isLake ? (
-              <TemperatureCard
-                river={activeRiver}
-                isActive={activeDataType === "temperature"}
-                onClick={() => handleDataTypeChange("temperature")}
-                isMobile={true}
-                timeRange={timeRange}
-              />
-            ) : (
-              <FlowCard
-                river={activeRiver}
-                isActive={activeDataType === "flow"}
-                onClick={() => handleDataTypeChange("flow")}
-                timeRange={timeRange}
-                showColors={adminMode}
-              />
-            )}
-          </div>
-
-          <RiverChart
-            river={activeRiver}
-            dataType={activeDataType}
-            timeRange={timeRange}
-            isMobile={isMobile}
-            isAdminMode={adminMode}
-            extendedHistory={gkdHistory}
-            isGkdLoading={isGkdLoading}
+    <div className="flex flex-col gap-4 sm:gap-6">
+      {/* Selectors row */}
+      <div className="grid grid-cols-12 gap-3 sm:gap-4">
+        <div className="col-span-7 sm:col-span-6">
+          <RiverSelect
+            rivers={riversWithIds || []}
+            value={activeRiverId}
+            onValueChange={handleRiverChange}
+            showColors={adminMode}
           />
-
-          {activeRiver?.webcamUrl && (
-            <WebcamCard
-              webcamUrl={activeRiver.webcamUrl}
-              webcamClickUrl={activeRiver.webcamClickUrl}
-              riverName={activeRiver.name}
-              location={activeRiver.location}
-            />
-          )}
-
-          <div className="md:hidden grid grid-cols-2 gap-4">
-            {activeRiver?.isLake ? (
-              <>
-                <LevelCard
-                  river={activeRiver}
-                  isActive={activeDataType === "level"}
-                  onClick={() => handleDataTypeChange("level")}
-                  isMobile={true}
-                  timeRange={timeRange}
-                  extendedHistory={gkdHistory}
-                />
-                <FlowCard
-                  river={activeRiver}
-                  isActive={activeDataType === "flow"}
-                  onClick={() => handleDataTypeChange("flow")}
-                  isMobile={true}
-                  timeRange={timeRange}
-                  showColors={adminMode}
-                />
-              </>
-            ) : (
-              <>
-                <LevelCard
-                  river={activeRiver}
-                  isActive={activeDataType === "level"}
-                  onClick={() => handleDataTypeChange("level")}
-                  isMobile={true}
-                  timeRange={timeRange}
-                  extendedHistory={gkdHistory}
-                />
-                <TemperatureCard
-                  river={activeRiver}
-                  isActive={activeDataType === "temperature"}
-                  onClick={() => handleDataTypeChange("temperature")}
-                  isMobile={true}
-                  timeRange={timeRange}
-                />
-              </>
-            )}
-          </div>
+        </div>
+        <div className="col-span-5 sm:col-span-6">
+          <TimeRangeSelect
+            value={timeRange}
+            onValueChange={handleTimeRangeChange}
+            isLake={activeRiver?.isLake}
+            lakeName={activeRiver?.name}
+            filteredOptions={availableOptions}
+          />
         </div>
       </div>
 
+      {/* Unified Chart with integrated panes */}
+      <UnifiedRiverChart
+        river={activeRiver}
+        dataType={activeDataType}
+        timeRange={timeRange}
+        isMobile={isMobile}
+        isAdminMode={adminMode}
+        extendedHistory={gkdHistory}
+        isGkdLoading={isGkdLoading}
+        onDataTypeChange={handleDataTypeChange}
+      />
+
+      {/* Webcam card if available */}
+      {activeRiver?.webcamUrl && (
+        <WebcamCard
+          webcamUrl={activeRiver.webcamUrl}
+          webcamClickUrl={activeRiver.webcamClickUrl}
+          riverName={activeRiver.name}
+          location={activeRiver.location}
+        />
+      )}
+
+      {/* Data sources footer */}
       <DataSourcesFooter river={activeRiver} />
     </div>
   )

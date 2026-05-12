@@ -1,11 +1,13 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
+
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function RiverDataSkeleton() {
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* River and Time Range Selection Skeleton */}
-      <div className="grid grid-cols-12 gap-4">
+    <div className="flex flex-col gap-4 sm:gap-6">
+      {/* Selectors skeleton */}
+      <div className="grid grid-cols-12 gap-3 sm:gap-4">
         <div className="col-span-7 sm:col-span-6">
           <Skeleton className="h-10 w-full" />
         </div>
@@ -14,119 +16,29 @@ export function RiverDataSkeleton() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="space-y-4 sm:space-y-6">
-        <div className="grid gap-4">
-          {/* Desktop layout: Flow, Level, and Temperature in a row above the chart */}
-          <div className="hidden md:grid md:grid-cols-3 gap-4">
-            {/* Flow Card Skeleton */}
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-32" />
-              </CardContent>
-            </Card>
-
-            {/* Level Card Skeleton */}
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-24" />
-              </CardContent>
-            </Card>
-
-            {/* Temperature Card Skeleton */}
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-28" />
-              </CardContent>
-            </Card>
+      {/* Unified chart skeleton */}
+      <Card>
+        <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
+          <div className="flex flex-1 flex-col justify-center gap-2 px-4 py-4 sm:px-6 sm:py-5 border-b sm:border-b-0">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-4 w-16" />
           </div>
-
-          {/* Mobile layout: Only Flow card above the chart */}
-          <div className="md:hidden">
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Abfluss</CardTitle>
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-32" />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Chart Area Skeleton */}
-          <Card>
-            <CardHeader className="pb-2 p-3 sm:p-6">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-base sm:text-lg">Entwicklung</CardTitle>
-                <Skeleton className="h-4 w-20" />
+          <div className="flex">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex flex-1 flex-col justify-center gap-1 border-t px-3 py-3 even:border-l sm:border-l sm:border-t-0 sm:px-6 sm:py-4"
+              >
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-6 w-16 sm:h-8 sm:w-20" />
               </div>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3">
-              <div className="h-[300px] w-full">
-                <Skeleton className="h-full w-full rounded-md" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Mobile layout: Level and Temperature cards below the chart */}
-          <div className="md:hidden grid grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Pegel</CardTitle>
-                </div>
-                <div className="text-sm font-normal mt-1">
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-20" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2 p-3 sm:p-6">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base sm:text-lg">Temperatur</CardTitle>
-                </div>
-                <div className="text-sm font-normal mt-1">
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0">
-                <Skeleton className="h-12 w-24" />
-              </CardContent>
-            </Card>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Data Sources Footer Skeleton */}
-      <div className="text-xs text-muted-foreground text-center space-y-1">
-        <Skeleton className="h-3 w-96 mx-auto" />
-        <Skeleton className="h-3 w-80 mx-auto" />
-      </div>
+        </CardHeader>
+        <CardContent className="px-2 py-4 sm:p-6 sm:pt-4">
+          <Skeleton className="h-[250px] sm:h-[300px] w-full" />
+        </CardContent>
+      </Card>
     </div>
   )
 }
