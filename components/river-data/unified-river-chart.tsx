@@ -10,7 +10,7 @@ import type { GkdDataPoint } from "@/app/api/gkd/route"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
-import { formatTrendFromChartData } from "@/utils/formatters"
+import { formatTrendFromChartData, getAverageFromChartData } from "@/utils/formatters"
 
 export type DataType = "level" | "temperature" | "flow"
 
@@ -743,6 +743,12 @@ export function UnifiedRiverChart({
       return null
     }
   }, [chartData, dataType, timeRange, isAdminMode])
+
+  // Chart average - shown in the active pane (admin mode only)
+  const chartAverage = useMemo(() => {
+    if (!isAdminMode || !chartData || chartData.length < 2) return null
+    return getAverageFromChartData(chartData, dataType)
+  }, [chartData, dataType, isAdminMode])
   
   // Calculate X-axis interval
   const xAxisInterval = useMemo(() => {
@@ -937,6 +943,8 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
             {paneConfigs.map((pane) => {
               const valueData = pane.getValue(river, extendedHistory)
               const isDisabled = pane.isDisabled(river)
+              const isActive = dataType === pane.key
+              const showAverage = isActive && chartAverage
 
               return (
                 <TabsTrigger
@@ -954,11 +962,15 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                         {valueData.value}
                         <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
                       </span>
-                      {valueData.subtext && (
+                      {showAverage ? (
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 font-normal">
+                          {chartAverage}
+                        </span>
+                      ) : valueData.subtext ? (
                         <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate font-normal">
                           {valueData.subtext}
                         </span>
-                      )}
+                      ) : null}
                     </>
                   ) : (
                     <span className="text-xs sm:text-sm text-muted-foreground font-normal">--</span>

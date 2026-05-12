@@ -98,6 +98,33 @@ export function getChangeStatus(change: number, dataType: DataType) {
   return "stable"
 }
 
+// Get average from chart data - returns formatted string or null
+export function getAverageFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType
+): string | null {
+  if (!chartData || chartData.length < 2) return null
+  
+  const values = chartData.map(d => d.value).filter((v): v is number => typeof v === "number")
+  if (values.length < 2) return null
+  
+  const average = values.reduce((sum, v) => sum + v, 0) / values.length
+  
+  let unit = ""
+  if (dataType === "flow") unit = "m³/s"
+  else if (dataType === "level") unit = "cm"
+  else if (dataType === "temperature") unit = "°C"
+  
+  let formatted = ""
+  if (dataType === "flow") {
+    formatted = average.toFixed(2)
+  } else {
+    formatted = average >= 10 ? average.toFixed(0) : average.toFixed(1)
+  }
+  
+  return `Ø ${formatted}${unit}`
+}
+
 // Calculate trend from chart data array
 // chartData should be in display order (oldest first, newest last)
 export function calculateTrendFromChartData(
@@ -201,11 +228,5 @@ export function formatTrendFromChartData(
   const deltaSign = change.deltaFromAvg >= 0 ? "+" : ""
   const timeRangeDisplay = getTimeRangeText(change.timeSpan)
 
-  return (
-    <span className="flex items-center gap-1.5">
-      <span>Ø {avgFormatted}{unit}</span>
-      <span className="text-muted-foreground">•</span>
-      <span>{deltaArrow} {deltaSign}{deltaFormatted}{unit} in {timeRangeDisplay}</span>
-    </span>
-  )
+  return `${deltaArrow} ${deltaSign}${deltaFormatted}${unit} in ${timeRangeDisplay}`
 }
