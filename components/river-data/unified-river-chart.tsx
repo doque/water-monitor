@@ -958,19 +958,22 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   </span>
                   {valueData ? (
                     <>
-                      <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
-                        {valueData.value}
-                        <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
-                      </span>
-                      {showAverage ? (
-                        <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 font-normal">
-                          {chartAverage}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
+                          {valueData.value}
+                          <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
                         </span>
-                      ) : valueData.subtext ? (
+                        {showAverage && (
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-normal tabular-nums">
+                            {chartAverage}
+                          </span>
+                        )}
+                      </div>
+                      {valueData.subtext && !showAverage && (
                         <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate font-normal">
                           {valueData.subtext}
                         </span>
-                      ) : null}
+                      )}
                     </>
                   ) : (
                     <span className="text-xs sm:text-sm text-muted-foreground font-normal">--</span>
