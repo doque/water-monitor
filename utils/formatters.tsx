@@ -194,20 +194,8 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
 
   const idealTargetIndex = idealDataPointsBack[timeRange]
 
-  // Minimum data requirements for reasonable extrapolation (lowered for better trend visibility)
-  const minDataPointsForTimeRange: Partial<Record<TimeRangeOption, number>> = {
-    "1h":  2,
-    "6h":  4,
-    "12h": 8,
-    "24h": 16,
-    "2d":  32,
-    "1w":  48,
-  }
-
-  const minRequired = minDataPointsForTimeRange[timeRange]
-
-  if (!idealTargetIndex || !minRequired || data.length < minRequired) {
-    // Not enough data for reasonable extrapolation
+  // Always show trend if we have at least 2 data points
+  if (!idealTargetIndex || data.length < 2) {
     return { absoluteChange: null, status: "stable", timeSpan: timeRange }
   }
 
@@ -269,7 +257,7 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
 // Format the trend for the selected time range
 export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
   const change = calculateTimeRangeChange(river, dataType, timeRange)
-  if (change.absoluteChange === null || Math.abs(change.absoluteChange) < 0.05) return null
+  if (change.absoluteChange === null) return null
 
   // Get unit based on data type
   let unit = ""
