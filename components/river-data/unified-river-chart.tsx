@@ -958,7 +958,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   </span>
                   {valueData ? (
                     <>
-                      <div className="flex items-baseline gap-1.5">
+                      <div className="flex items-baseline gap-3 sm:gap-4">
                         <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
                           {valueData.value}
                           <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
