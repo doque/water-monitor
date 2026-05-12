@@ -599,16 +599,32 @@ export function UnifiedRiverChart({
 
     const baselineMin = 0
 
-    let padding: number
-    if (max < 10) {
-      padding = 2
-    } else if (max <= 30) {
-      padding = Math.max(2, max * 0.15)
+    // Scale Y-axis so data covers ~60-70% of chart height
+    // This means max should be roughly 1.4-1.5x the data max
+    const scaleFactor = 1.4
+    
+    let newMax: number
+    if (max <= 0.5) {
+      // Very small values (e.g., 0.3 m³/s flow)
+      newMax = Math.ceil(max * scaleFactor * 10) / 10 // Round to 0.1
+    } else if (max <= 2) {
+      // Small values
+      newMax = Math.ceil(max * scaleFactor * 2) / 2 // Round to 0.5
+    } else if (max <= 10) {
+      // Medium values
+      newMax = Math.ceil(max * scaleFactor)
+    } else if (max <= 50) {
+      // Larger values - round to nearest 5
+      newMax = Math.ceil((max * scaleFactor) / 5) * 5
     } else {
-      padding = Math.max(5, max * 0.1)
+      // Large values - round to nearest 10
+      newMax = Math.ceil((max * scaleFactor) / 10) * 10
     }
 
-    const newMax = Math.ceil(max + padding)
+    // Ensure minimum headroom for very flat data
+    if (newMax - max < max * 0.2) {
+      newMax = max * 1.3
+    }
 
     return [baselineMin, newMax]
   }, [river, dataType, timeRange, getDataPointsForTimeRange, isLake, extendedHistory])
