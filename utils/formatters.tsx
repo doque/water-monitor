@@ -194,14 +194,14 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
 
   const idealTargetIndex = idealDataPointsBack[timeRange]
 
-  // Minimum data requirements for reasonable extrapolation
+  // Minimum data requirements for reasonable extrapolation (lowered for better trend visibility)
   const minDataPointsForTimeRange: Partial<Record<TimeRangeOption, number>> = {
     "1h":  2,
-    "6h":  8,
-    "12h": 24,
-    "24h": 48,
-    "2d":  96,
-    "1w":  192,
+    "6h":  4,
+    "12h": 8,
+    "24h": 16,
+    "2d":  32,
+    "1w":  48,
   }
 
   const minRequired = minDataPointsForTimeRange[timeRange]

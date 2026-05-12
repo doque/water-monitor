@@ -32,7 +32,7 @@ export function RiverDataSkeleton() {
           </div>
         </CardHeader>
         <CardContent className="px-2 pt-1.5 pb-4 sm:px-6 sm:pt-2 sm:pb-6">
-          <div className="flex justify-end -mb-4 relative z-10">
+          <div className="flex justify-end -mb-4 relative z-10 pr-2 h-[18px]">
             <Skeleton className="h-4 w-20 sm:w-24" />
           </div>
           <Skeleton className="h-[250px] sm:h-[300px] w-full" />
