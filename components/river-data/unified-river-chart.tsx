@@ -8,6 +8,7 @@ import { GKD_RANGES, timeRangeDurationDays } from "@/components/river-data/time-
 import type { GkdHistory } from "@/hooks/use-gkd-data"
 import type { GkdDataPoint } from "@/app/api/gkd/route"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { formatTrendForTimeRange } from "@/utils/formatters"
 
@@ -885,35 +886,35 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
     return (
       <Card>
         <CardHeader className="border-b p-0">
-          <div className="grid grid-cols-3">
-            {paneConfigs.map((pane) => {
-              const valueData = pane.getValue(river, extendedHistory)
-              const isDisabled = pane.isDisabled(river)
-              const isActive = dataType === pane.key
+          <Tabs value={dataType} onValueChange={(v) => onDataTypeChange(v as DataType)} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 h-auto rounded-none bg-transparent p-0">
+              {paneConfigs.map((pane) => {
+                const valueData = pane.getValue(river, extendedHistory)
+                const isDisabled = pane.isDisabled(river)
 
-              return (
-                <button
-                  key={pane.key}
-                  data-active={isActive}
-                  disabled={isDisabled}
-                  className="relative flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r last:border-r-0 data-[active=true]:bg-muted/50 sm:px-4 sm:py-4 disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-muted/30 data-[active=true]:hover:bg-muted/50"
-                  onClick={() => !isDisabled && onDataTypeChange(pane.key)}
-                >
-                  <span className="text-[10px] sm:text-xs text-muted-foreground">
-                    {pane.label}
-                  </span>
-                  {valueData ? (
-                    <span className="text-sm sm:text-lg font-bold leading-none tabular-nums">
-                      {valueData.value}
-                      <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
+                return (
+                  <TabsTrigger
+                    key={pane.key}
+                    value={pane.key}
+                    disabled={isDisabled}
+                    className="relative flex flex-col justify-center items-start gap-0.5 px-3 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] sm:px-4 sm:py-4 disabled:opacity-40"
+                  >
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">
+                      {pane.label}
                     </span>
-                  ) : (
-                    <span className="text-xs sm:text-sm text-muted-foreground">--</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+                    {valueData ? (
+                      <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
+                        {valueData.value}
+                        <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs sm:text-sm text-muted-foreground font-normal">--</span>
+                    )}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="px-2 py-4 sm:p-6">
           <div className="flex items-center justify-center h-[200px] text-muted-foreground">
@@ -929,42 +930,42 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
   return (
     <Card>
       <CardHeader className="border-b p-0">
-        <div className="grid grid-cols-3">
-          {paneConfigs.map((pane) => {
-            const valueData = pane.getValue(river, extendedHistory)
-            const isDisabled = pane.isDisabled(river)
-            const isActive = dataType === pane.key
+        <Tabs value={dataType} onValueChange={(v) => onDataTypeChange(v as DataType)} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 h-auto rounded-none bg-transparent p-0">
+            {paneConfigs.map((pane) => {
+              const valueData = pane.getValue(river, extendedHistory)
+              const isDisabled = pane.isDisabled(river)
 
-            return (
-              <button
-                key={pane.key}
-                data-active={isActive}
-                disabled={isDisabled}
-                className="relative flex flex-col justify-center gap-0.5 px-3 py-3 text-left border-r last:border-r-0 data-[active=true]:bg-muted/50 sm:px-4 sm:py-4 disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-muted/30 data-[active=true]:hover:bg-muted/50"
-                onClick={() => !isDisabled && onDataTypeChange(pane.key)}
-              >
-                <span className="text-[10px] sm:text-xs text-muted-foreground">
-                  {pane.label}
-                </span>
-                {valueData ? (
-                  <>
-                    <span className="text-sm sm:text-lg font-bold leading-none tabular-nums">
-                      {valueData.value}
-                      <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
-                    </span>
-                    {valueData.subtext && (
-                      <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate">
-                        {valueData.subtext}
+              return (
+                <TabsTrigger
+                  key={pane.key}
+                  value={pane.key}
+                  disabled={isDisabled}
+                  className="relative flex flex-col justify-center items-start gap-0.5 px-3 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] sm:px-4 sm:py-4 disabled:opacity-40"
+                >
+                  <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">
+                    {pane.label}
+                  </span>
+                  {valueData ? (
+                    <>
+                      <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
+                        {valueData.value}
+                        <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
                       </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-xs sm:text-sm text-muted-foreground">--</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+                      {valueData.subtext && (
+                        <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate font-normal">
+                          {valueData.subtext}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs sm:text-sm text-muted-foreground font-normal">--</span>
+                  )}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
       </CardHeader>
       <CardContent className="px-2 pt-1.5 pb-4 sm:px-6 sm:pt-2 sm:pb-6">
         {chartTrendDisplay && (

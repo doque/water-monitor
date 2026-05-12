@@ -20,10 +20,10 @@ export function RiverDataSkeleton() {
       <Card>
         <CardHeader className="border-b p-0">
           <div className="grid grid-cols-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((i, index) => (
               <div
                 key={i}
-                className="flex flex-col justify-center gap-1 px-3 py-3 border-r last:border-r-0 sm:px-4 sm:py-4"
+                className={`flex flex-col justify-center gap-1 px-3 py-3 border-r last:border-r-0 sm:px-4 sm:py-4 ${index === 0 ? "bg-background shadow-[inset_0_-2px_0_0_hsl(var(--primary))]" : ""}`}
               >
                 <Skeleton className="h-3 w-10" />
                 <Skeleton className="h-5 w-14 sm:h-6 sm:w-16" />
