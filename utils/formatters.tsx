@@ -182,8 +182,12 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     }
   }
 
-  // Original logic for rivers with 15-minute intervals (4 per hour)
-  // For lakes with longer ranges, approximate based on available data density
+  // Always show trend if we have at least 2 data points
+  if (data.length < 2) {
+    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
+  }
+
+  // Ideal data points for 15-minute intervals - used as hint but not required
   const idealDataPointsBack: Partial<Record<TimeRangeOption, number>> = {
     "1h":  4,
     "6h":  24,
@@ -192,17 +196,13 @@ export function calculateTimeRangeChange(river: RiverData, dataType: DataType, t
     "2d":  192,
     "1w":  672,
     "2w":  1344,
-    "1m":  2880,   // ~30 days
-    "3m":  8640,   // ~90 days
-    "6m":  17280,  // ~180 days
+    "1m":  2880,
+    "3m":  8640,
+    "6m":  17280,
   }
 
-  const idealTargetIndex = idealDataPointsBack[timeRange]
-
-  // Always show trend if we have at least 2 data points
-  if (!idealTargetIndex || data.length < 2) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
+  // If we have a predefined ideal, use it; otherwise just use all available data
+  const idealTargetIndex = idealDataPointsBack[timeRange] ?? data.length - 1
 
   // Use the ideal index if we have enough data, otherwise use the oldest available data point
   const actualTargetIndex = Math.min(idealTargetIndex, data.length - 1)
