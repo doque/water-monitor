@@ -744,11 +744,38 @@ export function UnifiedRiverChart({
     }
   }, [chartData, dataType, timeRange, isAdminMode])
 
-  // Chart average - shown in the active pane (admin mode only)
-  const chartAverage = useMemo(() => {
-    if (!isAdminMode || !chartData || chartData.length < 2) return null
-    return getAverageFromChartData(chartData, dataType)
-  }, [chartData, dataType, isAdminMode])
+  // Compute chart data for all data types (for showing averages in all panes)
+  const allPaneChartData = useMemo(() => {
+    if (!isAdminMode || !river) return { flow: [], level: [], temperature: [] }
+    
+    const flowData = prepareChartData(
+      river.history?.flows || [],
+      timeRange,
+      (point) => ({ value: point.flow })
+    )
+    const levelData = prepareChartData(
+      river.history?.levels || [],
+      timeRange,
+      (point) => ({ value: point.level })
+    )
+    const tempData = prepareChartData(
+      river.history?.temperatures || [],
+      timeRange,
+      (point) => ({ value: point.temperature })
+    )
+    
+    return { flow: flowData, level: levelData, temperature: tempData }
+  }, [isAdminMode, river, timeRange, prepareChartData])
+
+  // Averages for all panes (admin mode only)
+  const paneAverages = useMemo(() => {
+    if (!isAdminMode) return { flow: null, level: null, temperature: null }
+    return {
+      flow: getAverageFromChartData(allPaneChartData.flow, "flow"),
+      level: getAverageFromChartData(allPaneChartData.level, "level"),
+      temperature: getAverageFromChartData(allPaneChartData.temperature, "temperature"),
+    }
+  }, [isAdminMode, allPaneChartData])
   
   // Calculate X-axis interval
   const xAxisInterval = useMemo(() => {
@@ -899,6 +926,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
               {paneConfigs.map((pane) => {
                 const valueData = pane.getValue(river, extendedHistory)
                 const isDisabled = pane.isDisabled(river)
+                const paneAverage = paneAverages[pane.key as keyof typeof paneAverages]
 
                 return (
                   <TabsTrigger
@@ -911,10 +939,17 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                       {pane.label}
                     </span>
                     {valueData ? (
-                      <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
-                        {valueData.value}
-                        <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
-                      </span>
+                      <div className="flex items-baseline gap-3 sm:gap-4">
+                        <span className="text-sm sm:text-lg font-bold leading-none tabular-nums text-foreground">
+                          {valueData.value}
+                          <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
+                        </span>
+                        {paneAverage && (
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-normal tabular-nums">
+                            {paneAverage}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-xs sm:text-sm text-muted-foreground font-normal">--</span>
                     )}
@@ -943,8 +978,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
             {paneConfigs.map((pane) => {
               const valueData = pane.getValue(river, extendedHistory)
               const isDisabled = pane.isDisabled(river)
-              const isActive = dataType === pane.key
-              const showAverage = isActive && chartAverage
+              const paneAverage = paneAverages[pane.key as keyof typeof paneAverages]
 
               return (
                 <TabsTrigger
@@ -963,13 +997,13 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                           {valueData.value}
                           <span className="text-[10px] sm:text-xs font-medium ml-0.5">{valueData.unit}</span>
                         </span>
-                        {showAverage && (
+                        {paneAverage && (
                           <span className="text-[9px] sm:text-[10px] text-muted-foreground font-normal tabular-nums">
-                            {chartAverage}
+                            {paneAverage}
                           </span>
                         )}
                       </div>
-                      {valueData.subtext && !showAverage && (
+                      {valueData.subtext && !paneAverage && (
                         <span className="text-[9px] text-muted-foreground mt-0.5 hidden sm:block truncate font-normal">
                           {valueData.subtext}
                         </span>
