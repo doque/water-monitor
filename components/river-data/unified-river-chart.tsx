@@ -951,12 +951,14 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-        <div className="h-[250px] sm:h-[300px] w-full relative" ref={chartContainerRef}>
-          {chartTrendDisplay && (
-            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 z-20 text-[10px] sm:text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded border border-border/50">
+        {chartTrendDisplay && (
+          <div className="flex justify-end mb-1">
+            <span className="text-[10px] sm:text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
               {chartTrendDisplay}
-            </div>
-          )}
+            </span>
+          </div>
+        )}
+        <div className="h-[240px] sm:h-[280px] w-full relative" ref={chartContainerRef}>
           {showLoading && (
             <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
               <div className="text-sm text-muted-foreground animate-pulse">Daten werden geladen...</div>
@@ -966,7 +968,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
             <ChartContainer config={shadcnChartConfig} className="h-full w-full">
               <AreaChart
                 data={chartData}
-                margin={{ top: 24, right: 8, left: 0, bottom: 5 }}
+                margin={{ top: 10, right: 8, left: 0, bottom: 5 }}
               >
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
