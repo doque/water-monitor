@@ -31,8 +31,8 @@ export function RiverDataSkeleton() {
             ))}
           </div>
         </CardHeader>
-        <CardContent className="px-2 pt-1 pb-2 sm:px-6 sm:pt-3 sm:pb-6">
-          <div className="h-[280px] sm:h-[300px] w-full relative">
+        <CardContent className="px-0 pt-0 pb-1 sm:px-2 sm:pt-2 sm:pb-4">
+          <div className="h-[300px] sm:h-[320px] w-full relative">
             <Skeleton className="absolute top-1 right-1 sm:top-2 sm:right-2 h-4 w-24 sm:w-28" />
             <Skeleton className="h-full w-full" />
           </div>
