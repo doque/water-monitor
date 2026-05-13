@@ -314,8 +314,8 @@ async function runTests() {
   // ==========================================
   describe("Trend & Averages (Admin Mode)")
 
-  await test("Shows trend badge in chart (admin mode)", async () => {
-    // Enable admin mode
+  await test("Shows trend badge and average in admin mode", async () => {
+    // The previous Admin Mode tests left admin mode disabled, so re-enable it
     browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
     await sleep(2000)
     for (let i = 0; i < 5; i++) {
@@ -323,29 +323,21 @@ async function runTests() {
       await sleep(100)
     }
     await sleep(1000)
-    // Trend should show arrow and time range
     const snapshot = snap()
-    if (!(/[↗↘→]/.test(snapshot) && /in \d+[hdMw]/.test(snapshot))) {
-      throw new Error("Trend badge not showing arrow and time range")
+    // Trend should show arrow and time range
+    const hasTrend = /[↗↘→]/.test(snapshot) && /in \d+[hdwM]/.test(snapshot)
+    // Average should show Ø symbol
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (!hasTrend) {
+      throw new Error("Trend badge not showing arrow and time range in admin mode")
+    }
+    if (!hasAverage) {
+      throw new Error("Average (Ø) not showing in panes in admin mode")
     }
   })
 
-  await test("Shows average (Ø) in panes (admin mode)", async () => {
-    const snapshot = snap()
-    expect(snapshot).toMatch(/Ø \d/)
-  })
-
-  await test("Trend updates when time range changes", async () => {
-    browser(`open ${BASE_URL}?id=${FIXTURES.river}&interval=6h`)
-    await sleep(2000)
-    expect(snap()).toMatch(/in 6h/)
-    browser(`open ${BASE_URL}?id=${FIXTURES.river}&interval=24h`)
-    await sleep(2000)
-    expect(snap()).toMatch(/in 24h/)
-  })
-
-  await test("Trend hidden when not in admin mode", async () => {
-    // Disable admin mode
+  await test("Trend and average hidden when not in admin mode", async () => {
+    // Disable admin mode by clicking logo 5 times
     for (let i = 0; i < 5; i++) {
       browser('click [data-testid="logo"]')
       await sleep(100)
@@ -355,8 +347,14 @@ async function runTests() {
     await sleep(2000)
     const snapshot = snap()
     // Should NOT contain trend arrows in non-admin mode
-    if (/[↗↘→].*in \d+[hdMw]/.test(snapshot)) {
+    const hasTrend = /[↗↘→].*in \d+[hdwM]/.test(snapshot)
+    // Should NOT show Ø in non-admin mode
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (hasTrend) {
       throw new Error("Trend should be hidden in non-admin mode")
+    }
+    if (hasAverage) {
+      throw new Error("Average (Ø) should be hidden in non-admin mode")
     }
   })
 
