@@ -933,27 +933,27 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                     key={pane.key}
                     value={pane.key}
                     disabled={isDisabled}
-                    className="relative flex flex-col justify-start items-start gap-1 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
+                    className="relative flex flex-col justify-start items-start gap-0.5 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                   >
-                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    <span className="text-base text-muted-foreground">
                       {pane.label}
                     </span>
                     {valueData ? (
                       <>
                         <div className="flex items-baseline gap-0.5">
-                          <span className="text-2xl font-bold leading-none tabular-nums text-foreground">
+                          <span className="text-3xl font-bold leading-none tabular-nums text-foreground">
                             {valueData.value}
                           </span>
-                          <span className="text-base font-medium text-foreground">{valueData.unit}</span>
+                          <span className="text-lg font-medium text-foreground">{valueData.unit}</span>
                         </div>
                         {paneAverage && (
-                          <span className="text-xs text-muted-foreground font-normal tabular-nums">
+                          <span className="text-xs text-muted-foreground tabular-nums">
                             {paneAverage}
                           </span>
                         )}
                       </>
                     ) : (
-                      <span className="text-2xl text-muted-foreground font-normal">--</span>
+                      <span className="text-3xl text-muted-foreground">--</span>
                     )}
                   </TabsTrigger>
                 )
@@ -987,27 +987,27 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   key={pane.key}
                   value={pane.key}
                   disabled={isDisabled}
-                  className="relative flex flex-col justify-start items-start gap-1 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
+                  className="relative flex flex-col justify-start items-start gap-0.5 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                 >
-                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  <span className="text-base text-muted-foreground">
                     {pane.label}
                   </span>
                   {valueData ? (
                     <>
                       <div className="flex items-baseline gap-0.5">
-                        <span className="text-2xl font-bold leading-none tabular-nums text-foreground">
+                        <span className="text-3xl font-bold leading-none tabular-nums text-foreground">
                           {valueData.value}
                         </span>
-                        <span className="text-base font-medium text-foreground">{valueData.unit}</span>
+                        <span className="text-lg font-medium text-foreground">{valueData.unit}</span>
                       </div>
                       {paneAverage && (
-                        <span className="text-xs text-muted-foreground font-normal tabular-nums">
+                        <span className="text-xs text-muted-foreground tabular-nums">
                           {paneAverage}
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="text-2xl text-muted-foreground font-normal">--</span>
+                    <span className="text-3xl text-muted-foreground">--</span>
                   )}
                 </TabsTrigger>
               )
