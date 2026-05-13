@@ -71,12 +71,12 @@ export function TimeRangeSelect({ value, onValueChange, isLake, filteredOptions 
 
   return (
     <Select value={value} onValueChange={(value) => onValueChange(value as TimeRangeOption)}>
-      <SelectTrigger className="px-2 h-10 flex items-center justify-between">
-        <div className="truncate">{selectedOption?.label || "Zeitraum wählen"}</div>
+      <SelectTrigger className="px-3 h-11 text-base flex items-center justify-between">
+        <div className="truncate font-medium">{selectedOption?.label || "Zeitraum wählen"}</div>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem key={option.value} value={option.value} className="text-base py-2.5">
             {option.label}
           </SelectItem>
         ))}

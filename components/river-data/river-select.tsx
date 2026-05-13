@@ -93,7 +93,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
-        className="px-2 h-10"
+        className="px-3 h-11 text-base"
         style={{
           textOverflow: "unset",
           overflow: "visible",
@@ -101,7 +101,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
         }}
       >
         <div
-          className="flex items-center w-full justify-between"
+          className="flex items-center w-full justify-between text-base"
           style={{
             textOverflow: "unset",
             overflow: "visible",
@@ -112,8 +112,9 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
           }}
         >
           <div className="flex items-center">
-            {emoji && <span className="mr-1">{emoji}</span>}
+            {emoji && <span className="mr-1.5">{emoji}</span>}
             <span
+              className="font-medium"
               style={{
                 textOverflow: "unset",
                 overflow: "visible",
@@ -126,7 +127,7 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
               {selectedRiver?.name || "Gewässer auswählen"}
             </span>
           </div>
-          {currentValue && <span className="ml-1 text-sm text-muted-foreground">{currentValue}</span>}
+          {currentValue && <span className="ml-2 text-sm text-muted-foreground">{currentValue}</span>}
         </div>
       </SelectTrigger>
       <SelectContent>
@@ -136,10 +137,10 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
           const currentValue = getCurrentValue(river)
 
           return (
-            <SelectItem key={riverId} value={riverId}>
+            <SelectItem key={riverId} value={riverId} className="text-base py-2.5">
               <div className="flex items-center justify-between w-full">
                 <span className="flex items-center">
-                  {emoji && <span className="mr-1">{emoji}</span>}
+                  {emoji && <span className="mr-1.5">{emoji}</span>}
                   <span>
                     {river.name} {river.location ? `(${river.location})` : ""}
                   </span>

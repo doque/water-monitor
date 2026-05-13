@@ -46,10 +46,10 @@ export function AdminModeHeader() {
   }
 
   return (
-    <CardHeader className="bg-primary/5 flex flex-row items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
-      <div className="flex-1 flex flex-row items-center gap-2">
+    <CardHeader className="bg-primary/5 flex flex-row items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex-1 flex flex-row items-center gap-3">
         <div
-          className={`size-9 sm:size-11 relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
+          className={`size-10 sm:size-12 relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
             isAnimating ? "animate-bounce" : ""
           } ${adminMode ? "ring-2 ring-green-400 rounded-full" : ""}`}
           onClick={handleLogoClick}
@@ -63,18 +63,18 @@ export function AdminModeHeader() {
             className="object-contain"
             priority
           />
-          {adminMode && <div className="absolute -top-0.5 -right-0.5 size-2 bg-green-400 rounded-full animate-pulse" />}
+          {adminMode && <div className="absolute -top-0.5 -right-0.5 size-2.5 bg-green-400 rounded-full animate-pulse" />}
         </div>
         <div className="min-w-0">
-          <CardTitle className="text-primary text-xs sm:text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+          <CardTitle className="text-primary text-sm sm:text-base font-semibold flex items-center gap-1.5 flex-wrap">
             <span className="truncate">BFV Miesbach-Tegernsee</span>
             {adminMode && (
-              <span className="text-[10px] bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-1.5 py-0.5 rounded flex-shrink-0">
+              <span className="text-[11px] bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-1.5 py-0.5 rounded flex-shrink-0">
                 Admin
               </span>
             )}
           </CardTitle>
-          <CardDescription className="text-[10px] sm:text-xs truncate">Wasserstände, Temperaturen und Abflussraten</CardDescription>
+          <CardDescription className="text-xs sm:text-sm truncate">Wasserstände, Temperaturen und Abflussraten</CardDescription>
         </div>
       </div>
       <ThemeToggle />
