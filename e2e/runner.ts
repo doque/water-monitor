@@ -147,7 +147,7 @@ async function runTests() {
 
   // Setup browser
   browser(`open ${BASE_URL}`)
-  await sleep(1500)
+  await sleep(2000)
 
   // ==========================================
   describe("Page Load")
@@ -168,25 +168,25 @@ async function runTests() {
 
   await test("id param selects river", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.river2}`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toContain("Leitzach")
   })
 
   await test("id param selects lake", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lake}`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toContain("Tegernsee")
   })
 
   await test("pane param activates pane", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/cm/)
   })
 
   await test("interval param sets time range", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lake2}&interval=2w`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/2 Wochen/)
   })
 
@@ -195,13 +195,13 @@ async function runTests() {
 
   await test("Flow chart shows m³/s", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=flow`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/m³\/s/)
   })
 
   await test("Level chart shows cm", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/cm/)
   })
 
@@ -220,7 +220,7 @@ async function runTests() {
 
   await test("Defaults to level pane (no flow)", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lake}`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toContain("Pegel")
   })
 
@@ -240,7 +240,7 @@ async function runTests() {
 
   await test("Shows webcam", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lakeWithWebcam}`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/Webcam|img/i)
   })
 
@@ -249,7 +249,7 @@ async function runTests() {
 
   await test("Spitzingsee uses German date format (not ISO)", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lakeWithWebcam}&pane=temperature`)
-    await sleep(1500)
+    await sleep(2000)
     const snapshot = snap()
     // Should NOT have ISO format like "2024-03-06T00:00:00"
     if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(snapshot)) {
@@ -259,7 +259,7 @@ async function runTests() {
 
   await test("Lake tooltips show DD.MM.YYYY format", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.lake}&pane=level`)
-    await sleep(1500)
+    await sleep(2000)
     const snapshot = snap()
     // Verify no ISO dates leaked into the rendered output
     if (/\d{4}-\d{2}-\d{2}T/.test(snapshot)) {
@@ -273,22 +273,22 @@ async function runTests() {
   await test("Selection persists in localStorage for admin", async () => {
     // Start fresh
     browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
-    await sleep(1500)
+    await sleep(2000)
 
     // Enable admin mode by clicking logo 5 times
     for (let i = 0; i < 5; i++) {
       browser('click [data-testid="logo"]')
-      await sleep(50)
+      await sleep(100)
     }
-    await sleep(300)
+    await sleep(500)
 
     // Navigate to a specific selection
     browser(`open ${BASE_URL}?id=${FIXTURES.lake2}&pane=level&interval=1m`)
-    await sleep(1500)
+    await sleep(2000)
 
     // Open bare URL - should restore admin selection
     browser(`open ${BASE_URL}`)
-    await sleep(1500)
+    await sleep(2000)
 
     // Verify Schliersee was restored (the lake2 fixture)
     expect(snap()).toContain("Schliersee")
@@ -298,13 +298,13 @@ async function runTests() {
     // Disable admin mode by clicking logo 5 times again
     for (let i = 0; i < 5; i++) {
       browser('click [data-testid="logo"]')
-      await sleep(50)
+      await sleep(100)
     }
-    await sleep(300)
+    await sleep(500)
 
     // Open bare URL - should NOT restore, should show default (first river)
     browser(`open ${BASE_URL}`)
-    await sleep(1500)
+    await sleep(2000)
 
     // Should show Mangfall (default first river), not Schliersee
     const snapshot = snap()
@@ -312,38 +312,50 @@ async function runTests() {
   })
 
   // ==========================================
-  describe("Trend & Averages")
+  describe("Trend & Averages (Admin Mode)")
 
-  await test("Trend and average only visible in admin mode", async () => {
-    // First check non-admin mode (previous test disabled admin mode)
+  await test("Shows trend badge and average in admin mode", async () => {
+    // The previous Admin Mode tests left admin mode disabled, so re-enable it
     browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
-    await sleep(1200)
-    let snapshot = snap()
-    
-    // Should NOT show trend/average in non-admin mode
-    if (/Ø \d/.test(snapshot)) {
+    await sleep(2000)
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    const snapshot = snap()
+    // Trend should show arrow and time range
+    const hasTrend = /[↗↘→]/.test(snapshot) && /in \d+[hdwM]/.test(snapshot)
+    // Average should show Ø symbol
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (!hasTrend) {
+      throw new Error("Trend badge not showing arrow and time range in admin mode")
+    }
+    if (!hasAverage) {
+      throw new Error("Average (Ø) not showing in panes in admin mode")
+    }
+  })
+
+  await test("Trend and average hidden when not in admin mode", async () => {
+    // Disable admin mode by clicking logo 5 times
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+    const snapshot = snap()
+    // Should NOT contain trend arrows in non-admin mode
+    const hasTrend = /[↗↘→].*in \d+[hdwM]/.test(snapshot)
+    // Should NOT show Ø in non-admin mode
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (hasTrend) {
+      throw new Error("Trend should be hidden in non-admin mode")
+    }
+    if (hasAverage) {
       throw new Error("Average (Ø) should be hidden in non-admin mode")
     }
-    
-    // Enable admin mode
-    for (let i = 0; i < 5; i++) {
-      browser('click [data-testid="logo"]')
-      await sleep(50)
-    }
-    await sleep(500)
-    
-    snapshot = snap()
-    // Now should show average (Ø symbol)
-    if (!/Ø \d/.test(snapshot)) {
-      throw new Error("Average (Ø) not showing in admin mode")
-    }
-    
-    // Disable admin mode for next tests
-    for (let i = 0; i < 5; i++) {
-      browser('click [data-testid="logo"]')
-      await sleep(50)
-    }
-    await sleep(300)
   })
 
   // ==========================================
@@ -351,16 +363,16 @@ async function runTests() {
 
   await test("Pane persists when switching waters", async () => {
     browser(`open ${BASE_URL}?id=${FIXTURES.river}&pane=level`)
-    await sleep(1500)
+    await sleep(2000)
     browser(`open ${BASE_URL}?id=${FIXTURES.river2}&pane=level`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toMatch(/cm/)
   })
 
   await test("Mobile viewport renders", async () => {
     browser("set viewport 375 667")
     browser(`open ${BASE_URL}`)
-    await sleep(1500)
+    await sleep(2000)
     expect(snap()).toContain("Abfluss")
     browser("set viewport 1280 800")
   })
