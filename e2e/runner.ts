@@ -156,12 +156,11 @@ async function runTests() {
     expect(snap()).toContain("combobox")
   })
 
-  await test("Shows default pane (Abfluss)", async () => {
-    expect(snap()).toContain("Abfluss")
-  })
-
-  await test("Shows chart title", async () => {
-    expect(snap()).toContain("Entwicklung")
+  await test("Shows data type tabs (Abfluss, Pegel, Temperatur)", async () => {
+    const snapshot = snap()
+    expect(snapshot).toContain("Abfluss")
+    expect(snapshot).toContain("Pegel")
+    expect(snapshot).toContain("Temperatur")
   })
 
   // ==========================================
@@ -313,6 +312,55 @@ async function runTests() {
   })
 
   // ==========================================
+  describe("Trend & Averages (Admin Mode)")
+
+  await test("Shows trend badge in chart (admin mode)", async () => {
+    // Enable admin mode
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    // Trend should show arrow and time range
+    const snapshot = snap()
+    if (!(/[↗↘→]/.test(snapshot) && /in \d+[hdMw]/.test(snapshot))) {
+      throw new Error("Trend badge not showing arrow and time range")
+    }
+  })
+
+  await test("Shows average (Ø) in panes (admin mode)", async () => {
+    const snapshot = snap()
+    expect(snapshot).toMatch(/Ø \d/)
+  })
+
+  await test("Trend updates when time range changes", async () => {
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}&interval=6h`)
+    await sleep(2000)
+    expect(snap()).toMatch(/in 6h/)
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}&interval=24h`)
+    await sleep(2000)
+    expect(snap()).toMatch(/in 24h/)
+  })
+
+  await test("Trend hidden when not in admin mode", async () => {
+    // Disable admin mode
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+    const snapshot = snap()
+    // Should NOT contain trend arrows in non-admin mode
+    if (/[↗↘→].*in \d+[hdMw]/.test(snapshot)) {
+      throw new Error("Trend should be hidden in non-admin mode")
+    }
+  })
+
+  // ==========================================
   describe("Navigation")
 
   await test("Pane persists when switching waters", async () => {
@@ -327,7 +375,7 @@ async function runTests() {
     browser("set viewport 375 667")
     browser(`open ${BASE_URL}`)
     await sleep(2000)
-    expect(snap()).toContain("Entwicklung")
+    expect(snap()).toContain("Abfluss")
     browser("set viewport 1280 800")
   })
 
