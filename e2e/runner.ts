@@ -156,12 +156,11 @@ async function runTests() {
     expect(snap()).toContain("combobox")
   })
 
-  await test("Shows default pane (Abfluss)", async () => {
-    expect(snap()).toContain("Abfluss")
-  })
-
-  await test("Shows chart title", async () => {
-    expect(snap()).toContain("Entwicklung")
+  await test("Shows data type tabs (Abfluss, Pegel, Temperatur)", async () => {
+    const snapshot = snap()
+    expect(snapshot).toContain("Abfluss")
+    expect(snapshot).toContain("Pegel")
+    expect(snapshot).toContain("Temperatur")
   })
 
   // ==========================================
@@ -313,6 +312,53 @@ async function runTests() {
   })
 
   // ==========================================
+  describe("Trend & Averages (Admin Mode)")
+
+  await test("Shows trend badge and average in admin mode", async () => {
+    // The previous Admin Mode tests left admin mode disabled, so re-enable it
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    const snapshot = snap()
+    // Trend should show arrow and time range
+    const hasTrend = /[↗↘→]/.test(snapshot) && /in \d+[hdwM]/.test(snapshot)
+    // Average should show Ø symbol
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (!hasTrend) {
+      throw new Error("Trend badge not showing arrow and time range in admin mode")
+    }
+    if (!hasAverage) {
+      throw new Error("Average (Ø) not showing in panes in admin mode")
+    }
+  })
+
+  await test("Trend and average hidden when not in admin mode", async () => {
+    // Disable admin mode by clicking logo 5 times
+    for (let i = 0; i < 5; i++) {
+      browser('click [data-testid="logo"]')
+      await sleep(100)
+    }
+    await sleep(1000)
+    browser(`open ${BASE_URL}?id=${FIXTURES.river}`)
+    await sleep(2000)
+    const snapshot = snap()
+    // Should NOT contain trend arrows in non-admin mode
+    const hasTrend = /[↗↘→].*in \d+[hdwM]/.test(snapshot)
+    // Should NOT show Ø in non-admin mode
+    const hasAverage = /Ø \d/.test(snapshot)
+    if (hasTrend) {
+      throw new Error("Trend should be hidden in non-admin mode")
+    }
+    if (hasAverage) {
+      throw new Error("Average (Ø) should be hidden in non-admin mode")
+    }
+  })
+
+  // ==========================================
   describe("Navigation")
 
   await test("Pane persists when switching waters", async () => {
@@ -327,7 +373,7 @@ async function runTests() {
     browser("set viewport 375 667")
     browser(`open ${BASE_URL}`)
     await sleep(2000)
-    expect(snap()).toContain("Entwicklung")
+    expect(snap()).toContain("Abfluss")
     browser("set viewport 1280 800")
   })
 

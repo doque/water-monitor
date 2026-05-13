@@ -4,6 +4,7 @@ import { CardHeader, CardDescription, CardTitle } from "@/components/ui/card"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { isAdminMode, toggleAdminMode } from "@/utils/admin-mode"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function AdminModeHeader() {
   const [clickCount, setClickCount] = useState(0)
@@ -45,35 +46,38 @@ export function AdminModeHeader() {
   }
 
   return (
-    <CardHeader className="bg-blue-50 dark:bg-blue-950 flex flex-row items-center gap-2 p-3 sm:p-6">
-      <div
-        className={`w-[50px] h-[50px] sm:w-[80px] sm:h-[80px] relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
-          isAnimating ? "animate-bounce" : ""
-        } ${adminMode ? "ring-2 ring-green-400 rounded-full" : ""}`}
-        onClick={handleLogoClick}
-        title={adminMode ? "Admin Mode Active" : ""}
-        data-testid="logo"
-      >
-        <Image
-          src="/images/mbteg-logo.png"
-          alt="BFV Miesbach-Tegernsee Logo"
-          fill
-          className="object-contain"
-          priority
-        />
-        {adminMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />}
+    <CardHeader className="bg-primary/5 flex flex-row items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
+      <div className="flex-1 flex flex-row items-center gap-2">
+        <div
+          className={`size-9 sm:size-11 relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
+            isAnimating ? "animate-bounce" : ""
+          } ${adminMode ? "ring-2 ring-green-400 rounded-full" : ""}`}
+          onClick={handleLogoClick}
+          title={adminMode ? "Admin Mode Active" : ""}
+          data-testid="logo"
+        >
+          <Image
+            src="/images/mbteg-logo.png"
+            alt="BFV Miesbach-Tegernsee Logo"
+            fill
+            className="object-contain"
+            priority
+          />
+          {adminMode && <div className="absolute -top-0.5 -right-0.5 size-2 bg-green-400 rounded-full animate-pulse" />}
+        </div>
+        <div className="min-w-0">
+          <CardTitle className="text-primary text-xs sm:text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+            <span className="truncate">BFV Miesbach-Tegernsee</span>
+            {adminMode && (
+              <span className="text-[10px] bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-1.5 py-0.5 rounded flex-shrink-0">
+                Admin
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription className="text-[10px] sm:text-xs truncate">Wasserstände, Temperaturen und Abflussraten</CardDescription>
+        </div>
       </div>
-      <div>
-        <CardTitle className="text-blue-800 dark:text-blue-300 text-sm sm:text-xl">
-          BFV Miesbach-Tegernsee Monitor
-          {adminMode && (
-            <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
-              Admin
-            </span>
-          )}
-        </CardTitle>
-        <CardDescription className="text-xs sm:text-sm">Wasserstände, Temperaturen und Abflussraten</CardDescription>
-      </div>
+      <ThemeToggle />
     </CardHeader>
   )
 }

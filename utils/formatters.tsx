@@ -98,178 +98,70 @@ export function getChangeStatus(change: number, dataType: DataType) {
   return "stable"
 }
 
-// Calculate the absolute change for the selected time range
-export function calculateTimeRangeChange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
-  // Determine the data source based on the type
-  let data: any[] = []
-  if (dataType === "level") {
-    data = [...river.history.levels]
-  } else if (dataType === "temperature") {
-    data = [...river.history.temperatures]
-  } else if (dataType === "flow") {
-    data = [...river.history.flows]
+// Get average from chart data - returns formatted string or null
+export function getAverageFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType
+): string | null {
+  if (!chartData || chartData.length < 2) return null
+  
+  const values = chartData.map(d => d.value).filter((v): v is number => typeof v === "number")
+  if (values.length < 2) return null
+  
+  const average = values.reduce((sum, v) => sum + v, 0) / values.length
+  
+  let unit = ""
+  if (dataType === "flow") unit = "m³/s"
+  else if (dataType === "level") unit = "cm"
+  else if (dataType === "temperature") unit = "°C"
+  
+  let formatted = ""
+  if (dataType === "flow") {
+    formatted = average.toFixed(2)
+  } else {
+    formatted = average >= 10 ? average.toFixed(0) : average.toFixed(1)
   }
-
-  if (data.length === 0) return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-
-  // Current values (newest data point)
-  const current = data[0]
-
-  // Add null/undefined checks for current data point
-  if (!current) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
-
-  // Special handling for lake-specific time ranges
-  const isLake = river?.isLake
-  if (isLake && ["1w", "2w", "1m", "3m", "6m", "12m", "24m"].includes(timeRange)) {
-    // For lakes, we compare the first and last data points in the selected time range
-    const lakeDataPoints: Partial<Record<TimeRangeOption, number>> = {
-      "1w": 7,
-      "2w": 14,
-      "1m": 30,
-      "3m": 90,
-      "6m": 180,
-      "12m": 365,
-      "24m": 730,
-    }
-
-    const maxDataPoints = lakeDataPoints[timeRange] ?? 30
-
-    // Make sure we don't try to access beyond the available data
-    const compareIndex = Math.min(maxDataPoints - 1, data.length - 1)
-    if (compareIndex <= 0) {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-
-    const compareValue = data[compareIndex]
-
-    // Add null/undefined checks for comparison data point
-    if (!compareValue) {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-
-    // Calculate the absolute change with proper null checks
-    let absoluteChange = 0
-
-    if (dataType === "level") {
-      // Check if both values have the level property and are numbers
-      if (typeof current.level !== "number" || typeof compareValue.level !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.level - compareValue.level
-    } else if (dataType === "temperature") {
-      // Check if both values have the temperature property and are numbers
-      if (typeof current.temperature !== "number" || typeof compareValue.temperature !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.temperature - compareValue.temperature
-    } else if (dataType === "flow") {
-      // Check if both values have the flow property and are numbers
-      if (typeof current.flow !== "number" || typeof compareValue.flow !== "number") {
-        return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-      }
-      absoluteChange = current.flow - compareValue.flow
-    }
-
-    // Determine the status based on the absolute change
-    const status = getChangeStatus(absoluteChange, dataType)
-
-    return {
-      absoluteChange,
-      status,
-      timeSpan: timeRange,
-    }
-  }
-
-  // Original logic for rivers with 15-minute intervals
-  const idealDataPointsBack: Partial<Record<TimeRangeOption, number>> = {
-    "1h":  4,
-    "6h":  24,
-    "12h": 48,
-    "24h": 96,
-    "2d":  192,
-    "1w":  672,
-  }
-
-  const idealTargetIndex = idealDataPointsBack[timeRange]
-
-  // Minimum data requirements for reasonable extrapolation
-  const minDataPointsForTimeRange: Partial<Record<TimeRangeOption, number>> = {
-    "1h":  2,
-    "6h":  8,
-    "12h": 24,
-    "24h": 48,
-    "2d":  96,
-    "1w":  192,
-  }
-
-  const minRequired = minDataPointsForTimeRange[timeRange]
-
-  if (!idealTargetIndex || !minRequired || data.length < minRequired) {
-    // Not enough data for reasonable extrapolation
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
-
-  // Use the ideal index if we have enough data, otherwise use the oldest available data point
-  const actualTargetIndex = Math.min(idealTargetIndex, data.length - 1)
-
-  // Get the comparison value
-  const compareValue = data[actualTargetIndex]
-
-  // Add null/undefined checks for comparison data point
-  if (!compareValue) {
-    return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-  }
-
-  // Calculate the absolute change with proper null checks
-  let absoluteChange = 0
-
-  if (dataType === "level") {
-    // Check if both values have the level property and are numbers
-    if (typeof current.level !== "number" || typeof compareValue.level !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.level - compareValue.level
-  } else if (dataType === "temperature") {
-    // Check if both values have the temperature property and are numbers
-    if (typeof current.temperature !== "number" || typeof compareValue.temperature !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.temperature - compareValue.temperature
-  } else if (dataType === "flow") {
-    // Check if both values have the flow property and are numbers
-    if (typeof current.flow !== "number" || typeof compareValue.flow !== "number") {
-      return { absoluteChange: null, status: "stable", timeSpan: timeRange }
-    }
-    absoluteChange = current.flow - compareValue.flow
-  }
-
-  // If we don't have the full time range, extrapolate the change
-  if (actualTargetIndex < idealTargetIndex) {
-    // Calculate the extrapolation factor
-    const actualTimePoints = actualTargetIndex
-    const idealTimePoints = idealTargetIndex
-    const extrapolationFactor = idealTimePoints / actualTimePoints
-
-    // Extrapolate the change to the full requested time range
-    absoluteChange = absoluteChange * extrapolationFactor
-  }
-
-  // Determine the status based on the absolute change
-  const status = getChangeStatus(absoluteChange, dataType)
-
-  return {
-    absoluteChange,
-    status,
-    timeSpan: timeRange, // Always return the requested time span
-  }
+  
+  return `Ø ${formatted}${unit}`
 }
 
-// Format the trend for the selected time range
-export function formatTrendForTimeRange(river: RiverData, dataType: DataType, timeRange: TimeRangeOption) {
-  const change = calculateTimeRangeChange(river, dataType, timeRange)
-  if (change.absoluteChange === null || Math.abs(change.absoluteChange) < 0.05) return null
+// Calculate trend from chart data array
+// chartData should be in display order (oldest first, newest last)
+export function calculateTrendFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType,
+  timeRange: TimeRangeOption
+) {
+  if (!chartData || chartData.length < 2) {
+    return { absoluteChange: 0, deltaFromAvg: 0, average: 0, current: 0, status: "stable" as const, timeSpan: timeRange }
+  }
+
+  // chartData is in display order: oldest first, newest last
+  const values = chartData.map(d => d.value).filter((v): v is number => typeof v === "number")
+  
+  if (values.length < 2) {
+    return { absoluteChange: 0, deltaFromAvg: 0, average: 0, current: 0, status: "stable" as const, timeSpan: timeRange }
+  }
+
+  const oldestValue = values[0]
+  const newestValue = values[values.length - 1]
+  const average = values.reduce((sum, v) => sum + v, 0) / values.length
+  const deltaFromAvg = newestValue - average
+
+  const absoluteChange = newestValue - oldestValue
+  const status = getChangeStatus(absoluteChange, dataType)
+
+  return { absoluteChange, deltaFromAvg, average, current: newestValue, status, timeSpan: timeRange }
+}
+
+// Format the trend from chart data
+// Always returns a string - never null
+export function formatTrendFromChartData(
+  chartData: { value?: number }[],
+  dataType: DataType,
+  timeRange: TimeRangeOption
+): string {
+  const change = calculateTrendFromChartData(chartData, dataType, timeRange)
 
   // Get unit based on data type
   let unit = ""
@@ -304,35 +196,27 @@ export function formatTrendForTimeRange(river: RiverData, dataType: DataType, ti
     }
   }
 
-  // Format the absolute change: For flow use 2 decimal places, for others use existing logic
-  let formattedChange = ""
+  // Format the absolute change (newest - oldest): For flow use 2 decimal places, for others use existing logic
+  let changeFormatted = ""
   if (dataType === "flow") {
-    formattedChange = Math.abs(change.absoluteChange).toFixed(2)
+    changeFormatted = Math.abs(change.absoluteChange).toFixed(2)
   } else {
-    formattedChange =
+    changeFormatted =
       Math.abs(change.absoluteChange) >= 10
         ? Math.abs(change.absoluteChange).toFixed(0)
         : Math.abs(change.absoluteChange).toFixed(1)
   }
 
-  // Get the appropriate emoji
-  let emoji = "➡️"
-  if (change.status !== "stable") {
-    emoji = change.absoluteChange > 0 ? "↗️" : "↘️"
+  // Get trend arrow based on absolute change
+  let arrow = "→"
+  if (change.absoluteChange > 0.01) {
+    arrow = "↗"
+  } else if (change.absoluteChange < -0.01) {
+    arrow = "↘"
   }
 
-  // Format the sign and value properly
-  const sign = change.absoluteChange > 0 ? "+" : "-"
-  const displayValue = formattedChange
-
-  // Always show the requested time range
+  const sign = change.absoluteChange >= 0 ? "+" : ""
   const timeRangeDisplay = getTimeRangeText(change.timeSpan)
 
-  return (
-    <span>
-      {emoji} {sign}
-      {displayValue}
-      {unit} in {timeRangeDisplay}
-    </span>
-  )
+  return `${arrow} ${sign}${changeFormatted}${unit} in ${timeRangeDisplay}`
 }
