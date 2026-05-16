@@ -933,7 +933,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                     key={pane.key}
                     value={pane.key}
                     disabled={isDisabled}
-                    className="relative flex flex-col justify-start items-start gap-0.5 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
+                  className="relative flex flex-col justify-start items-start gap-0.5 px-2 py-2 sm:px-4 sm:py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                   >
                     <span className="text-base text-muted-foreground">
                       {pane.label}
@@ -987,7 +987,7 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   key={pane.key}
                   value={pane.key}
                   disabled={isDisabled}
-                  className="relative flex flex-col justify-start items-start gap-0.5 px-4 py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
+                  className="relative flex flex-col justify-start items-start gap-0.5 px-2 py-2 sm:px-4 sm:py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                 >
                   <span className="text-base text-muted-foreground">
                     {pane.label}
