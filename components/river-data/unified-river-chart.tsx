@@ -935,16 +935,27 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                     disabled={isDisabled}
                   className="relative flex flex-col justify-start items-start gap-0.5 px-2 py-2 sm:px-4 sm:py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                   >
-                    <span className="text-base text-muted-foreground">
+                    <span 
+                      className="text-muted-foreground"
+                      style={{ fontSize: "clamp(0.8rem, 2.5vw, 1rem)" }}
+                    >
                       {pane.label}
                     </span>
                     {valueData ? (
                       <>
                         <div className="flex items-baseline gap-0.5">
-                          <span className="text-3xl font-bold leading-none tabular-nums text-foreground">
+                          <span 
+                            className="font-bold leading-none tabular-nums text-foreground"
+                            style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}
+                          >
                             {valueData.value}
                           </span>
-                          <span className="text-lg font-medium text-foreground">{valueData.unit}</span>
+                          <span 
+                            className="font-medium text-foreground"
+                            style={{ fontSize: "clamp(0.875rem, 3vw, 1.125rem)" }}
+                          >
+                            {valueData.unit}
+                          </span>
                         </div>
                         {paneAverage && (
                           <span className="text-xs text-muted-foreground tabular-nums">
@@ -953,7 +964,12 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                         )}
                       </>
                     ) : (
-                      <span className="text-3xl text-muted-foreground">--</span>
+                      <span 
+                        className="text-muted-foreground"
+                        style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}
+                      >
+                        --
+                      </span>
                     )}
                   </TabsTrigger>
                 )
@@ -989,16 +1005,27 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                   disabled={isDisabled}
                   className="relative flex flex-col justify-start items-start gap-0.5 px-2 py-2 sm:px-4 sm:py-3 rounded-none border-r last:border-r-0 data-[state=active]:bg-background data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] disabled:opacity-40"
                 >
-                  <span className="text-base text-muted-foreground">
+                  <span 
+                    className="text-muted-foreground"
+                    style={{ fontSize: "clamp(0.8rem, 2.5vw, 1rem)" }}
+                  >
                     {pane.label}
                   </span>
                   {valueData ? (
                     <>
                       <div className="flex items-baseline gap-0.5">
-                        <span className="text-3xl font-bold leading-none tabular-nums text-foreground">
+                        <span 
+                          className="font-bold leading-none tabular-nums text-foreground"
+                          style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}
+                        >
                           {valueData.value}
                         </span>
-                        <span className="text-lg font-medium text-foreground">{valueData.unit}</span>
+                        <span 
+                          className="font-medium text-foreground"
+                          style={{ fontSize: "clamp(0.875rem, 3vw, 1.125rem)" }}
+                        >
+                          {valueData.unit}
+                        </span>
                       </div>
                       {paneAverage && (
                         <span className="text-xs text-muted-foreground tabular-nums">
@@ -1007,7 +1034,12 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                       )}
                     </>
                   ) : (
-                    <span className="text-3xl text-muted-foreground">--</span>
+                    <span 
+                      className="text-muted-foreground"
+                      style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}
+                    >
+                      --
+                    </span>
                   )}
                 </TabsTrigger>
               )
