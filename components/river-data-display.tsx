@@ -73,7 +73,7 @@ export function RiverDataDisplay(): JSX.Element {
 
   // Memoize filtered rivers to prevent unnecessary recalculations
   const filteredRivers = useMemo(() => {
-    return adminMode ? data?.rivers : data?.rivers?.filter((river) => river.name !== "Söllbach")
+    return adminMode ? data?.rivers : data?.rivers?.filter((river) => !river.adminOnly)
   }, [adminMode, data?.rivers])
 
   // Memoize rivers with IDs to prevent unnecessary recalculations
@@ -131,6 +131,9 @@ export function RiverDataDisplay(): JSX.Element {
   // Helper function to generate consistent IDs for both rivers and lakes
   function getRiverOrLakeId(river: any): string {
     if (!river) return "unknown"
+
+    // Explicit id wins — pins the URL id for water bodies without a levelUrl to derive it from
+    if (river.id) return river.id
 
     if (river.isLake) {
       const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown-lake"

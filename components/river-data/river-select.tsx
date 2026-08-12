@@ -65,6 +65,9 @@ export function RiverSelect({ rivers, value, onValueChange, showColors = false }
   const getRiverId = (river: RiverData): string => {
     if (!river) return "unknown-river"
 
+    // Explicit id wins — pins the URL id for water bodies without a levelUrl to derive it from
+    if (river.id) return river.id
+
     const name = river.name ? river.name.toLowerCase().replace(/\s+/g, "-") : "unknown"
 
     // For lakes, create a simple unique identifier based on name only

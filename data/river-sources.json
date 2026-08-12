@@ -2,14 +2,16 @@
   "rivers": [
     {
       "name": "Mangfall",
-      "location": "Valley",
-      "gkdSlug": "valley-18203003",
-      "levelUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=wasserstand&setdiskr=15",
-      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/valley-18203003/tabelle?methode=abfluss&setdiskr=15",
+      "id": "schmerold-18202000",
+      "location": "Schmerold",
+      "gkdSlug": "feldolling-18204006",
+      "gkdFlowSlug": "schmerold-q-18202001",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/inn/schmerold-q-18202001/tabelle?methode=abfluss&setdiskr=15",
+      "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/bayern/feldolling-18204006/tabelle",
       "flowThresholds": {
-        "green": [2, 8],
-        "yellow": [8, 10],
-        "red": [[null, 2], [8, null]]
+        "green": [1.4, 5.5],
+        "yellow": [5.5, 7],
+        "red": [[null, 1.4], [5.5, null]]
       }
     },
     {
@@ -61,10 +63,24 @@
       "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=wasserstand&setdiskr=15",
       "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218306/tabelle?methode=abfluss&setdiskr=15",
       "temperatureUrl": "https://www.nid.bayern.de/wassertemperatur/isar/bad-wiessee-18218306/tabelle",
+      "adminOnly": true,
       "flowThresholds": {
         "green": [0.3, 1.5],
         "yellow": [1.5, 3],
         "red": [[null, 0.3], [3, null]]
+      }
+    },
+    {
+      "name": "Zeiselbach",
+      "location": "Bad Wiessee",
+      "gkdSlug": "bad-wiessee-18218000",
+      "levelUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218000/tabelle?methode=wasserstand&setdiskr=15",
+      "flowUrl": "https://www.hnd.bayern.de/pegel/isar/bad-wiessee-18218000/tabelle?methode=abfluss&setdiskr=15",
+      "adminOnly": true,
+      "flowThresholds": {
+        "green": [0.04, 0.3],
+        "yellow": [0.3, 0.5],
+        "red": [[null, 0.04], [0.3, null]]
       }
     },
     {

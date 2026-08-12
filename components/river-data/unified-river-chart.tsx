@@ -665,6 +665,11 @@ export function UnifiedRiverChart({
     return ticks
   }, [isLakeLevelWithRef, yAxisDomain])
 
+  // Integer ticks collapse into duplicates when the domain spans less than one unit per
+  // interval (e.g. a flow of 0.036 m³/s gives domain [0, 0.1] → ticks [0, 0])
+  const yAxisRange = (yAxisDomain[1] as number) - (yAxisDomain[0] as number)
+  const yAxisDecimals = isLakeLevelWithRef || yAxisRange >= optimalTickCount - 1 ? 0 : yAxisRange < 1 ? 2 : 1
+
   // Y-axis tick formatter
   const yAxisTickFormatter = useCallback((value: number) => {
     if (isLakeLevelWithRef && lakeLevelAverage) {
@@ -677,8 +682,8 @@ export function UnifiedRiverChart({
       }
       return rounded > 0 ? `+${rounded}` : `${rounded}`
     }
-    return Math.round(value).toString()
-  }, [isLakeLevelWithRef, lakeLevelAverage])
+    return value.toFixed(yAxisDecimals)
+  }, [isLakeLevelWithRef, lakeLevelAverage, yAxisDecimals])
 
   // Prepare chart data based on data type
   const chartData = useMemo(() => {
@@ -1065,9 +1070,9 @@ const showGkdLoading = isGkdLoading && isGkdRange && !hasServerData
                     ? (props: any) => <CustomLakeLevelYAxisTick {...props} lakeLevelAverage={lakeLevelAverage} />
                     : { fontSize: 10 }
                   }
-                  width={isLakeLevelWithRef ? 60 : 30}
+                  width={isLakeLevelWithRef ? 60 : yAxisDecimals > 0 ? 38 : 30}
                   stroke="currentColor"
-                  allowDecimals={false}
+                  allowDecimals={yAxisDecimals > 0}
                   allowDataOverflow={false}
                   tickLine={false}
                   axisLine={false}

@@ -37,6 +37,10 @@ export function useGkdData(
 
   const gkdSlug = river?.gkdSlug
   const gkdLevelSlug = river?.gkdLevelSlug
+  // A water body's metrics can come from separate GKD stations — Mangfall reads level from
+  // schmerold-18202000, flow from schmerold-q-18202001 and temperature from feldolling-18204006
+  const gkdFlowSlug = river?.gkdFlowSlug ?? gkdSlug
+  const gkdTemperatureSlug = river?.gkdTemperatureSlug ?? gkdSlug
   const isLake = !!river?.isLake
   const isGkdRange = GKD_RANGES.has(timeRange)
   const cacheKey = gkdSlug || ""
@@ -113,7 +117,8 @@ export function useGkdData(
           const types: DataType[] = ["temperature", "level", "flow"]
           await Promise.all(types.map(async (type) => {
             try {
-              const params = new URLSearchParams({ kind, type, slug: gkdSlug, beginn, ende })
+              const slug = type === "flow" ? gkdFlowSlug : type === "temperature" ? gkdTemperatureSlug : gkdSlug
+              const params = new URLSearchParams({ kind, type, slug, beginn, ende })
               const res = await fetch(`/api/gkd?${params}`, { signal: controller.signal })
               if (!res.ok || controller.signal.aborted) return
               const json = await res.json()
@@ -141,7 +146,7 @@ export function useGkdData(
     doFetch()
     return () => controller.abort()
     // dataType intentionally excluded — we fetch all types at once
-  }, [gkdSlug, gkdLevelSlug, cacheKey, isGkdRange, needsGkdForLevel, river?.name, isLake])
+  }, [gkdSlug, gkdLevelSlug, gkdFlowSlug, gkdTemperatureSlug, cacheKey, isGkdRange, needsGkdForLevel, river?.name, isLake])
 
   // For lakes, return GKD data for all lake time ranges (including "1w")
   // since lakes don't have server-side level data

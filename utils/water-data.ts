@@ -81,6 +81,7 @@ export type AlertLevel = "normal" | "warning" | "alert"
 
 export interface RiverData {
   name: string
+  id?: string // Explicit URL id — pins the id when it can't be derived from levelUrl
   location: string
   current: {
     level?: WaterLevelDataPoint
@@ -106,7 +107,7 @@ export interface RiverData {
     flowStatus?: ChangeStatus
   }
   urls: {
-    level: string
+    level?: string
     temperature?: string
     flow?: string
   }
@@ -115,8 +116,11 @@ export interface RiverData {
   flowThresholds?: Thresholds
   alertLevel?: AlertLevel
   isLake?: boolean
+  adminOnly?: boolean
   gkdSlug?: string
   gkdLevelSlug?: string
+  gkdFlowSlug?: string // Set when the flow gauge is a separate GKD station from the level gauge
+  gkdTemperatureSlug?: string // Set when the temperature gauge is a separate GKD station from the level gauge
   pegelnullpunkt?: number // Lake level reference point in m NHN
 }
 
@@ -362,7 +366,7 @@ async function fetchWaterTemperature(url: string): Promise<{
         // Look for cell containing temperature pattern
         cells.each((i, cell) => {
           const cellText = $(cell).text().trim()
-          if (cellText.match(/\d+[.,]\d*\s*°?C?/) && !tempText) {
+          if (cellText.match(/\d+(?:[.,]\d+)?\s*°?C?/) && !tempText) {
             tempText = cellText
           }
         })
@@ -378,8 +382,8 @@ async function fetchWaterTemperature(url: string): Promise<{
         situation = cells.eq(2).text().trim()
       }
 
-      // Extract temperature value
-      const tempMatch = tempText.match(/(\d+[.,]\d*)/)
+      // Extract temperature value — the decimal part is optional, whole degrees ("26") are valid
+      const tempMatch = tempText.match(/(\d+(?:[.,]\d+)?)/)
       if (!tempMatch) return
 
       const temperature = Number.parseFloat(tempMatch[1].replace(",", "."))
@@ -748,6 +752,7 @@ async function fetchRiverData(config): Promise<RiverData> {
     // Flussdatenobjekt erstellen
     const riverData: RiverData = {
       name: config.name,
+      id: config.id,
       location: config.location,
       current: {
         level: dataMap.level.current,
@@ -782,8 +787,11 @@ async function fetchRiverData(config): Promise<RiverData> {
       flowThresholds: config.flowThresholds,
       alertLevel: alertLevel,
       isLake: config.isLake === true,
+      adminOnly: config.adminOnly === true,
       gkdSlug: config.gkdSlug,
       gkdLevelSlug: config.gkdLevelSlug,
+      gkdFlowSlug: config.gkdFlowSlug,
+      gkdTemperatureSlug: config.gkdTemperatureSlug,
       pegelnullpunkt: config.pegelnullpunkt,
     }
 
@@ -792,6 +800,7 @@ async function fetchRiverData(config): Promise<RiverData> {
     // Return empty river data on error
     return {
       name: config.name,
+      id: config.id,
       location: config.location,
       current: {},
       history: {
@@ -810,8 +819,11 @@ async function fetchRiverData(config): Promise<RiverData> {
       flowThresholds: config.flowThresholds,
       alertLevel: "normal",
       isLake: config.isLake === true,
+      adminOnly: config.adminOnly === true,
       gkdSlug: config.gkdSlug,
       gkdLevelSlug: config.gkdLevelSlug,
+      gkdFlowSlug: config.gkdFlowSlug,
+      gkdTemperatureSlug: config.gkdTemperatureSlug,
       pegelnullpunkt: config.pegelnullpunkt,
     }
   }
@@ -820,10 +832,10 @@ async function fetchRiverData(config): Promise<RiverData> {
 // Hauptfunktion zum Abrufen aller Flussdaten - NO CACHING
 export async function fetchRiversData(includeAllRivers = false): Promise<RiversData> {
   try {
-    // Filter rivers based on admin mode - exclude Söllbach in normal mode
+    // Filter rivers based on admin mode - exclude adminOnly water bodies in normal mode
     const riversToFetch = includeAllRivers
       ? riverSources.rivers
-      : riverSources.rivers.filter((river) => river.name !== "Söllbach")
+      : riverSources.rivers.filter((river) => !("adminOnly" in river && river.adminOnly))
 
     // Alle Flüsse parallel abrufen - NO CACHING
     const riversPromises = riversToFetch.map((config) => fetchRiverData(config))
@@ -878,6 +890,25 @@ export function extractRiverId(url: string): string {
 
   // If we can't extract the ID, return a fallback
   return "unknown"
+}
+
+// Turn a gauge slug into a display name, e.g. "schmerold-q-18202001" → "Schmerold Q"
+export function formatStationName(slug?: string): string | null {
+  if (!slug || slug === "unknown") return null
+  const name = slug
+    .replace(/-\d+$/, "") // drop the trailing gauge number
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+  return name || null
+}
+
+// Display name of the gauge a source URL points at — a water body's level, flow and
+// temperature can each come from a different station (see gkdFlowSlug/gkdTemperatureSlug)
+export function extractStationName(url?: string): string | null {
+  if (!url || url.startsWith("ext:")) return null
+  return formatStationName(extractRiverId(url))
 }
 
 export type WaterLevelData = RiverData

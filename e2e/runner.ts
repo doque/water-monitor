@@ -16,7 +16,7 @@ const LOCAL_PORT = 3000
 
 // Test fixtures - abstract water body references
 const FIXTURES = {
-  river: "valley-18203003",
+  river: "schmerold-18202000",
   river2: "stauden-18242005",
   lake: "lake-tegernsee",
   lake2: "lake-schliersee",

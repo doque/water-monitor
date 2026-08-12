@@ -46,7 +46,7 @@ contexts/
   river-data-context.tsx   RiverDataProvider + useRiverData hook
 
 data/
-  river-sources.json       Static config for all 8 water bodies
+  river-sources.json       Static config for all 9 water bodies
 
 utils/
   water-data.ts            fetchRiversData(), scrapers, types
@@ -90,16 +90,38 @@ app/page.tsx  [Server Component]
 
 | Water body | Type | Level | Flow | Temperature | Webcam |
 |---|---|---|---|---|---|
-| Mangfall (Valley) | River | ✓ | ✓ | — | — |
+| Mangfall (Schmerold) | River | — | ✓ | ✓ | — |
 | Leitzach (Stauden) | River | ✓ | ✓ | ✓ | ✓ |
 | Weißach (Oberach) | River | ✓ | ✓ | ✓ | ✓ |
 | Schlierach (Miesbach) | River | ✓ | ✓ | ✓ | ✓ |
 | Söllbach (Bad Wiessee) | River* | ✓ | ✓ | ✓ | — |
+| Zeiselbach (Bad Wiessee) | River* | ✓ | ✓ | — | — |
 | Schliersee | Lake | — | — | ✓ (daily) | — |
 | Tegernsee | Lake | — | — | ✓ (daily) | — |
 | Spitzingsee | Lake | — | — | ✓ (daily) | ✓ |
 
-\* Söllbach is **admin-only** (hidden in normal mode).
+\* Marked `"adminOnly": true` in `river-sources.json` — hidden in normal mode.
+
+**Split gauges:** each metric of a water body can come from a *different* station. Mangfall
+has no Pegel at all and draws its two metrics from two stations:
+
+| Metric | Station | Live source | GKD slug key |
+|---|---|---|---|
+| Pegel | — | *(removed)* | — |
+| Abfluss | Schmerold Q | `hnd.bayern.de/pegel/inn/schmerold-q-18202001` | `gkdFlowSlug` |
+| Temperatur | Feldolling | `nid.bayern.de/wassertemperatur/bayern/feldolling-18204006` | `gkdSlug` |
+
+`levelUrl`/`flowUrl`/`temperatureUrl` are already independent for live scraping. For GKD long
+ranges, `gkdSlug` is the default and `gkdFlowSlug`/`gkdTemperatureSlug` override per type —
+both fall back to `gkdSlug` when absent. **`useGkdData` bails out entirely when `gkdSlug` is
+empty**, so it must always hold a valid slug even if that metric isn't the "primary" one.
+A wrong slug 404s, and every fetch path swallows that silently, so probe before trusting it.
+
+A metric is dropped by omitting its URL: the pane stays visible but renders disabled (`--`),
+and `DataSourcesFooter` omits the link.
+
+`DataSourcesFooter` labels each link with its gauge via `extractStationName()`, which derives
+the display name from the URL slug (`schmerold-q-18202001` → "Schmerold Q").
 
 **Bayern.de scraping target:** `table.tblsort tbody tr` → first `td` = date, `td.center` = value.
 **Date format:** `DD.MM.YYYY HH:MM` (German).
@@ -111,7 +133,9 @@ app/page.tsx  [Server Component]
 `/?id=<riverId>&pane=<dataType>&interval=<timeRange>`
 
 ### `id` — water body identifier
-- **Rivers:** slug extracted from `levelUrl` path, e.g. `valley-18203003` from `.../pegel/inn/valley-18203003/tabelle`
+- **Explicit `id` in `river-sources.json` wins** when present. Mangfall pins `"id": "schmerold-18202000"` so its URL stayed stable after its `levelUrl` was removed.
+- **Rivers:** otherwise the slug extracted from `levelUrl`, e.g. `schmerold-18202000` from `.../pegel/isar/schmerold-18202000/tabelle`. Always the **level** slug — a differing `flowUrl` slug never affects the ID.
+- **No `levelUrl` and no `id`:** falls back to `river-<name>-<location>`.
 - **Lakes:** `lake-<name>` (name lowercased, spaces → hyphens), e.g. `lake-schliersee`
 - ID generation is in `getRiverOrLakeId()` in `river-data-display.tsx` and `getRiverId()` in `river-select.tsx` — keep these in sync.
 
@@ -165,7 +189,7 @@ Lakes use daily data:
 - **Toggle:** click logo 5× within 3 s → `toggleAdminMode()`
 - **Storage:** cookie `water_monitor_admin_mode=true` (1-year expiry)
 - **Effects:**
-  - Söllbach river becomes visible
+  - `adminOnly` water bodies (Söllbach, Zeiselbach) become visible
   - `RiverSelect` shows status emojis (🔴🟡🟢) + current values
   - Chart and FlowCard colored by `alertLevel` (red/amber/blue)
   - Schliersee/Tegernsee use `situation` field for color (not flow thresholds)
@@ -237,9 +261,10 @@ DataType = "level" | "temperature" | "flow"
 ## Adding a New Water Body
 
 1. Add entry to `data/river-sources.json` with `name`, `location`, URLs, `flowThresholds` (rivers) or `isLake: true` (lakes)
-2. River IDs auto-derive from `levelUrl` slug — no manual ID assignment needed
+2. River IDs auto-derive from `levelUrl` slug — no manual ID assignment needed. Set an explicit `id` only when there is no `levelUrl`, or to keep an existing URL working after a source change
 3. Lakes auto-get `lake-<name>` ID
-4. Söllbach pattern: add `name: "Söllbach"` and it's filtered out in `fetchRiversData()` and `filteredRivers` unless admin mode
+4. Admin-only: add `"adminOnly": true` and it's filtered out in `fetchRiversData()` and `filteredRivers` unless admin mode
+5. Split gauges: add `gkdFlowSlug` / `gkdTemperatureSlug` so GKD long ranges hit the right station (see Data Sources)
 
 ## Adding a New URL Parameter
 

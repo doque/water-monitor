@@ -1,4 +1,5 @@
 import type { RiverData } from "@/utils/water-data"
+import { extractStationName, formatStationName } from "@/utils/water-data"
 
 interface DataSourcesFooterProps {
   river: RiverData
@@ -33,62 +34,69 @@ export function DataSourcesFooter({ river }: DataSourcesFooterProps) {
   const hasGkdLevel = river.isLake && river.gkdLevelSlug
   const hasTemperature = river.current.temperature && river.urls.temperature && !river.urls.temperature?.startsWith("ext:")
 
+  // Each metric is attributed to its own gauge — they are not always the same station
+  const sources: { key: string; href: string; label: string; station: string | null; detail: string }[] = []
+
+  if (hasFlow) {
+    sources.push({
+      key: "flow",
+      href: river.urls.flow!,
+      label: "Abfluss",
+      station: extractStationName(river.urls.flow),
+      detail: safeExtractTime(river.current.flow!.date),
+    })
+  }
+
+  if (hasLevel) {
+    sources.push({
+      key: "level",
+      href: river.urls.level,
+      label: "Pegel",
+      station: extractStationName(river.urls.level),
+      detail: safeExtractTime(river.current.level!.date),
+    })
+  } else if (hasGkdLevel) {
+    sources.push({
+      key: "level",
+      href: `https://www.gkd.bayern.de/de/seen/wasserstand/bayern/${river.gkdLevelSlug}/messwerte`,
+      label: "Pegel",
+      station: formatStationName(river.gkdLevelSlug),
+      detail: "GKD",
+    })
+  }
+
+  if (hasTemperature) {
+    sources.push({
+      key: "temperature",
+      href: river.urls.temperature!,
+      label: "Temperatur",
+      station: extractStationName(river.urls.temperature),
+      detail: safeExtractTime(river.current.temperature!.date, river.isLake),
+    })
+  }
+
   // Don't render anything if there are no data sources (e.g., Spitzingsee)
-  if (!hasFlow && !hasLevel && !hasGkdLevel && !hasTemperature) {
+  if (sources.length === 0) {
     return null
   }
 
-  // Build GKD level URL for lakes
-  const gkdLevelUrl = hasGkdLevel
-    ? `https://www.gkd.bayern.de/de/seen/wasserstand/bayern/${river.gkdLevelSlug}/messwerte`
-    : null
-
   return (
-    <div className="text-xs text-muted-foreground text-center space-x-2">
+    <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
       <span>Datenquellen:</span>
-      {hasFlow && (
-        <a
-          href={river.urls.flow}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Abfluss ({safeExtractTime(river.current.flow.date)})
-        </a>
-      )}
-      {hasFlow && (hasLevel || hasGkdLevel) && <span>|</span>}
-      {hasLevel && (
-        <a
-          href={river.urls.level}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Pegel ({safeExtractTime(river.current.level!.date)})
-        </a>
-      )}
-      {hasGkdLevel && !hasLevel && gkdLevelUrl && (
-        <a
-          href={gkdLevelUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Pegel (GKD)
-        </a>
-      )}
-      {(hasLevel || hasGkdLevel) && hasTemperature && <span>|</span>}
-      {!hasLevel && hasFlow && hasTemperature && <span>|</span>}
-      {hasTemperature && (
-        <a
-          href={river.urls.temperature}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-        >
-          Temperatur ({safeExtractTime(river.current.temperature.date, river.isLake)})
-        </a>
-      )}
+      {sources.map((source, index) => (
+        <span key={source.key} className="flex items-center gap-x-2">
+          <a
+            href={source.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+          >
+            {source.label}
+            {source.station ? `: ${source.station}` : ""} ({source.detail})
+          </a>
+          {index < sources.length - 1 && <span aria-hidden="true">|</span>}
+        </span>
+      ))}
     </div>
   )
 }
